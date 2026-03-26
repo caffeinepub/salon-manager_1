@@ -1,0 +1,14 @@
+{
+  "name": "Salon360",
+  "short_name": "Salon360",
+  "description": "भारत का स्मार्ट सैलून प्लेटफ़ॉर्म",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a1f14",
+  "theme_color": "#3d9e5a",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/assets/generated/icon-192.dim_192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/generated/icon-512.dim_512x512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
