@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  AdminDashboardStats,
   AppointmentWithId,
   CustomerProfile,
   SalonWithId,
   ServiceWithId,
 } from "../backend";
+import { AppointmentStatus } from "../backend";
 import type {
   Appointment,
   Customer,
@@ -13,8 +15,6 @@ import type {
   Staff,
   UserProfile,
 } from "../backend.d";
-import { AppointmentStatus } from "../backend.d";
-
 import { useActor } from "./useActor";
 
 export type {
@@ -27,8 +27,43 @@ export type {
   ServiceWithId,
   AppointmentWithId,
   CustomerProfile,
+  AdminDashboardStats,
 };
 export { AppointmentStatus };
+
+export function useIsAdmin() {
+  const { actor, isFetching } = useActor();
+  return useQuery<boolean>({
+    queryKey: ["isAdmin"],
+    queryFn: async () => {
+      if (!actor) return false;
+      try {
+        return await actor.isCallerAdmin();
+      } catch {
+        return false;
+      }
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useGetCallerUserProfile() {
+  const { actor, isFetching: actorFetching } = useActor();
+  const query = useQuery<UserProfile | null>({
+    queryKey: ["currentUserProfile"],
+    queryFn: async () => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.getCallerUserProfile();
+    },
+    enabled: !!actor && !actorFetching,
+    retry: false,
+  });
+  return {
+    ...query,
+    isLoading: actorFetching || query.isLoading,
+    isFetched: !!actor && query.isFetched,
+  };
+}
 
 export function useGetDashboardStats() {
   const { actor, isFetching } = useActor();
@@ -91,188 +126,6 @@ export function useGetAllStaff() {
   });
 }
 
-export function useIsAdmin() {
-  const { actor, isFetching } = useActor();
-  return useQuery<boolean>({
-    queryKey: ["isAdmin"],
-    queryFn: async () => {
-      if (!actor) return false;
-      return actor.isCallerAdmin();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useGetCallerUserProfile() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const query = useQuery<UserProfile | null>({
-    queryKey: ["currentUserProfile"],
-    queryFn: async () => {
-      if (!actor) throw new Error("Actor not available");
-      return actor.getCallerUserProfile();
-    },
-    enabled: !!actor && !actorFetching,
-    retry: false,
-  });
-  return {
-    ...query,
-    isLoading: actorFetching || query.isLoading,
-    isFetched: !!actor && query.isFetched,
-  };
-}
-
-export function useSearchAppointmentsByCustomer(customerName: string) {
-  const { actor, isFetching } = useActor();
-  return useQuery<Appointment[]>({
-    queryKey: ["appointmentsByCustomer", customerName],
-    queryFn: async () => {
-      if (!actor || !customerName) return [];
-      return actor.searchAppointmentsByCustomerName(customerName);
-    },
-    enabled: !!actor && !isFetching && !!customerName,
-    refetchInterval: 30000,
-  });
-}
-
-export function useCreateAppointment() {
-  const { actor } = useActor();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (appointment: Appointment) => {
-      if (!actor) throw new Error("No actor");
-      return actor.createAppointment(appointment);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["appointments"] });
-      qc.invalidateQueries({ queryKey: ["appointmentsByCustomer"] });
-      qc.invalidateQueries({ queryKey: ["dashboardStats"] });
-    },
-  });
-}
-
-export function useDeleteAppointment() {
-  const { actor } = useActor();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error("No actor");
-      return actor.deleteAppointment(id);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["appointments"] });
-      qc.invalidateQueries({ queryKey: ["dashboardStats"] });
-    },
-  });
-}
-
-export function useUpdateAppointment() {
-  const { actor } = useActor();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      id,
-      appointment,
-    }: { id: bigint; appointment: Appointment }) => {
-      if (!actor) throw new Error("No actor");
-      return actor.updateAppointment(id, appointment);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["appointments"] });
-      qc.invalidateQueries({ queryKey: ["appointmentsByCustomer"] });
-    },
-  });
-}
-
-export function useCreateCustomer() {
-  const { actor } = useActor();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (customer: Customer) => {
-      if (!actor) throw new Error("No actor");
-      return actor.createCustomer(customer);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["customers"] });
-      qc.invalidateQueries({ queryKey: ["dashboardStats"] });
-    },
-  });
-}
-
-export function useDeleteCustomer() {
-  const { actor } = useActor();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error("No actor");
-      return actor.deleteCustomer(id);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["customers"] });
-      qc.invalidateQueries({ queryKey: ["dashboardStats"] });
-    },
-  });
-}
-
-export function useCreateService() {
-  const { actor } = useActor();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (service: Service) => {
-      if (!actor) throw new Error("No actor");
-      return actor.createService(service);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["services"] });
-      qc.invalidateQueries({ queryKey: ["dashboardStats"] });
-    },
-  });
-}
-
-export function useDeleteService() {
-  const { actor } = useActor();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error("No actor");
-      return actor.deleteService(id);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["services"] });
-      qc.invalidateQueries({ queryKey: ["dashboardStats"] });
-    },
-  });
-}
-
-export function useCreateStaff() {
-  const { actor } = useActor();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (staffMember: Staff) => {
-      if (!actor) throw new Error("No actor");
-      return actor.createStaff(staffMember);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["staff"] });
-      qc.invalidateQueries({ queryKey: ["dashboardStats"] });
-    },
-  });
-}
-
-export function useDeleteStaff() {
-  const { actor } = useActor();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error("No actor");
-      return actor.deleteStaff(id);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["staff"] });
-      qc.invalidateQueries({ queryKey: ["dashboardStats"] });
-    },
-  });
-}
-
 export function useSaveProfile() {
   const { actor } = useActor();
   const qc = useQueryClient();
@@ -286,7 +139,173 @@ export function useSaveProfile() {
 }
 
 // ============================================================
-// New multi-tenant salon hooks
+// Admin hooks
+// ============================================================
+
+export function useAdminGetDashboardStats() {
+  const { actor, isFetching } = useActor();
+  return useQuery<AdminDashboardStats>({
+    queryKey: ["adminDashboardStats"],
+    queryFn: async () => {
+      if (!actor) return { total: 0n, active: 0n, expired: 0n, pending: 0n };
+      return actor.adminGetDashboardStats();
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
+  });
+}
+
+export function useAdminGetAllSalons() {
+  const { actor, isFetching } = useActor();
+  return useQuery<SalonWithId[]>({
+    queryKey: ["adminAllSalons"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.adminGetAllSalons();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAdminGetPendingSalons() {
+  const { actor, isFetching } = useActor();
+  return useQuery<SalonWithId[]>({
+    queryKey: ["adminPendingSalons"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.adminGetPendingSalons();
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
+  });
+}
+
+export function useAdminApproveSalon() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (salonId: bigint) => {
+      if (!actor) throw new Error("No actor");
+      return actor.adminApproveSalon(salonId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["adminPendingSalons"] });
+      qc.invalidateQueries({ queryKey: ["adminAllSalons"] });
+      qc.invalidateQueries({ queryKey: ["adminDashboardStats"] });
+    },
+  });
+}
+
+export function useAdminRejectSalon() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (salonId: bigint) => {
+      if (!actor) throw new Error("No actor");
+      return actor.adminRejectSalon(salonId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["adminPendingSalons"] });
+      qc.invalidateQueries({ queryKey: ["adminAllSalons"] });
+      qc.invalidateQueries({ queryKey: ["adminDashboardStats"] });
+    },
+  });
+}
+
+export function useAdminSetSalonSubscription() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      salonId,
+      active,
+    }: { salonId: bigint; active: boolean }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.adminSetSalonSubscription(salonId, active);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["adminAllSalons"] });
+      qc.invalidateQueries({ queryKey: ["adminDashboardStats"] });
+    },
+  });
+}
+
+export function useAdminSetSalonActive() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      salonId,
+      active,
+    }: { salonId: bigint; active: boolean }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.adminSetSalonActive(salonId, active);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["adminAllSalons"] });
+      qc.invalidateQueries({ queryKey: ["adminDashboardStats"] });
+    },
+  });
+}
+
+export function useAdminGetDefaultTrialDays() {
+  const { actor, isFetching } = useActor();
+  return useQuery<number>({
+    queryKey: ["adminDefaultTrialDays"],
+    queryFn: async () => {
+      if (!actor) return 7;
+      const result = await actor.adminGetDefaultTrialDays();
+      return Number(result);
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAdminSetDefaultTrialDays() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (days: number) => {
+      if (!actor) throw new Error("No actor");
+      return actor.adminSetDefaultTrialDays(BigInt(days));
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["adminDefaultTrialDays"] }),
+  });
+}
+
+export function useAdminSetSalonTrialDays() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      salonId,
+      days,
+    }: { salonId: bigint; days: number }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.adminSetSalonTrialDays(salonId, BigInt(days));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["adminAllSalons"] }),
+  });
+}
+
+export function useAdminProcessTrialExpirations() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!actor) throw new Error("No actor");
+      return actor.adminProcessTrialExpirations();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["adminAllSalons"] });
+      qc.invalidateQueries({ queryKey: ["adminDashboardStats"] });
+    },
+  });
+}
+
+// ============================================================
+// Salon owner hooks
 // ============================================================
 
 export function useGetMySalon() {
@@ -426,6 +445,10 @@ export function useUpdateAppointmentStatus() {
   });
 }
 
+// ============================================================
+// Customer hooks
+// ============================================================
+
 export function useGetAllActiveSalons() {
   const { actor, isFetching } = useActor();
   return useQuery<SalonWithId[]>({
@@ -518,68 +541,136 @@ export function useGetMyCustomerProfile() {
   });
 }
 
-export function useGetPlatformSubscriptionPrice() {
-  const { actor, isFetching } = useActor();
-  return useQuery<number>({
-    queryKey: ["platformPrice"],
-    queryFn: async () => {
-      if (!actor) return 499;
-      return actor.getPlatformSubscriptionPrice();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
+// ============================================================
+// Legacy hooks (needed by Appointments, Customers, Services, Staff pages)
+// ============================================================
+import type {
+  Appointment as AppType,
+  Customer as CustType,
+  Staff as StaffType,
+  Service as SvcType,
+} from "../backend.d";
 
-export function useSetPlatformSubscriptionPrice() {
+export function useCreateAppointment() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (price: number) => {
+    mutationFn: async (appointment: AppType) => {
       if (!actor) throw new Error("No actor");
-      return actor.setPlatformSubscriptionPrice(price);
+      return actor.createAppointment(appointment);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["platformPrice"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
   });
 }
 
-export function useAdminGetAllSalons() {
-  const { actor, isFetching } = useActor();
-  return useQuery<SalonWithId[]>({
-    queryKey: ["adminAllSalons"],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.adminGetAllSalons();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useAdminSetSalonSubscription() {
+export function useDeleteAppointment() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      salonId,
-      active,
-    }: { salonId: bigint; active: boolean }) => {
+    mutationFn: async (id: bigint) => {
       if (!actor) throw new Error("No actor");
-      return actor.adminSetSalonSubscription(salonId, active);
+      return actor.deleteAppointment(id);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["adminAllSalons"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
   });
 }
 
-export function useAdminSetSalonActive() {
+export function useUpdateAppointment() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
-      salonId,
-      active,
-    }: { salonId: bigint; active: boolean }) => {
+      id,
+      appointment,
+    }: { id: bigint; appointment: AppType }) => {
       if (!actor) throw new Error("No actor");
-      return actor.adminSetSalonActive(salonId, active);
+      return actor.updateAppointment(id, appointment);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["adminAllSalons"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
+  });
+}
+
+export function useCreateCustomer() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (customer: CustType) => {
+      if (!actor) throw new Error("No actor");
+      return actor.createCustomer(customer);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
+  });
+}
+
+export function useDeleteCustomer() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("No actor");
+      return actor.deleteCustomer(id);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
+  });
+}
+
+export function useCreateService() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (service: SvcType) => {
+      if (!actor) throw new Error("No actor");
+      return actor.createService(service);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["services"] }),
+  });
+}
+
+export function useDeleteService() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("No actor");
+      return actor.deleteService(id);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["services"] }),
+  });
+}
+
+export function useCreateStaff() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (staffMember: StaffType) => {
+      if (!actor) throw new Error("No actor");
+      return actor.createStaff(staffMember);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["staff"] }),
+  });
+}
+
+export function useDeleteStaff() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("No actor");
+      return actor.deleteStaff(id);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["staff"] }),
+  });
+}
+
+export function useSearchAppointmentsByCustomer(customerName: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery<AppType[]>({
+    queryKey: ["appointmentsByCustomer", customerName],
+    queryFn: async () => {
+      if (!actor || !customerName) return [];
+      return actor.searchAppointmentsByCustomerName(customerName);
+    },
+    enabled: !!actor && !isFetching && !!customerName,
+    refetchInterval: 30000,
   });
 }

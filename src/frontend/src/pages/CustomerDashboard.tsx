@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   type AppointmentWithId,
@@ -61,7 +62,7 @@ export default function CustomerDashboard({ onSwitchRole }: Props) {
 
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
+      Notification.requestPermission().catch(() => {});
     }
   }, []);
 
@@ -159,11 +160,15 @@ export default function CustomerDashboard({ onSwitchRole }: Props) {
           </TabsList>
 
           <TabsContent value="salons">
-            <SalonListTab profile={profile} />
+            <ErrorBoundary>
+              <SalonListTab profile={profile} />
+            </ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="bookings">
-            <MyBookingsTab />
+            <ErrorBoundary>
+              <MyBookingsTab />
+            </ErrorBoundary>
           </TabsContent>
         </Tabs>
       </main>
@@ -437,12 +442,14 @@ function SalonListTab({
       )}
 
       {selectedSalon && (
-        <BookingModal
-          salon={selectedSalon}
-          customerName={profile.name}
-          customerPhone={profile.phone}
-          onClose={() => setSelectedSalon(null)}
-        />
+        <ErrorBoundary>
+          <BookingModal
+            salon={selectedSalon}
+            customerName={profile.name}
+            customerPhone={profile.phone}
+            onClose={() => setSelectedSalon(null)}
+          />
+        </ErrorBoundary>
       )}
     </div>
   );
@@ -470,6 +477,10 @@ function BookingModal({
   } | null>(null);
 
   const handleBook = () => {
+    if (!date) {
+      toast.error("तारीख चुनें");
+      return;
+    }
     if (!selectedService) {
       toast.error("सेवा चुनें");
       return;
@@ -596,7 +607,11 @@ function BookingModal({
                           selectedService === svc.name
                             ? "oklch(0.52 0.18 145 / 0.2)"
                             : "oklch(0.22 0.05 155)",
-                        border: `1px solid ${selectedService === svc.name ? "oklch(0.52 0.18 145)" : "oklch(0.32 0.05 155)"}`,
+                        border: `1px solid ${
+                          selectedService === svc.name
+                            ? "oklch(0.52 0.18 145)"
+                            : "oklch(0.32 0.05 155)"
+                        }`,
                       }}
                     >
                       <div>
@@ -617,7 +632,7 @@ function BookingModal({
                         className="font-bold"
                         style={{ color: "oklch(0.52 0.18 145)" }}
                       >
-                        ₹{svc.price}
+                        ₹{Number(svc.price)}
                       </span>
                     </button>
                   ))}
@@ -671,10 +686,25 @@ function AppointmentCard({
     const ahead = Number(queueInfo[1]);
     if (ahead <= 1 && Notification.permission === "granted") {
       notifiedRef.current = true;
-      new Notification("Salon360", {
-        body: `आपका नंबर आने वाला है! (${salonName})`,
-        icon: "/assets/generated/icon-192.dim_192x192.png",
-      });
+      if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready
+          .then((reg) => {
+            reg.showNotification("Salon360", {
+              body: `आपका नंबर आने वाला है! (${salonName})`,
+              icon: "/assets/generated/icon-192.dim_192x192.png",
+            });
+          })
+          .catch(() => {});
+      } else if ("Notification" in window) {
+        try {
+          new Notification("Salon360", {
+            body: `आपका नंबर आने वाला है! (${salonName})`,
+            icon: "/assets/generated/icon-192.dim_192x192.png",
+          });
+        } catch {
+          // Notification not supported on this browser
+        }
+      }
     }
   }, [queueInfo, isActive, salonName]);
 

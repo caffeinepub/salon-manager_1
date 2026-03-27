@@ -1,9 +1,14 @@
 import { Scissors } from "lucide-react";
 import { Suspense, lazy, useEffect, useState } from "react";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import LoginPage from "./components/LoginPage";
 import RoleSelect from "./components/RoleSelect";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import { useIsAdmin } from "./hooks/useQueries";
+import AdminLoginPage, {
+  isAdminLoggedIn,
+  logoutAdmin,
+} from "./pages/AdminLoginPage";
 
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const CustomerDashboard = lazy(() => import("./pages/CustomerDashboard"));
@@ -32,6 +37,15 @@ function LoadingSpinner() {
   );
 }
 
+function isAdminRoute(): boolean {
+  return (
+    window.location.hash === "#/admin-login" ||
+    window.location.hash === "#/admin" ||
+    window.location.pathname === "/admin-login" ||
+    window.location.pathname === "/admin"
+  );
+}
+
 export default function App() {
   const { identity, isInitializing } = useInternetIdentity();
   const isAuthenticated = !!identity;
@@ -43,6 +57,21 @@ export default function App() {
     return r === "salon" || r === "customer" ? r : null;
   });
 
+  const [adminSession, setAdminSession] = useState<boolean>(() =>
+    isAdminLoggedIn(),
+  );
+  const [onAdminRoute, setOnAdminRoute] = useState<boolean>(() =>
+    isAdminRoute(),
+  );
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setOnAdminRoute(isAdminRoute());
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
   useEffect(() => {
     if (isAuthenticated && pendingRole) {
       localStorage.setItem(ROLE_KEY, pendingRole);
@@ -50,6 +79,35 @@ export default function App() {
       setPendingRole(null);
     }
   }, [isAuthenticated, pendingRole]);
+
+  // Admin route: show login page or admin panel
+  if (onAdminRoute || adminSession) {
+    if (!adminSession) {
+      return (
+        <ErrorBoundary>
+          <AdminLoginPage
+            onLoginSuccess={() => {
+              setAdminSession(true);
+              window.location.hash = "";
+            }}
+          />
+        </ErrorBoundary>
+      );
+    }
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<LoadingSpinner />}>
+          <AdminPanel
+            onLogout={() => {
+              logoutAdmin();
+              setAdminSession(false);
+              window.location.hash = "";
+            }}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
 
   const loadingAfterAuth = isAuthenticated && adminLoading;
 
@@ -75,9 +133,11 @@ export default function App() {
 
   if (isAdmin) {
     return (
-      <Suspense fallback={<LoadingSpinner />}>
-        <AdminPanel />
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={<LoadingSpinner />}>
+          <AdminPanel />
+        </Suspense>
+      </ErrorBoundary>
     );
   }
 
@@ -96,23 +156,27 @@ export default function App() {
 
   if (role === "salon")
     return (
+      <ErrorBoundary>
+        <Suspense fallback={<LoadingSpinner />}>
+          <SalonOwnerDashboard
+            onSwitchRole={() => {
+              localStorage.removeItem(ROLE_KEY);
+              setSavedRole(null);
+            }}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  return (
+    <ErrorBoundary>
       <Suspense fallback={<LoadingSpinner />}>
-        <SalonOwnerDashboard
+        <CustomerDashboard
           onSwitchRole={() => {
             localStorage.removeItem(ROLE_KEY);
             setSavedRole(null);
           }}
         />
       </Suspense>
-    );
-  return (
-    <Suspense fallback={<LoadingSpinner />}>
-      <CustomerDashboard
-        onSwitchRole={() => {
-          localStorage.removeItem(ROLE_KEY);
-          setSavedRole(null);
-        }}
-      />
-    </Suspense>
+    </ErrorBoundary>
   );
 }

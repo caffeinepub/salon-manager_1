@@ -66,10 +66,10 @@ function getTodayString() {
   return d.toISOString().split("T")[0];
 }
 
-function getTrialDaysRemaining(trialStartDate: bigint) {
+function getTrialDaysRemaining(trialStartDate: bigint, trialDays = 7n) {
   const started = Number(trialStartDate) / 1_000_000;
   const elapsed = Math.floor((Date.now() - started) / (1000 * 60 * 60 * 24));
-  return Math.max(0, 7 - elapsed);
+  return Math.max(0, Number(trialDays) - elapsed);
 }
 
 interface Props {
@@ -109,6 +109,73 @@ export default function SalonOwnerDashboard({ onSwitchRole }: Props) {
           onSwitchRole();
         }}
       />
+    );
+  }
+
+  // Pending approval screen
+  if (salon.pendingApproval) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="max-w-sm w-full text-center space-y-4">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto">
+            <Clock className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900">अनुमोदन प्रतीक्षा में</h2>
+          <p className="text-gray-600 text-sm">
+            आपकी दुकान <strong>{salon.name}</strong> का पंजीकरण सफलतापूर्वक हो गया
+            है। Admin की मंजूरी का इंतज़ार है। मंजूरी मिलने के बाद आपका 7-दिन का ट्रायल शुरू
+            होगा।
+          </p>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <p className="text-xs text-yellow-800">
+              आमतौर पर 24 घंटे के अंदर मंजूरी मिलती है।
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => {
+              clear();
+              onSwitchRole();
+            }}
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            लॉगआउट
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Inactive (not pending, but disabled)
+  if (!salon.isActive) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="max-w-sm w-full text-center space-y-4">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+            <AlertCircle className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900">दुकान निष्क्रिय</h2>
+          <p className="text-gray-600 text-sm">
+            आपकी दुकान <strong>{salon.name}</strong> निष्क्रिय है। ट्रायल समाप्त हो
+            गया है या Admin ने निष्क्रिय किया है।
+          </p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <p className="text-xs text-red-800">
+              सदस्यता के लिए Admin से संपर्क करें।
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => {
+              clear();
+              onSwitchRole();
+            }}
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            लॉगआउट
+          </Button>
+        </div>
+      </div>
     );
   }
 
@@ -800,7 +867,10 @@ function InfoTab({
   });
   const { mutate: update, isPending } = useUpdateMySalon();
 
-  const trialDays = getTrialDaysRemaining(salon.trialStartDate);
+  const trialDays = getTrialDaysRemaining(
+    salon.trialStartDate,
+    salon.trialDays,
+  );
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
