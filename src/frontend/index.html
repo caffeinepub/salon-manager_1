@@ -5,6 +5,7 @@
     <title>Salon360 - भारत का स्मार्ट सैलून प्लेटफ़ॉर्म</title>
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#3d9e5a" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Salon360" />
@@ -14,5 +15,12 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').catch(function() {});
+        });
+      }
+    </script>
   </body>
 </html>

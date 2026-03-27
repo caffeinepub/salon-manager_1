@@ -14,8 +14,7 @@ actor {
   include MixinAuthorization(accessControlState);
 
   // ================================================================
-  // MIGRATION STUBS — keep exact names from previous version
-  // so stable variables are NOT implicitly discarded (M0169).
+  // MIGRATION STUBS
   // ================================================================
   type OldAppointmentStatus = { #pending; #confirmed; #completed; #cancelled };
   type OldAppointment = {
@@ -28,14 +27,12 @@ actor {
   type OldStaff       = { name : Text; role : Text; specialty : Text; phone : Text; email : Text };
   type OldUserProfile = { name : Text };
 
-  // Old SalonProfile WITHOUT pendingApproval (matches previous version exactly)
   type OldSalonProfile = {
     name : Text; address : Text; phone : Text; city : Text;
     ownerPrincipal : Principal; isActive : Bool;
     trialStartDate : Int; subscriptionActive : Bool;
   };
 
-  // Keep all old stable variable names and types so they aren’t discarded
   let appointments  = Map.empty<Nat, OldAppointment>();
   let customers     = Map.empty<Nat, OldCustomer>();
   let services      = Map.empty<Nat, OldService>();
@@ -45,16 +42,10 @@ actor {
   var nextStaffId   : Nat = 1;
   var platformSubscriptionPrice : Float = 149.0;
   let rolePrefMap   = Map.empty<Principal, Text>();
-
-  // salonTrialDaysMap — old separate map; keep for migration data
   let salonTrialDaysMap = Map.empty<Nat, Nat>();
-
-  // salonProfiles — old type (without pendingApproval).
-  // Motoko loads old stable data into this. We migrate to salonProfilesV2 in postupgrade.
   let salonProfiles = Map.empty<Nat, OldSalonProfile>();
   // ================================================================
 
-  // ---- New types ----
   public type SalonProfile = {
     name : Text; address : Text; phone : Text; city : Text;
     ownerPrincipal : Principal;
@@ -104,7 +95,6 @@ actor {
   var defaultTrialDays  : Nat = 7;
   let MAX_SHOPS         : Nat = 100;
 
-  // V2 salonProfiles WITH pendingApproval — different name to avoid type clash
   let salonProfilesV2   = Map.empty<Nat, SalonProfile>();
   let salonServicesList = Map.empty<Nat, SalonService>();
   let salonAppointments = Map.empty<Nat, SalonAppointment>();
@@ -113,11 +103,9 @@ actor {
 
   var migrationDone : Bool = false;
 
-  // Admin auth
   let ADMIN_EMAIL : Text = "amitkrji498@gmail.com";
   var adminPasswordHash : ?Text = null;
 
-  // ---- Migration: salonProfiles (old) → salonProfilesV2 (new) ----
   system func postupgrade() {
     if (not migrationDone) {
       for ((id, s) in salonProfiles.entries().toArray().vals()) {
@@ -129,12 +117,11 @@ actor {
           salonProfilesV2.add(id, {
             name = s.name; address = s.address; phone = s.phone; city = s.city;
             ownerPrincipal = s.ownerPrincipal; isActive = s.isActive;
-            pendingApproval = false;  // existing salons are approved
+            pendingApproval = false;
             trialStartDate = s.trialStartDate; subscriptionActive = s.subscriptionActive;
             trialDays = customTrialDays;
           });
           ownerSalonMap.add(s.ownerPrincipal, id);
-          // Keep nextSalonId ahead of migrated IDs
           if (id >= nextSalonId) { nextSalonId := id + 1 };
         };
       };
@@ -142,7 +129,6 @@ actor {
     };
   };
 
-  // ---- Helpers ----
   func isTrialExpired(s : SalonProfile) : Bool {
     let trialNanos : Int = s.trialDays * 86_400 * 1_000_000_000;
     Time.now() - s.trialStartDate > trialNanos;
@@ -185,6 +171,16 @@ actor {
       case (null) { false };
       case (?stored) { stored == passwordHash };
     };
+  };
+
+  // ---- Subscription Price ----
+  public query func adminGetSubscriptionPrice() : async Float {
+    platformSubscriptionPrice;
+  };
+
+  public func adminSetSubscriptionPrice(price : Float) : async () {
+    if (price < 0.0) { Runtime.trap("Price must be non-negative") };
+    platformSubscriptionPrice := price;
   };
 
   // ---- Admin Dashboard ----

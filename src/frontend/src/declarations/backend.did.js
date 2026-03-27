@@ -56,6 +56,9 @@ export const idlFactory = ({ IDL }) => {
     'adminPasswordIsSet' : IDL.Func([], [IDL.Bool], ['query']),
     'adminSetPassword' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
     'adminLogin' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], ['query']),
+    // Subscription price
+    'adminGetSubscriptionPrice' : IDL.Func([], [IDL.Float64], ['query']),
+    'adminSetSubscriptionPrice' : IDL.Func([IDL.Float64], [], []),
     // Admin dashboard
     'adminGetDashboardStats' : IDL.Func([], [AdminDashboardStats], ['query']),
     'adminGetAllSalons' : IDL.Func([], [IDL.Vec(SalonWithId)], ['query']),

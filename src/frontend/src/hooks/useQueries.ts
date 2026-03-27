@@ -155,6 +155,31 @@ export function useAdminGetDashboardStats() {
   });
 }
 
+export function useAdminGetSubscriptionPrice() {
+  const { actor, isFetching } = useActor();
+  return useQuery<number>({
+    queryKey: ["adminSubscriptionPrice"],
+    queryFn: async () => {
+      if (!actor) return 149;
+      return actor.adminGetSubscriptionPrice();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAdminSetSubscriptionPrice() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (price: number) => {
+      if (!actor) throw new Error("No actor");
+      return actor.adminSetSubscriptionPrice(price);
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["adminSubscriptionPrice"] }),
+  });
+}
+
 export function useAdminGetAllSalons() {
   const { actor, isFetching } = useActor();
   return useQuery<SalonWithId[]>({

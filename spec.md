@@ -1,30 +1,34 @@
-# Salon Manager — Core SaaS System (Phase 1)
+# Salon Manager
 
 ## Current State
-The app has a backend with salon registration (auto-approved), trial system, subscriptions, admin email+password login, and a frontend with Admin Panel, Salon Owner Dashboard, Customer Dashboard.
+- Subscription price is hardcoded as `platformSubscriptionPrice : Float = 149.0` in backend but has no public getter/setter methods
+- Admin panel Settings tab has no price editing UI
+- PWA manifest.json is missing `purpose` on icons, missing `id` and `scope` fields
+- No service worker exists — Android Chrome requires a registered SW to show Add to Home Screen prompt
 
 ## Requested Changes (Diff)
 
 ### Add
-- Shop registration requires admin approval before becoming active
-- Hard limit: maximum 100 shops total (reject registration if limit reached)
-- Admin can approve or reject pending shop registrations
-- Admin dashboard shows: total shops, active shops, expired/inactive shops, pending approvals
-- `pendingApproval` field on shop profile
+- Backend: `adminGetSubscriptionPrice()` query and `adminSetSubscriptionPrice(price)` update methods
+- Frontend hooks: `useAdminGetSubscriptionPrice`, `useAdminSetSubscriptionPrice`
+- AdminPanel Settings tab: subscription price card (show current price, input + save button)
+- `src/frontend/public/sw.js`: minimal service worker for PWA installability
+- SalonOwnerDashboard: show current subscription price when trial expired
 
 ### Modify
-- `registerSalon`: shops created with `isActive=false`, `pendingApproval=true` — not visible to customers until approved
-- Trial starts only after admin approves the shop
-- Admin dashboard rebuilt to show 4 key stats: total, active, expired, pending
-- Salon owner dashboard shows approval status message if shop is pending
+- `backend.did.js` and `backend.did.d.ts`: add two new subscription price methods
+- `manifest.json`: add `id`, `scope`, fix icon `purpose` to `"any maskable"`
+- `index.html`: register service worker on load
 
 ### Remove
-- Old complex state that is not needed for this phase
+- Nothing removed
 
 ## Implementation Plan
-1. Update backend: add `pendingApproval: Bool` to `SalonProfile`, add shop count limit check (100), change `registerSalon` to set `isActive=false, pendingApproval=true`, trial starts on approval
-2. Add backend methods: `adminApproveSalon(id)`, `adminRejectSalon(id)`, `adminGetPendingSalons()`, `adminGetDashboardStats()` returning counts
-3. Update frontend AdminPanel: show pending approvals list with approve/reject buttons, show 4 stat cards
-4. Update SalonOwnerDashboard: show pending message if shop not yet approved
-5. Keep email+password admin login (`amitkrji498@gmail.com`) as-is
-6. Hindi language throughout
+1. Add `adminGetSubscriptionPrice` and `adminSetSubscriptionPrice` to main.mo
+2. Update backend.did.js and backend.did.d.ts declarations
+3. Add two hooks to useQueries.ts
+4. Add price editing card to AdminPanel Settings tab
+5. Show price in SalonOwnerDashboard when expired
+6. Fix manifest.json for Android PWA
+7. Create sw.js service worker
+8. Register SW in index.html

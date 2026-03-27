@@ -51,6 +51,8 @@ export interface _SERVICE {
   adminPasswordIsSet(): Promise<boolean>;
   adminSetPassword(email: string, passwordHash: string): Promise<boolean>;
   adminLogin(email: string, passwordHash: string): Promise<boolean>;
+  adminGetSubscriptionPrice(): Promise<number>;
+  adminSetSubscriptionPrice(price: number): Promise<void>;
   adminGetDashboardStats(): Promise<AdminDashboardStats>;
   adminGetAllSalons(): Promise<SalonWithId[]>;
   adminGetPendingSalons(): Promise<SalonWithId[]>;

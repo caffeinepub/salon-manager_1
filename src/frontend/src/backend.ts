@@ -142,6 +142,9 @@ export interface backendInterface {
     adminPasswordIsSet(): Promise<boolean>;
     adminSetPassword(email: string, passwordHash: string): Promise<boolean>;
     adminLogin(email: string, passwordHash: string): Promise<boolean>;
+    // Subscription price
+    adminGetSubscriptionPrice(): Promise<number>;
+    adminSetSubscriptionPrice(price: number): Promise<void>;
     // Admin dashboard
     adminGetDashboardStats(): Promise<AdminDashboardStats>;
     adminGetAllSalons(): Promise<Array<SalonWithId>>;
@@ -217,6 +220,8 @@ export class Backend implements backendInterface {
     async adminPasswordIsSet(): Promise<boolean> { return this.call(() => this.actor.adminPasswordIsSet()); }
     async adminSetPassword(email: string, passwordHash: string): Promise<boolean> { return this.call(() => this.actor.adminSetPassword(email, passwordHash)); }
     async adminLogin(email: string, passwordHash: string): Promise<boolean> { return this.call(() => this.actor.adminLogin(email, passwordHash)); }
+    async adminGetSubscriptionPrice(): Promise<number> { return this.call(() => this.actor.adminGetSubscriptionPrice()); }
+    async adminSetSubscriptionPrice(price: number): Promise<void> { return this.call(() => this.actor.adminSetSubscriptionPrice(price)); }
     async adminGetDashboardStats(): Promise<AdminDashboardStats> { return this.call(() => this.actor.adminGetDashboardStats()); }
     async adminGetAllSalons(): Promise<Array<SalonWithId>> { return this.call(() => this.actor.adminGetAllSalons()); }
     async adminGetPendingSalons(): Promise<Array<SalonWithId>> { return this.call(() => this.actor.adminGetPendingSalons()); }

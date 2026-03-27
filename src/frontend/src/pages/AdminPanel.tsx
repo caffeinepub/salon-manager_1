@@ -15,11 +15,13 @@ import {
   useAdminGetDashboardStats,
   useAdminGetDefaultTrialDays,
   useAdminGetPendingSalons,
+  useAdminGetSubscriptionPrice,
   useAdminProcessTrialExpirations,
   useAdminRejectSalon,
   useAdminSetDefaultTrialDays,
   useAdminSetSalonActive,
   useAdminSetSalonSubscription,
+  useAdminSetSubscriptionPrice,
 } from "../hooks/useQueries";
 
 type Tab = "dashboard" | "pending" | "salons" | "settings";
@@ -31,7 +33,6 @@ function getTrialStatus(salon: SalonWithId) {
     return { label: "निष्क्रिय", variant: "destructive" as const };
   if (salon.subscriptionActive)
     return { label: "सदस्यता सक्रिय", variant: "default" as const };
-  // Check trial expiry
   const trialEndMs =
     Number(salon.trialStartDate) / 1_000_000 +
     Number(salon.trialDays) * 86400 * 1000;
@@ -45,6 +46,7 @@ function getTrialStatus(salon: SalonWithId) {
 export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
   const [tab, setTab] = useState<Tab>("dashboard");
   const [trialDaysInput, setTrialDaysInput] = useState("");
+  const [priceInput, setPriceInput] = useState("");
 
   const { data: stats, isLoading: statsLoading } = useAdminGetDashboardStats();
   const { data: pendingSalons = [], isLoading: pendingLoading } =
@@ -52,12 +54,14 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
   const { data: allSalons = [], isLoading: salonsLoading } =
     useAdminGetAllSalons();
   const { data: defaultTrialDays } = useAdminGetDefaultTrialDays();
+  const { data: subscriptionPrice } = useAdminGetSubscriptionPrice();
 
   const approveMutation = useAdminApproveSalon();
   const rejectMutation = useAdminRejectSalon();
   const setActiveMutation = useAdminSetSalonActive();
   const setSubMutation = useAdminSetSalonSubscription();
   const setTrialDaysMutation = useAdminSetDefaultTrialDays();
+  const setPriceMutation = useAdminSetSubscriptionPrice();
   const processExpMutation = useAdminProcessTrialExpirations();
 
   const statCards = [
@@ -139,6 +143,26 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
                 </Card>
               ))}
             </div>
+
+            {/* Subscription price summary on dashboard */}
+            <Card className="border-blue-100 bg-blue-50">
+              <CardContent className="pt-4 pb-3">
+                <p className="text-sm text-blue-800">
+                  सदस्यता मूल्य:{" "}
+                  <span className="font-bold text-blue-900">
+                    ₹{subscriptionPrice ?? 149}/माह
+                  </span>
+                  <button
+                    type="button"
+                    className="ml-2 text-xs underline text-blue-600"
+                    onClick={() => setTab("settings")}
+                  >
+                    बदलें
+                  </button>
+                </p>
+              </CardContent>
+            </Card>
+
             {pendingSalons.length > 0 && (
               <Card className="border-yellow-200 bg-yellow-50">
                 <CardContent className="pt-4">
@@ -301,6 +325,54 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
         {tab === "settings" && (
           <>
             <h2 className="text-base font-semibold text-gray-800">सेटिंग</h2>
+
+            {/* Subscription Price Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">सदस्यता मूल्य (₹/माह)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  वर्तमान मूल्य:{" "}
+                  <span className="font-semibold text-green-700">
+                    ₹{subscriptionPrice ?? 149}/माह
+                  </span>
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="नया मूल्य"
+                    value={priceInput}
+                    onChange={(e) => setPriceInput(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    disabled={!priceInput || setPriceMutation.isPending}
+                    onClick={() => {
+                      const price = Number.parseFloat(priceInput);
+                      if (price > 0) {
+                        setPriceMutation.mutate(price, {
+                          onSuccess: () => setPriceInput(""),
+                        });
+                      }
+                    }}
+                  >
+                    {setPriceMutation.isPending ? "..." : "सेव करें"}
+                  </Button>
+                </div>
+                {setPriceMutation.isSuccess && (
+                  <p className="text-xs text-green-600">
+                    ✓ मूल्य अपडेट हो गया — अब हर जगह नया मूल्य दिखेगा
+                  </p>
+                )}
+                <p className="text-xs text-gray-400">
+                  मूल्य बदलने के बाद नई सदस्यताओं पर तुरंत लागू होगा।
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Trial Days Card */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">डिफ़ॉल्ट ट्रायल अवधि</CardTitle>
@@ -344,6 +416,7 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
               </CardContent>
             </Card>
 
+            {/* Trial Expiry Process */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">ट्रायल समाप्ति प्रक्रिया</CardTitle>
@@ -378,6 +451,11 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
                   ट्रायल अवधि:{" "}
                   <span className="font-semibold">
                     {defaultTrialDays ?? 7} दिन
+                  </span>
+                  <br />
+                  सदस्यता मूल्य:{" "}
+                  <span className="font-semibold">
+                    ₹{subscriptionPrice ?? 149}/माह
                   </span>
                   <br />
                   Admin ईमेल:{" "}
