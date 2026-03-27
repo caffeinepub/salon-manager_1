@@ -34,43 +34,52 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-  type Appointment,
-  AppointmentStatus,
+  type AppointmentStatus,
   useCreateAppointment,
   useDeleteAppointment,
   useGetAllAppointments,
   useIsAdmin,
 } from "../hooks/useQueries";
 
-const statusConfig: Record<
-  AppointmentStatus,
-  { label: string; color: string }
-> = {
-  [AppointmentStatus.pending]: {
+const statusConfig: Record<string, { label: string; color: string }> = {
+  pending: {
     label: "Pending",
     color: "bg-yellow-100 text-yellow-800 border-yellow-200",
   },
-  [AppointmentStatus.confirmed]: {
+  confirmed: {
     label: "Confirmed",
     color: "bg-blue-100 text-blue-800 border-blue-200",
   },
-  [AppointmentStatus.completed]: {
+  completed: {
     label: "Completed",
     color: "bg-green-100 text-green-800 border-green-200",
   },
-  [AppointmentStatus.cancelled]: {
+  cancelled: {
     label: "Cancelled",
     color: "bg-red-100 text-red-800 border-red-200",
   },
+  inprogress: {
+    label: "In Progress",
+    color: "bg-purple-100 text-purple-800 border-purple-200",
+  },
 };
 
-const defaultForm: Appointment = {
+const appointmentStatusValues: AppointmentStatus[] = [
+  "pending",
+  "confirmed",
+  "inprogress",
+  "completed",
+  "cancelled",
+];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const defaultForm: any = {
   customerName: "",
   serviceName: "",
   staffName: "",
   date: "",
   time: "",
-  status: AppointmentStatus.pending,
+  status: "pending" as AppointmentStatus,
   notes: "",
   price: 0,
 };
@@ -82,11 +91,12 @@ export default function Appointments() {
   const deleteAppt = useDeleteAppointment();
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<Appointment>(defaultForm);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [form, setForm] = useState<any>(defaultForm);
   const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
 
-  const filtered = (appointments ?? []).filter((a) => {
+  const filtered = (appointments ?? []).filter((a: any) => {
     const matchStatus = filter === "all" || a.status === filter;
     const matchSearch = a.customerName
       .toLowerCase()
@@ -156,7 +166,10 @@ export default function Appointments() {
                       placeholder="Priya Sharma"
                       value={form.customerName}
                       onChange={(e) =>
-                        setForm((p) => ({ ...p, customerName: e.target.value }))
+                        setForm((p: any) => ({
+                          ...p,
+                          customerName: e.target.value,
+                        }))
                       }
                     />
                   </div>
@@ -167,7 +180,10 @@ export default function Appointments() {
                       placeholder="Hair Cut"
                       value={form.serviceName}
                       onChange={(e) =>
-                        setForm((p) => ({ ...p, serviceName: e.target.value }))
+                        setForm((p: any) => ({
+                          ...p,
+                          serviceName: e.target.value,
+                        }))
                       }
                     />
                   </div>
@@ -178,7 +194,10 @@ export default function Appointments() {
                       placeholder="Meena Ji"
                       value={form.staffName}
                       onChange={(e) =>
-                        setForm((p) => ({ ...p, staffName: e.target.value }))
+                        setForm((p: any) => ({
+                          ...p,
+                          staffName: e.target.value,
+                        }))
                       }
                     />
                   </div>
@@ -191,7 +210,7 @@ export default function Appointments() {
                       placeholder="500"
                       value={form.price}
                       onChange={(e) =>
-                        setForm((p) => ({
+                        setForm((p: any) => ({
                           ...p,
                           price: Number(e.target.value),
                         }))
@@ -205,7 +224,7 @@ export default function Appointments() {
                       required
                       value={form.date}
                       onChange={(e) =>
-                        setForm((p) => ({ ...p, date: e.target.value }))
+                        setForm((p: any) => ({ ...p, date: e.target.value }))
                       }
                     />
                   </div>
@@ -216,7 +235,7 @@ export default function Appointments() {
                       required
                       value={form.time}
                       onChange={(e) =>
-                        setForm((p) => ({ ...p, time: e.target.value }))
+                        setForm((p: any) => ({ ...p, time: e.target.value }))
                       }
                     />
                   </div>
@@ -226,16 +245,19 @@ export default function Appointments() {
                   <Select
                     value={form.status}
                     onValueChange={(v) =>
-                      setForm((p) => ({ ...p, status: v as AppointmentStatus }))
+                      setForm((p: any) => ({
+                        ...p,
+                        status: v as AppointmentStatus,
+                      }))
                     }
                   >
                     <SelectTrigger data-ocid="appointments.select">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.values(AppointmentStatus).map((s) => (
+                      {appointmentStatusValues.map((s) => (
                         <SelectItem key={s} value={s}>
-                          {statusConfig[s].label}
+                          {statusConfig[s]?.label ?? s}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -248,7 +270,7 @@ export default function Appointments() {
                     placeholder="कोई विशेष जानकारी..."
                     value={form.notes ?? ""}
                     onChange={(e) =>
-                      setForm((p) => ({ ...p, notes: e.target.value }))
+                      setForm((p: any) => ({ ...p, notes: e.target.value }))
                     }
                     rows={2}
                   />
@@ -290,7 +312,7 @@ export default function Appointments() {
           />
         </div>
         <div className="flex gap-2 flex-wrap">
-          {["all", ...Object.values(AppointmentStatus)].map((s) => (
+          {["all", ...appointmentStatusValues].map((s) => (
             <button
               type="button"
               key={s}
@@ -305,9 +327,7 @@ export default function Appointments() {
                 filter === s ? { background: "oklch(0.34 0.075 192)" } : {}
               }
             >
-              {s === "all"
-                ? "सभी"
-                : (statusConfig[s as AppointmentStatus]?.label ?? s)}
+              {s === "all" ? "सभी" : (statusConfig[s]?.label ?? s)}
             </button>
           ))}
         </div>
@@ -336,8 +356,8 @@ export default function Appointments() {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((appt, idx) => {
-            const cfg = statusConfig[appt.status];
+          {filtered.map((appt: any, idx: number) => {
+            const cfg = statusConfig[appt.status] ?? statusConfig.pending;
             const originalIndex = (appointments ?? []).indexOf(appt);
             return (
               <motion.div

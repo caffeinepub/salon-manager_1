@@ -21,11 +21,12 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import type { SalonWithId } from "../hooks/useQueries";
 import {
   useAddSalonService,
   useDeleteSalonService,
   useGetMySalon,
+  useGetOwnerRevenueSummary,
   useGetSalonAppointmentsForDate,
   useGetSalonServices,
   useRegisterSalon,
@@ -73,13 +74,14 @@ function getTrialDaysRemaining(trialStartDate: bigint, trialDays = 7n) {
 }
 
 interface Props {
+  phone: string;
   onSwitchRole: () => void;
 }
 
-export default function SalonOwnerDashboard({ onSwitchRole }: Props) {
-  const { clear } = useInternetIdentity();
-  const { data: salon, isLoading: salonLoading } = useGetMySalon();
+export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
+  const { data: salon, isLoading: salonLoading } = useGetMySalon(phone);
   const today = getTodayString();
+  const { data: earnings } = useGetOwnerRevenueSummary(phone);
 
   if (salonLoading) {
     return (
@@ -103,11 +105,9 @@ export default function SalonOwnerDashboard({ onSwitchRole }: Props) {
   if (!salon) {
     return (
       <RegisterSalonForm
+        phone={phone}
         onSwitchRole={onSwitchRole}
-        onLogout={() => {
-          clear();
-          onSwitchRole();
-        }}
+        onLogout={onSwitchRole}
       />
     );
   }
@@ -131,13 +131,7 @@ export default function SalonOwnerDashboard({ onSwitchRole }: Props) {
               आमतौर पर 24 घंटे के अंदर मंजूरी मिलती है।
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => {
-              clear();
-              onSwitchRole();
-            }}
-          >
+          <Button variant="outline" onClick={onSwitchRole}>
             <LogOut className="w-4 h-4 mr-2" />
             लॉगआउट
           </Button>
@@ -146,7 +140,7 @@ export default function SalonOwnerDashboard({ onSwitchRole }: Props) {
     );
   }
 
-  // Inactive (not pending, but disabled)
+  // Inactive
   if (!salon.isActive) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -164,13 +158,7 @@ export default function SalonOwnerDashboard({ onSwitchRole }: Props) {
               सदस्यता के लिए Admin से संपर्क करें।
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => {
-              clear();
-              onSwitchRole();
-            }}
-          >
+          <Button variant="outline" onClick={onSwitchRole}>
             <LogOut className="w-4 h-4 mr-2" />
             लॉगआउट
           </Button>
@@ -184,7 +172,6 @@ export default function SalonOwnerDashboard({ onSwitchRole }: Props) {
       className="min-h-screen"
       style={{ background: "oklch(0.12 0.04 155)" }}
     >
-      {/* Header */}
       <header
         className="sticky top-0 z-10 px-4 py-3 flex items-center justify-between"
         style={{
@@ -214,10 +201,7 @@ export default function SalonOwnerDashboard({ onSwitchRole }: Props) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => {
-            clear();
-            onSwitchRole();
-          }}
+          onClick={onSwitchRole}
           data-ocid="salon.close_button"
           style={{ color: "oklch(0.6 0.05 145)" }}
         >
@@ -227,6 +211,92 @@ export default function SalonOwnerDashboard({ onSwitchRole }: Props) {
       </header>
 
       <main className="max-w-2xl mx-auto p-4">
+        {/* Earnings Cards */}
+        {earnings && (
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div
+              className="rounded-xl p-3"
+              style={{
+                background: "oklch(0.18 0.05 155)",
+                border: "1px solid oklch(0.25 0.05 155)",
+              }}
+            >
+              <p
+                className="text-xs mb-1"
+                style={{ color: "oklch(0.6 0.05 145)" }}
+              >
+                कुल आमदनी
+              </p>
+              <p
+                className="text-lg font-bold"
+                style={{ color: "oklch(0.52 0.18 145)" }}
+              >
+                ₹{earnings.totalEarnings.toFixed(0)}
+              </p>
+            </div>
+            <div
+              className="rounded-xl p-3"
+              style={{
+                background: "oklch(0.18 0.05 155)",
+                border: "1px solid oklch(0.25 0.05 155)",
+              }}
+            >
+              <p
+                className="text-xs mb-1"
+                style={{ color: "oklch(0.6 0.05 145)" }}
+              >
+                इस माह आमदनी
+              </p>
+              <p
+                className="text-lg font-bold"
+                style={{ color: "oklch(0.7 0.15 145)" }}
+              >
+                ₹{earnings.monthlyEarnings.toFixed(0)}
+              </p>
+            </div>
+            <div
+              className="rounded-xl p-3"
+              style={{
+                background: "oklch(0.18 0.05 155)",
+                border: "1px solid oklch(0.25 0.05 155)",
+              }}
+            >
+              <p
+                className="text-xs mb-1"
+                style={{ color: "oklch(0.6 0.05 145)" }}
+              >
+                कुल अपॉइंटमेंट
+              </p>
+              <p
+                className="text-lg font-bold"
+                style={{ color: "oklch(0.95 0.02 145)" }}
+              >
+                {String(earnings.totalAppointments)}
+              </p>
+            </div>
+            <div
+              className="rounded-xl p-3"
+              style={{
+                background: "oklch(0.18 0.05 155)",
+                border: "1px solid oklch(0.25 0.05 155)",
+              }}
+            >
+              <p
+                className="text-xs mb-1"
+                style={{ color: "oklch(0.6 0.05 145)" }}
+              >
+                पूरे हुए
+              </p>
+              <p
+                className="text-lg font-bold"
+                style={{ color: "oklch(0.95 0.02 145)" }}
+              >
+                {String(earnings.completedAppointments)}
+              </p>
+            </div>
+          </div>
+        )}
+
         <Tabs defaultValue="queue">
           <TabsList
             className="w-full mb-4"
@@ -248,15 +318,15 @@ export default function SalonOwnerDashboard({ onSwitchRole }: Props) {
           </TabsList>
 
           <TabsContent value="queue">
-            <QueueTab salonId={salon.id} today={today} />
+            <QueueTab phone={phone} salonId={salon.id} today={today} />
           </TabsContent>
 
           <TabsContent value="services">
-            <ServicesTab salonId={salon.id} />
+            <ServicesTab phone={phone} salonId={salon.id} />
           </TabsContent>
 
           <TabsContent value="info">
-            <InfoTab salon={salon} />
+            <InfoTab phone={phone} salon={salon} />
           </TabsContent>
         </Tabs>
       </main>
@@ -280,15 +350,16 @@ export default function SalonOwnerDashboard({ onSwitchRole }: Props) {
 }
 
 function RegisterSalonForm({
+  phone,
   onLogout,
-}: { onSwitchRole?: () => void; onLogout: () => void }) {
+}: { phone: string; onSwitchRole?: () => void; onLogout: () => void }) {
   const [form, setForm] = useState({
     name: "",
     address: "",
-    phone: "",
+    salonPhone: "",
     city: "",
   });
-  const { mutate, isPending } = useRegisterSalon();
+  const { mutate, isPending } = useRegisterSalon(phone);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -361,7 +432,7 @@ function RegisterSalonForm({
               className="text-center text-sm"
               style={{ color: "oklch(0.6 0.05 145)" }}
             >
-              7 दिन का फ्री ट्रायल शुरू होगा
+              Admin की मंजूरी के बाद आपका सैलून दिखने लगेगा
             </p>
           </CardHeader>
           <CardContent>
@@ -434,12 +505,12 @@ function RegisterSalonForm({
                   className="text-sm"
                   style={{ color: "oklch(0.75 0.05 145)" }}
                 >
-                  फ़ोन नंबर
+                  संपर्क नंबर
                 </Label>
                 <Input
-                  value={form.phone}
+                  value={form.salonPhone}
                   onChange={(e) =>
-                    setForm((f) => ({ ...f, phone: e.target.value }))
+                    setForm((f) => ({ ...f, salonPhone: e.target.value }))
                   }
                   placeholder="9876543210"
                   type="tel"
@@ -471,13 +542,17 @@ function RegisterSalonForm({
   );
 }
 
-function QueueTab({ salonId, today }: { salonId: bigint; today: string }) {
+function QueueTab({
+  phone,
+  salonId,
+  today,
+}: { phone: string; salonId: bigint; today: string }) {
   const {
     data: appointments = [],
     isLoading,
     refetch,
-  } = useGetSalonAppointmentsForDate(salonId, today);
-  const { mutate: updateStatus, isPending } = useUpdateAppointmentStatus();
+  } = useGetSalonAppointmentsForDate(phone, salonId, today);
+  const { mutate: updateStatus, isPending } = useUpdateAppointmentStatus(phone);
 
   const sorted = [...appointments].sort(
     (a, b) => Number(a.queueNumber) - Number(b.queueNumber),
@@ -628,11 +703,11 @@ function QueueTab({ salonId, today }: { salonId: bigint; today: string }) {
   );
 }
 
-function ServicesTab({ salonId }: { salonId: bigint }) {
+function ServicesTab({ phone, salonId }: { phone: string; salonId: bigint }) {
   const { data: services = [], isLoading } = useGetSalonServices(salonId);
-  const { mutate: addService, isPending: adding } = useAddSalonService();
+  const { mutate: addService, isPending: adding } = useAddSalonService(phone);
   const { mutate: deleteService, isPending: deleting } =
-    useDeleteSalonService();
+    useDeleteSalonService(phone);
   const [form, setForm] = useState({ name: "", price: "", duration: "" });
   const [showForm, setShowForm] = useState(false);
 
@@ -852,20 +927,20 @@ function ServicesTab({ salonId }: { salonId: bigint }) {
 }
 
 function InfoTab({
+  phone,
   salon,
 }: {
-  salon: NonNullable<ReturnType<typeof useGetMySalon>["data"]> extends infer T
-    ? T
-    : never;
+  phone: string;
+  salon: SalonWithId;
 }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     name: salon.name,
     address: salon.address,
-    phone: salon.phone,
+    salonPhone: salon.phone,
     city: salon.city,
   });
-  const { mutate: update, isPending } = useUpdateMySalon();
+  const { mutate: update, isPending } = useUpdateMySalon(phone);
 
   const trialDays = getTrialDaysRemaining(
     salon.trialStartDate,
@@ -874,13 +949,21 @@ function InfoTab({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    update(form, {
-      onSuccess: () => {
-        toast.success("जानकारी सेव हो गई");
-        setEditing(false);
+    update(
+      {
+        name: form.name,
+        address: form.address,
+        salonPhone: form.salonPhone,
+        city: form.city,
       },
-      onError: () => toast.error("कुछ गलत हुआ"),
-    });
+      {
+        onSuccess: () => {
+          toast.success("जानकारी सेव हो गई");
+          setEditing(false);
+        },
+        onError: () => toast.error("कुछ गलत हुआ"),
+      },
+    );
   };
 
   return (
@@ -895,7 +978,13 @@ function InfoTab({
               : salon.subscriptionActive
                 ? "oklch(0.52 0.18 145 / 0.15)"
                 : "oklch(0.577 0.245 27.325 / 0.15)",
-          border: `1px solid ${trialDays > 0 ? "oklch(0.52 0.18 145 / 0.4)" : salon.subscriptionActive ? "oklch(0.52 0.18 145 / 0.4)" : "oklch(0.577 0.245 27.325 / 0.4)"}`,
+          border: `1px solid ${
+            trialDays > 0
+              ? "oklch(0.52 0.18 145 / 0.4)"
+              : salon.subscriptionActive
+                ? "oklch(0.52 0.18 145 / 0.4)"
+                : "oklch(0.577 0.245 27.325 / 0.4)"
+          }`,
         }}
       >
         <div className="flex items-center gap-2">
@@ -928,7 +1017,7 @@ function InfoTab({
                   className="font-semibold text-sm"
                   style={{ color: "oklch(0.95 0.02 145)" }}
                 >
-                  सब्सक्रिप्शन सक्रिय
+                  सब्स्क्रिप्शन सक्रिय
                 </p>
               </div>
             </>
@@ -946,7 +1035,7 @@ function InfoTab({
                   ट्रायल खत्म
                 </p>
                 <p className="text-xs" style={{ color: "oklch(0.6 0.05 145)" }}>
-                  एडमिन से सब्सक्रिप्शन लें
+                  एडमिन से सब्स्क्रिप्शन लें
                 </p>
               </div>
             </>
@@ -1012,7 +1101,7 @@ function InfoTab({
               { key: "name", label: "नाम", placeholder: "सैलून का नाम" },
               { key: "city", label: "शहर", placeholder: "शहर" },
               { key: "address", label: "पता", placeholder: "पूरा पता" },
-              { key: "phone", label: "फ़ोन", placeholder: "फ़ोन नंबर" },
+              { key: "salonPhone", label: "फ़ोन", placeholder: "फ़ोन नंबर" },
             ].map(({ key, label, placeholder }) => (
               <div key={key}>
                 <Label

@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Bell,
   Calendar,
@@ -26,7 +27,6 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ErrorBoundary } from "../components/ErrorBoundary";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   type AppointmentWithId,
   type SalonWithId,
@@ -38,6 +38,55 @@ import {
   useGetSalonServices,
   useSaveCustomerProfile,
 } from "../hooks/useQueries";
+
+// ─── Rating localStorage helpers ───────────────────────────────────────────
+export interface RatingEntry {
+  appointmentId: string;
+  salonId: string;
+  salonName: string;
+  customerPhone: string;
+  stars: number;
+  review: string;
+  date: string;
+}
+
+const RATINGS_KEY = "salon_ratings";
+
+export function getRatings(): RatingEntry[] {
+  try {
+    return JSON.parse(localStorage.getItem(RATINGS_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+export function saveRating(entry: RatingEntry) {
+  const list = getRatings().filter(
+    (r) => r.appointmentId !== entry.appointmentId,
+  );
+  list.push(entry);
+  localStorage.setItem(RATINGS_KEY, JSON.stringify(list));
+}
+
+export function deleteRating(appointmentId: string) {
+  const list = getRatings().filter((r) => r.appointmentId !== appointmentId);
+  localStorage.setItem(RATINGS_KEY, JSON.stringify(list));
+}
+
+export function getAverageRating(salonId: string): {
+  avg: number;
+  count: number;
+} {
+  const list = getRatings().filter((r) => r.salonId === salonId);
+  if (list.length === 0) return { avg: 0, count: 0 };
+  const avg = list.reduce((s, r) => s + r.stars, 0) / list.length;
+  return { avg: Math.round(avg * 10) / 10, count: list.length };
+}
+
+export function hasRated(appointmentId: string): boolean {
+  return getRatings().some((r) => r.appointmentId === appointmentId);
+}
+// ───────────────────────────────────────────────────────────────────────────
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "प्रतीक्षा",
@@ -52,13 +101,13 @@ function getTodayString() {
 }
 
 interface Props {
+  phone: string;
   onSwitchRole: () => void;
 }
 
-export default function CustomerDashboard({ onSwitchRole }: Props) {
-  const { clear } = useInternetIdentity();
+export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
   const { data: profile, isLoading: profileLoading } =
-    useGetMyCustomerProfile();
+    useGetMyCustomerProfile(phone);
 
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {
@@ -81,14 +130,7 @@ export default function CustomerDashboard({ onSwitchRole }: Props) {
   }
 
   if (!profile) {
-    return (
-      <ProfileSetupForm
-        onLogout={() => {
-          clear();
-          onSwitchRole();
-        }}
-      />
-    );
+    return <ProfileSetupForm phone={phone} onLogout={onSwitchRole} />;
   }
 
   return (
@@ -125,10 +167,7 @@ export default function CustomerDashboard({ onSwitchRole }: Props) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => {
-            clear();
-            onSwitchRole();
-          }}
+          onClick={onSwitchRole}
           data-ocid="customer.close_button"
           style={{ color: "oklch(0.6 0.05 145)" }}
         >
@@ -161,13 +200,13 @@ export default function CustomerDashboard({ onSwitchRole }: Props) {
 
           <TabsContent value="salons">
             <ErrorBoundary>
-              <SalonListTab profile={profile} />
+              <SalonListTab phone={phone} profile={profile} />
             </ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="bookings">
             <ErrorBoundary>
-              <MyBookingsTab />
+              <MyBookingsTab phone={phone} />
             </ErrorBoundary>
           </TabsContent>
         </Tabs>
@@ -191,20 +230,26 @@ export default function CustomerDashboard({ onSwitchRole }: Props) {
   );
 }
 
-function ProfileSetupForm({ onLogout }: { onLogout: () => void }) {
-  const [form, setForm] = useState({ name: "", phone: "" });
-  const { mutate, isPending } = useSaveCustomerProfile();
+function ProfileSetupForm({
+  phone,
+  onLogout,
+}: { phone: string; onLogout: () => void }) {
+  const [name, setName] = useState("");
+  const { mutate, isPending } = useSaveCustomerProfile(phone);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.phone) {
-      toast.error("नाम और फ़ोन जरूरी है");
+    if (!name.trim()) {
+      toast.error("नाम जरूरी है");
       return;
     }
-    mutate(form, {
-      onSuccess: () => toast.success("प्रोफ़ाइल सेव हो गई!"),
-      onError: () => toast.error("कुछ गलत हुआ"),
-    });
+    mutate(
+      { name: name.trim() },
+      {
+        onSuccess: () => toast.success("प्रोफ़ाइल सेव हो गई!"),
+        onError: () => toast.error("कुछ गलत हुआ"),
+      },
+    );
   };
 
   return (
@@ -260,7 +305,7 @@ function ProfileSetupForm({ onLogout }: { onLogout: () => void }) {
               className="text-center"
               style={{ color: "oklch(0.95 0.02 145)" }}
             >
-              अपनी जानकारी भरें
+              अपना नाम भरें
             </CardTitle>
             <p
               className="text-center text-sm"
@@ -279,10 +324,8 @@ function ProfileSetupForm({ onLogout }: { onLogout: () => void }) {
                   आपका नाम *
                 </Label>
                 <Input
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="अपना पूरा नाम"
                   data-ocid="profile.input"
                   style={{
@@ -297,20 +340,16 @@ function ProfileSetupForm({ onLogout }: { onLogout: () => void }) {
                   className="text-sm"
                   style={{ color: "oklch(0.75 0.05 145)" }}
                 >
-                  मोबाइल नंबर *
+                  मोबाइल नंबर
                 </Label>
                 <Input
-                  value={form.phone}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, phone: e.target.value }))
-                  }
-                  placeholder="9876543210"
-                  type="tel"
+                  value={phone}
+                  disabled
                   data-ocid="profile.input"
                   style={{
-                    background: "oklch(0.22 0.05 155)",
-                    border: "1px solid oklch(0.32 0.05 155)",
-                    color: "oklch(0.95 0.02 145)",
+                    background: "oklch(0.2 0.04 155)",
+                    border: "1px solid oklch(0.28 0.05 155)",
+                    color: "oklch(0.6 0.05 145)",
                   }}
                 />
               </div>
@@ -334,11 +373,166 @@ function ProfileSetupForm({ onLogout }: { onLogout: () => void }) {
   );
 }
 
+// ─── Rating Popup ────────────────────────────────────────────────────────────
+function RatingPopup({
+  appointmentId,
+  salonId,
+  salonName,
+  customerPhone,
+  onClose,
+}: {
+  appointmentId: string;
+  salonId: string;
+  salonName: string;
+  customerPhone: string;
+  onClose: () => void;
+}) {
+  const [stars, setStars] = useState(0);
+  const [hovered, setHovered] = useState(0);
+  const [review, setReview] = useState("");
+
+  const handleSubmit = () => {
+    if (stars === 0) {
+      toast.error("कृपया स्टार रेटिंग दें");
+      return;
+    }
+    saveRating({
+      appointmentId,
+      salonId,
+      salonName,
+      customerPhone,
+      stars,
+      review: review.trim(),
+      date: new Date().toISOString(),
+    });
+    toast.success("रेटिंग दी गई!");
+    onClose();
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent
+        data-ocid="rating.dialog"
+        style={{
+          background: "oklch(0.18 0.05 155)",
+          border: "1px solid oklch(0.28 0.05 155)",
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle style={{ color: "oklch(0.95 0.02 145)" }}>
+            रेटिंग दें
+          </DialogTitle>
+          <p className="text-sm" style={{ color: "oklch(0.6 0.05 145)" }}>
+            {salonName}
+          </p>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {/* Stars */}
+          <div>
+            <p
+              className="text-sm mb-2"
+              style={{ color: "oklch(0.75 0.05 145)" }}
+            >
+              आपका अनुभव कैसा रहा?
+            </p>
+            <div className="flex gap-2 justify-center">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  data-ocid="rating.toggle"
+                  onClick={() => setStars(n)}
+                  onMouseEnter={() => setHovered(n)}
+                  onMouseLeave={() => setHovered(0)}
+                  className="p-1 transition-transform hover:scale-110 active:scale-95"
+                >
+                  <Star
+                    className="w-8 h-8"
+                    style={{
+                      color:
+                        n <= (hovered || stars)
+                          ? "oklch(0.82 0.18 85)"
+                          : "oklch(0.35 0.04 155)",
+                      fill:
+                        n <= (hovered || stars)
+                          ? "oklch(0.82 0.18 85)"
+                          : "transparent",
+                      transition: "color 0.15s, fill 0.15s",
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
+            {stars > 0 && (
+              <p
+                className="text-center text-xs mt-1"
+                style={{ color: "oklch(0.82 0.18 85)" }}
+              >
+                {["बहुत बुरा", "बुरा", "ठीक है", "अच्छा", "बहुत अच्छा"][stars - 1]}
+              </p>
+            )}
+          </div>
+
+          {/* Review text */}
+          <div>
+            <Label
+              className="text-sm"
+              style={{ color: "oklch(0.75 0.05 145)" }}
+            >
+              समीक्षा (वैकल्पिक)
+            </Label>
+            <Textarea
+              value={review}
+              onChange={(e) => setReview(e.target.value)}
+              placeholder="अपना अनुभव लिखें..."
+              rows={3}
+              maxLength={300}
+              data-ocid="rating.textarea"
+              style={{
+                background: "oklch(0.22 0.05 155)",
+                border: "1px solid oklch(0.32 0.05 155)",
+                color: "oklch(0.95 0.02 145)",
+                marginTop: "4px",
+              }}
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-1">
+            <Button
+              variant="ghost"
+              onClick={onClose}
+              className="flex-1"
+              data-ocid="rating.cancel_button"
+              style={{ color: "oklch(0.6 0.05 145)" }}
+            >
+              बाद में
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              className="flex-1"
+              data-ocid="rating.submit_button"
+              style={{ background: "oklch(0.52 0.18 145)", color: "white" }}
+            >
+              जमा करें
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 function SalonListTab({
+  phone,
   profile,
-}: { profile: { name: string; phone: string } }) {
+}: { phone: string; profile: { name: string; phone: string } }) {
   const { data: salons = [], isLoading } = useGetAllActiveSalons();
   const [selectedSalon, setSelectedSalon] = useState<SalonWithId | null>(null);
+  // re-render when ratings change
+  const [, forceUpdate] = useState(0);
 
   if (isLoading) {
     return (
@@ -357,7 +551,7 @@ function SalonListTab({
   return (
     <div className="space-y-3">
       <h2 className="font-semibold" style={{ color: "oklch(0.95 0.02 145)" }}>
-        नजदीकी सैलून ({salons.length})
+        नज़दीकी सैलून ({salons.length})
       </h2>
 
       {salons.length === 0 ? (
@@ -369,85 +563,132 @@ function SalonListTab({
           <p style={{ color: "oklch(0.6 0.05 145)" }}>अभी कोई सैलून उपलब्ध नहीं</p>
         </div>
       ) : (
-        salons.map((salon, idx) => (
-          <button
-            key={salon.id.toString()}
-            type="button"
-            className="w-full rounded-xl p-4 cursor-pointer transition-all hover:opacity-90 active:scale-98 text-left"
-            data-ocid={`salons.item.${idx + 1}`}
-            onClick={() => setSelectedSalon(salon)}
-            style={{
-              background: "oklch(0.18 0.05 155)",
-              border: "1px solid oklch(0.28 0.05 155)",
-            }}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background: "oklch(0.52 0.18 145 / 0.2)" }}
-                >
-                  <Scissors
-                    className="w-5 h-5"
-                    style={{ color: "oklch(0.52 0.18 145)" }}
+        salons.map((salon, idx) => {
+          const { avg, count } = getAverageRating(salon.id.toString());
+          const isTopRated = avg >= 4.5 && count >= 1;
+          return (
+            <button
+              key={salon.id.toString()}
+              type="button"
+              className="w-full rounded-xl p-4 cursor-pointer transition-all hover:opacity-90 active:scale-98 text-left"
+              data-ocid={`salons.item.${idx + 1}`}
+              onClick={() => setSelectedSalon(salon)}
+              style={{
+                background: "oklch(0.18 0.05 155)",
+                border: "1px solid oklch(0.28 0.05 155)",
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: "oklch(0.52 0.18 145 / 0.2)" }}
+                  >
+                    <Scissors
+                      className="w-5 h-5"
+                      style={{ color: "oklch(0.52 0.18 145)" }}
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p
+                        className="font-semibold text-sm"
+                        style={{ color: "oklch(0.95 0.02 145)" }}
+                      >
+                        {salon.name}
+                      </p>
+                      {isTopRated && (
+                        <Badge
+                          className="text-xs px-1.5 py-0"
+                          style={{
+                            background: "oklch(0.82 0.18 85 / 0.2)",
+                            color: "oklch(0.72 0.18 85)",
+                            border: "1px solid oklch(0.72 0.18 85 / 0.3)",
+                          }}
+                        >
+                          🏆 टॉप रेटेड
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <MapPin
+                        className="w-3 h-3"
+                        style={{ color: "oklch(0.6 0.05 145)" }}
+                      />
+                      <p
+                        className="text-xs"
+                        style={{ color: "oklch(0.6 0.05 145)" }}
+                      >
+                        {salon.city}
+                      </p>
+                    </div>
+                    {/* Rating display */}
+                    {count > 0 ? (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span
+                          className="text-xs"
+                          style={{ color: "oklch(0.82 0.18 85)" }}
+                        >
+                          {Array.from({ length: 5 }, (_, i) =>
+                            i < Math.round(avg) ? "★" : "☆",
+                          ).join("")}
+                        </span>
+                        <span
+                          className="text-xs"
+                          style={{ color: "oklch(0.75 0.05 145)" }}
+                        >
+                          {avg} ({count} समीक्षाएं)
+                        </span>
+                      </div>
+                    ) : (
+                      <p
+                        className="text-xs mt-0.5"
+                        style={{ color: "oklch(0.4 0.04 155)" }}
+                      >
+                        अभी कोई रेटिंग नहीं
+                      </p>
+                    )}
+                    {salon.address && (
+                      <p
+                        className="text-xs mt-0.5"
+                        style={{ color: "oklch(0.5 0.04 155)" }}
+                      >
+                        {salon.address}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {salon.phone && (
+                    <span
+                      className="text-xs"
+                      style={{ color: "oklch(0.52 0.18 145)" }}
+                    >
+                      <Phone className="w-3 h-3 inline mr-0.5" />
+                      {salon.phone}
+                    </span>
+                  )}
+                  <ChevronRight
+                    className="w-4 h-4"
+                    style={{ color: "oklch(0.4 0.05 155)" }}
                   />
                 </div>
-                <div>
-                  <p
-                    className="font-semibold text-sm"
-                    style={{ color: "oklch(0.95 0.02 145)" }}
-                  >
-                    {salon.name}
-                  </p>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <MapPin
-                      className="w-3 h-3"
-                      style={{ color: "oklch(0.6 0.05 145)" }}
-                    />
-                    <p
-                      className="text-xs"
-                      style={{ color: "oklch(0.6 0.05 145)" }}
-                    >
-                      {salon.city}
-                    </p>
-                  </div>
-                  {salon.address && (
-                    <p
-                      className="text-xs mt-0.5"
-                      style={{ color: "oklch(0.5 0.04 155)" }}
-                    >
-                      {salon.address}
-                    </p>
-                  )}
-                </div>
               </div>
-              <div className="flex items-center gap-2">
-                {salon.phone && (
-                  <span
-                    className="text-xs"
-                    style={{ color: "oklch(0.52 0.18 145)" }}
-                  >
-                    <Phone className="w-3 h-3 inline mr-0.5" />
-                    {salon.phone}
-                  </span>
-                )}
-                <ChevronRight
-                  className="w-4 h-4"
-                  style={{ color: "oklch(0.4 0.05 155)" }}
-                />
-              </div>
-            </div>
-          </button>
-        ))
+            </button>
+          );
+        })
       )}
 
       {selectedSalon && (
         <ErrorBoundary>
           <BookingModal
             salon={selectedSalon}
+            customerPhone={phone}
             customerName={profile.name}
-            customerPhone={profile.phone}
-            onClose={() => setSelectedSalon(null)}
+            onClose={() => {
+              setSelectedSalon(null);
+              forceUpdate((n) => n + 1);
+            }}
           />
         </ErrorBoundary>
       )}
@@ -468,7 +709,8 @@ function BookingModal({
 }) {
   const { data: services = [], isLoading: servicesLoading } =
     useGetSalonServices(salon.id);
-  const { mutate: book, isPending: booking } = useBookAppointment();
+  const { mutate: book, isPending: booking } =
+    useBookAppointment(customerPhone);
   const [selectedService, setSelectedService] = useState("");
   const [date, setDate] = useState(getTodayString());
   const [booked, setBooked] = useState<{
@@ -489,7 +731,6 @@ function BookingModal({
       {
         salonId: salon.id,
         customerName,
-        customerPhone,
         serviceName: selectedService,
         date,
       },
@@ -533,7 +774,7 @@ function BookingModal({
               className="text-lg font-bold mb-1"
               style={{ color: "oklch(0.95 0.02 145)" }}
             >
-              बुकिंग हो गई! 🎉
+              बुकिंग हो गई! ༼
             </p>
             <p className="text-sm" style={{ color: "oklch(0.6 0.05 145)" }}>
               आपकी अपॉइंटमेंट {date} को है
@@ -672,14 +913,21 @@ function BookingModal({
 function AppointmentCard({
   appt,
   salons,
-}: { appt: AppointmentWithId; salons: SalonWithId[] }) {
-  const salonName = salons.find((s) => s.id === appt.salonId)?.name || "सैलून";
+  customerPhone,
+}: { appt: AppointmentWithId; salons: SalonWithId[]; customerPhone: string }) {
+  const salon = salons.find((s) => s.id === appt.salonId);
+  const salonName = salon?.name || "सैलून";
+  const salonId = appt.salonId.toString();
   const isActive =
     appt.status === "confirmed" ||
     appt.status === "inprogress" ||
     appt.status === "pending";
   const { data: queueInfo } = useGetQueueInfo(isActive ? appt.id : null);
   const notifiedRef = useRef(false);
+  const [showRating, setShowRating] = useState(false);
+  const [alreadyRated, setAlreadyRated] = useState(() =>
+    hasRated(appt.id.toString()),
+  );
 
   useEffect(() => {
     if (!queueInfo || !isActive || notifiedRef.current) return;
@@ -702,74 +950,118 @@ function AppointmentCard({
             icon: "/assets/generated/icon-192.dim_192x192.png",
           });
         } catch {
-          // Notification not supported on this browser
+          // Notification not supported
         }
       }
     }
   }, [queueInfo, isActive, salonName]);
 
   return (
-    <div
-      className="rounded-xl p-4"
-      style={{
-        background: "oklch(0.18 0.05 155)",
-        border: "1px solid oklch(0.28 0.05 155)",
-      }}
-    >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div>
-          <p
-            className="font-semibold text-sm"
-            style={{ color: "oklch(0.95 0.02 145)" }}
+    <>
+      <div
+        className="rounded-xl p-4"
+        style={{
+          background: "oklch(0.18 0.05 155)",
+          border: "1px solid oklch(0.28 0.05 155)",
+        }}
+      >
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div>
+            <p
+              className="font-semibold text-sm"
+              style={{ color: "oklch(0.95 0.02 145)" }}
+            >
+              {salonName}
+            </p>
+            <p className="text-xs" style={{ color: "oklch(0.6 0.05 145)" }}>
+              {appt.serviceName} • {appt.date}
+            </p>
+          </div>
+          <Badge
+            className="text-xs"
+            style={{
+              background:
+                appt.status === "completed"
+                  ? "oklch(0.52 0.18 145 / 0.2)"
+                  : appt.status === "cancelled"
+                    ? "oklch(0.577 0.245 27.325 / 0.2)"
+                    : "oklch(0.75 0.12 70 / 0.2)",
+              color:
+                appt.status === "completed"
+                  ? "oklch(0.52 0.18 145)"
+                  : appt.status === "cancelled"
+                    ? "oklch(0.577 0.245 27.325)"
+                    : "oklch(0.75 0.12 70)",
+              border: "none",
+            }}
           >
-            {salonName}
-          </p>
-          <p className="text-xs" style={{ color: "oklch(0.6 0.05 145)" }}>
-            {appt.serviceName} • {appt.date}
-          </p>
+            {STATUS_LABELS[appt.status] || appt.status}
+          </Badge>
         </div>
-        <Badge
-          className="text-xs"
-          style={{
-            background:
-              appt.status === "completed"
-                ? "oklch(0.52 0.18 145 / 0.2)"
-                : appt.status === "cancelled"
-                  ? "oklch(0.577 0.245 27.325 / 0.2)"
-                  : "oklch(0.75 0.12 70 / 0.2)",
-            color:
-              appt.status === "completed"
-                ? "oklch(0.52 0.18 145)"
-                : appt.status === "cancelled"
-                  ? "oklch(0.577 0.245 27.325)"
-                  : "oklch(0.75 0.12 70)",
-            border: "none",
-          }}
-        >
-          {STATUS_LABELS[appt.status] || appt.status}
-        </Badge>
+        {isActive && queueInfo && (
+          <div
+            className="rounded-lg p-2 mt-2 flex items-center gap-2"
+            style={{ background: "oklch(0.52 0.18 145 / 0.1)" }}
+          >
+            <Clock
+              className="w-4 h-4 flex-shrink-0"
+              style={{ color: "oklch(0.52 0.18 145)" }}
+            />
+            <p className="text-xs" style={{ color: "oklch(0.75 0.1 145)" }}>
+              आप नंबर <strong>{String(queueInfo[0])}</strong> पर हैं
+              {Number(queueInfo[1]) > 0 && ` • ${Number(queueInfo[1])} लोग पहले`}
+            </p>
+          </div>
+        )}
+
+        {/* Rating section for completed appointments */}
+        {appt.status === "completed" && (
+          <div
+            className="mt-3 pt-3"
+            style={{ borderTop: "1px solid oklch(0.25 0.04 155)" }}
+          >
+            {alreadyRated ? (
+              <p className="text-xs" style={{ color: "oklch(0.52 0.18 145)" }}>
+                ✓ रेटिंग दी गई
+              </p>
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowRating(true)}
+                data-ocid="bookings.toggle"
+                className="text-xs h-7 px-3"
+                style={{
+                  background: "oklch(0.82 0.18 85 / 0.12)",
+                  color: "oklch(0.82 0.18 85)",
+                  border: "1px solid oklch(0.72 0.18 85 / 0.25)",
+                }}
+              >
+                ⭐ रेटिंग दें
+              </Button>
+            )}
+          </div>
+        )}
       </div>
-      {isActive && queueInfo && (
-        <div
-          className="rounded-lg p-2 mt-2 flex items-center gap-2"
-          style={{ background: "oklch(0.52 0.18 145 / 0.1)" }}
-        >
-          <Clock
-            className="w-4 h-4 flex-shrink-0"
-            style={{ color: "oklch(0.52 0.18 145)" }}
-          />
-          <p className="text-xs" style={{ color: "oklch(0.75 0.1 145)" }}>
-            आप नंबर <strong>{String(queueInfo[0])}</strong> पर हैं
-            {Number(queueInfo[1]) > 0 && ` • ${Number(queueInfo[1])} लोग पहले`}
-          </p>
-        </div>
+
+      {showRating && (
+        <RatingPopup
+          appointmentId={appt.id.toString()}
+          salonId={salonId}
+          salonName={salonName}
+          customerPhone={customerPhone}
+          onClose={() => {
+            setShowRating(false);
+            setAlreadyRated(hasRated(appt.id.toString()));
+          }}
+        />
       )}
-    </div>
+    </>
   );
 }
 
-function MyBookingsTab() {
-  const { data: appointments = [], isLoading } = useGetMyAppointments();
+function MyBookingsTab({ phone }: { phone: string }) {
+  const { data: appointments = [], isLoading } = useGetMyAppointments(phone);
   const { data: salons = [] } = useGetAllActiveSalons();
 
   if (isLoading) {
@@ -801,7 +1093,7 @@ function MyBookingsTab() {
           style={{ color: "oklch(0.52 0.18 145)" }}
         >
           <Bell className="w-3 h-3" />
-          <span>नोटिफिकेशन चालू</span>
+          <span>नोटिफ़िकेशन चालू</span>
         </div>
       </div>
 
@@ -819,7 +1111,11 @@ function MyBookingsTab() {
       ) : (
         sorted.map((appt, idx) => (
           <div key={appt.id.toString()} data-ocid={`bookings.item.${idx + 1}`}>
-            <AppointmentCard appt={appt} salons={salons} />
+            <AppointmentCard
+              appt={appt}
+              salons={salons}
+              customerPhone={phone}
+            />
           </div>
         ))
       )}

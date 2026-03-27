@@ -1,10 +1,8 @@
 import { Scissors } from "lucide-react";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import LoginPage from "./components/LoginPage";
+import MobileLoginPage from "./components/MobileLoginPage";
 import RoleSelect from "./components/RoleSelect";
-import { useInternetIdentity } from "./hooks/useInternetIdentity";
-import { useIsAdmin } from "./hooks/useQueries";
 import AdminLoginPage, {
   isAdminLoggedIn,
   logoutAdmin,
@@ -14,9 +12,46 @@ const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const CustomerDashboard = lazy(() => import("./pages/CustomerDashboard"));
 const SalonOwnerDashboard = lazy(() => import("./pages/SalonOwnerDashboard"));
 
+const SESSION_KEY = "salon360_session";
 const ROLE_KEY = "salon360_role";
 
 export type AppRole = "salon" | "customer";
+
+interface Session {
+  phone: string;
+  role: AppRole;
+  expiresAt: number;
+}
+
+function getSession(): Session | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const session: Session = JSON.parse(raw);
+    if (Date.now() > session.expiresAt) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+function saveSession(phone: string, role: AppRole) {
+  const session: Session = {
+    phone,
+    role,
+    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+  };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  localStorage.setItem(ROLE_KEY, role);
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(ROLE_KEY);
+}
 
 function LoadingSpinner() {
   return (
@@ -47,16 +82,8 @@ function isAdminRoute(): boolean {
 }
 
 export default function App() {
-  const { identity, isInitializing } = useInternetIdentity();
-  const isAuthenticated = !!identity;
-  const { data: isAdmin, isLoading: adminLoading } = useIsAdmin();
-
+  const [session, setSession] = useState<Session | null>(() => getSession());
   const [pendingRole, setPendingRole] = useState<AppRole | null>(null);
-  const [savedRole, setSavedRole] = useState<AppRole | null>(() => {
-    const r = localStorage.getItem(ROLE_KEY);
-    return r === "salon" || r === "customer" ? r : null;
-  });
-
   const [adminSession, setAdminSession] = useState<boolean>(() =>
     isAdminLoggedIn(),
   );
@@ -72,15 +99,7 @@ export default function App() {
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
-  useEffect(() => {
-    if (isAuthenticated && pendingRole) {
-      localStorage.setItem(ROLE_KEY, pendingRole);
-      setSavedRole(pendingRole);
-      setPendingRole(null);
-    }
-  }, [isAuthenticated, pendingRole]);
-
-  // Admin route: show login page or admin panel
+  // Admin route
   if (onAdminRoute || adminSession) {
     if (!adminSession) {
       return (
@@ -109,74 +128,57 @@ export default function App() {
     );
   }
 
-  const loadingAfterAuth = isAuthenticated && adminLoading;
+  // Active session — show dashboard
+  if (session) {
+    const handleLogout = () => {
+      clearSession();
+      setSession(null);
+      setPendingRole(null);
+    };
 
-  if (loadingAfterAuth) {
-    return <LoadingSpinner />;
-  }
-
-  if (!isAuthenticated) {
-    if (!pendingRole && !savedRole) {
-      return <RoleSelect onSelect={setPendingRole} />;
+    if (session.role === "salon") {
+      return (
+        <ErrorBoundary>
+          <Suspense fallback={<LoadingSpinner />}>
+            <SalonOwnerDashboard
+              phone={session.phone}
+              onSwitchRole={handleLogout}
+            />
+          </Suspense>
+        </ErrorBoundary>
+      );
     }
     return (
-      <LoginPage
-        role={pendingRole || savedRole}
-        onChangeRole={() => {
-          setPendingRole(null);
-          setSavedRole(null);
-        }}
-        isInitializing={isInitializing}
-      />
-    );
-  }
-
-  if (isAdmin) {
-    return (
       <ErrorBoundary>
         <Suspense fallback={<LoadingSpinner />}>
-          <AdminPanel />
-        </Suspense>
-      </ErrorBoundary>
-    );
-  }
-
-  const role = savedRole;
-
-  if (!role) {
-    return (
-      <RoleSelect
-        onSelect={(r) => {
-          localStorage.setItem(ROLE_KEY, r);
-          setSavedRole(r);
-        }}
-      />
-    );
-  }
-
-  if (role === "salon")
-    return (
-      <ErrorBoundary>
-        <Suspense fallback={<LoadingSpinner />}>
-          <SalonOwnerDashboard
-            onSwitchRole={() => {
-              localStorage.removeItem(ROLE_KEY);
-              setSavedRole(null);
-            }}
+          <CustomerDashboard
+            phone={session.phone}
+            onSwitchRole={handleLogout}
           />
         </Suspense>
       </ErrorBoundary>
     );
+  }
+
+  // No session: role select → login → dashboard
+  if (!pendingRole) {
+    return (
+      <RoleSelect
+        onSelect={(role) => {
+          setPendingRole(role);
+        }}
+      />
+    );
+  }
+
   return (
-    <ErrorBoundary>
-      <Suspense fallback={<LoadingSpinner />}>
-        <CustomerDashboard
-          onSwitchRole={() => {
-            localStorage.removeItem(ROLE_KEY);
-            setSavedRole(null);
-          }}
-        />
-      </Suspense>
-    </ErrorBoundary>
+    <MobileLoginPage
+      role={pendingRole}
+      onChangeRole={() => setPendingRole(null)}
+      onLoginSuccess={(phone) => {
+        saveSession(phone, pendingRole);
+        setSession(getSession());
+      }}
+    />
   );
 }

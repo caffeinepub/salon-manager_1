@@ -7,50 +7,58 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
-export interface Staff {
+export interface SalonWithId {
+    id: bigint;
+    trialDays: bigint;
+    city: string;
     name: string;
-    role: string;
-    email: string;
-    specialty: string;
+    ownerPhone: string;
+    pendingApproval: boolean;
+    isActive: boolean;
+    subscriptionActive: boolean;
+    address: string;
+    phone: string;
+    trialStartDate: bigint;
+}
+export interface OwnerRevenueSummary {
+    monthlyEarnings: number;
+    completedAppointments: bigint;
+    totalEarnings: number;
+    totalAppointments: bigint;
+}
+export interface ServiceWithId {
+    id: bigint;
+    name: string;
+    durationMinutes: bigint;
+    price: number;
+    salonId: bigint;
+}
+export interface CustomerProfile {
+    name: string;
     phone: string;
 }
-export interface Service {
-    duration: bigint;
-    name: string;
-    description?: string;
-    price: number;
-}
-export interface Appointment {
-    customerName: string;
-    status: AppointmentStatus;
-    serviceName: string;
-    staffName: string;
-    date: string;
-    time: string;
-    notes?: string;
-    price: number;
-}
-export interface Customer {
-    name: string;
-    email: string;
-    notes?: string;
-    phone: string;
+export interface RevenueStats {
+    perSalon: Array<[bigint, string, number]>;
+    totalRevenue: number;
+    monthlyRevenue: number;
 }
 export interface DashboardStats {
-    totalServices: bigint;
-    totalStaff: bigint;
-    totalRevenue: number;
-    totalAppointments: bigint;
-    totalCustomers: bigint;
+    total: bigint;
+    active: bigint;
+    expired: bigint;
+    pending: bigint;
 }
-export interface UserProfile {
-    name: string;
-}
-export enum AppointmentStatus {
-    cancelled = "cancelled",
-    pending = "pending",
-    completed = "completed",
-    confirmed = "confirmed"
+export interface AppointmentWithId {
+    id: bigint;
+    customerName: string;
+    status: string;
+    serviceName: string;
+    customerPhone: string;
+    date: string;
+    createdAt: bigint;
+    queueNumber: bigint;
+    servicePrice: number;
+    salonId: bigint;
 }
 export enum UserRole {
     admin = "admin",
@@ -58,33 +66,40 @@ export enum UserRole {
     guest = "guest"
 }
 export interface backendInterface {
+    addSalonServiceByPhone(ownerPhone: string, salonId: bigint, name: string, price: number, durationMinutes: bigint): Promise<bigint>;
+    adminApproveSalon(salonId: bigint): Promise<void>;
+    adminGetAllSalons(): Promise<Array<SalonWithId>>;
+    adminGetDashboardStats(): Promise<DashboardStats>;
+    adminGetDefaultTrialDays(): Promise<bigint>;
+    adminGetPendingSalons(): Promise<Array<SalonWithId>>;
+    adminGetRevenueStats(): Promise<RevenueStats>;
+    adminGetSubscriptionPrice(): Promise<number>;
+    adminLogin(email: string, passwordHash: string): Promise<boolean>;
+    adminPasswordIsSet(): Promise<boolean>;
+    adminProcessTrialExpirations(): Promise<bigint>;
+    adminRejectSalon(salonId: bigint): Promise<void>;
+    adminSetDefaultTrialDays(days: bigint): Promise<void>;
+    adminSetPassword(email: string, passwordHash: string): Promise<boolean>;
+    adminSetSalonActive(salonId: bigint, active: boolean): Promise<void>;
+    adminSetSalonSubscription(salonId: bigint, active: boolean): Promise<void>;
+    adminSetSalonTrialDays(salonId: bigint, days: bigint): Promise<void>;
+    adminSetSubscriptionPrice(price: number): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
-    createAppointment(appointment: Appointment): Promise<bigint>;
-    createCustomer(customer: Customer): Promise<bigint>;
-    createService(service: Service): Promise<bigint>;
-    createStaff(staffMember: Staff): Promise<bigint>;
-    deleteAppointment(id: bigint): Promise<void>;
-    deleteCustomer(id: bigint): Promise<void>;
-    deleteService(id: bigint): Promise<void>;
-    deleteStaff(id: bigint): Promise<void>;
-    getAllAppointments(): Promise<Array<Appointment>>;
-    getAllCustomers(): Promise<Array<Customer>>;
-    getAllServices(): Promise<Array<Service>>;
-    getAllStaff(): Promise<Array<Staff>>;
-    getAppointment(id: bigint): Promise<Appointment>;
-    getCallerUserProfile(): Promise<UserProfile | null>;
+    bookAppointmentByPhone(customerPhone: string, salonId: bigint, customerName: string, serviceName: string, date: string): Promise<bigint>;
+    deleteSalonServiceByPhone(ownerPhone: string, salonId: bigint, serviceId: bigint): Promise<void>;
+    getAllActiveSalons(): Promise<Array<SalonWithId>>;
     getCallerUserRole(): Promise<UserRole>;
-    getCustomer(id: bigint): Promise<Customer>;
-    getDashboardStats(): Promise<DashboardStats>;
-    getService(id: bigint): Promise<Service>;
-    getStaff(id: bigint): Promise<Staff>;
-    getUserProfile(user: Principal): Promise<UserProfile | null>;
+    getMyAppointmentsByPhone(customerPhone: string): Promise<Array<AppointmentWithId>>;
+    getMyCustomerProfileByPhone(phone: string): Promise<CustomerProfile | null>;
+    getOwnerRevenueSummaryByPhone(ownerPhone: string): Promise<OwnerRevenueSummary>;
+    getOwnerSalonByPhone(ownerPhone: string): Promise<SalonWithId | null>;
+    getQueueInfo(appointmentId: bigint): Promise<[bigint, bigint]>;
+    getSalonAppointmentsForDateByPhone(ownerPhone: string, salonId: bigint, date: string): Promise<Array<AppointmentWithId>>;
+    getSalonById(id: bigint): Promise<SalonWithId | null>;
+    getSalonServices(salonId: bigint): Promise<Array<ServiceWithId>>;
     isCallerAdmin(): Promise<boolean>;
-    saveCallerUserProfile(profile: UserProfile): Promise<void>;
-    searchAppointmentsByCustomerName(customerName: string): Promise<Array<Appointment>>;
-    searchCustomersByName(name: string): Promise<Array<Customer>>;
-    updateAppointment(id: bigint, appointment: Appointment): Promise<void>;
-    updateCustomer(id: bigint, customer: Customer): Promise<void>;
-    updateService(id: bigint, service: Service): Promise<void>;
-    updateStaff(id: bigint, staffMember: Staff): Promise<void>;
+    registerSalonByPhone(ownerPhone: string, name: string, address: string, phone: string, city: string): Promise<bigint>;
+    saveCustomerProfileByPhone(phone: string, name: string): Promise<void>;
+    updateAppointmentStatusByPhone(ownerPhone: string, appointmentId: bigint, newStatus: string): Promise<void>;
+    updateOwnerSalonByPhone(ownerPhone: string, name: string, address: string, phone: string, city: string): Promise<void>;
 }

@@ -9,13 +9,15 @@ import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
 import Int "mo:core/Int";
 
+
+
 actor {
+  // ================================================================
+  // MIGRATION STUBS — kept for upgrade compatibility only
+  // ================================================================
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
 
-  // ================================================================
-  // MIGRATION STUBS
-  // ================================================================
   type OldAppointmentStatus = { #pending; #confirmed; #completed; #cancelled };
   type OldAppointment = {
     customerName : Text; serviceName : Text; staffName : Text;
@@ -26,29 +28,47 @@ actor {
   type OldService     = { name : Text; duration : Nat; price : Float; description : ?Text };
   type OldStaff       = { name : Text; role : Text; specialty : Text; phone : Text; email : Text };
   type OldUserProfile = { name : Text };
-
   type OldSalonProfile = {
     name : Text; address : Text; phone : Text; city : Text;
     ownerPrincipal : Principal; isActive : Bool;
     trialStartDate : Int; subscriptionActive : Bool;
   };
+  type OldSalonProfileV2 = {
+    name : Text; address : Text; phone : Text; city : Text;
+    ownerPrincipal : Principal; isActive : Bool; pendingApproval : Bool;
+    trialStartDate : Int; subscriptionActive : Bool; trialDays : Nat;
+  };
+  type OldSalonAppointment = {
+    salonId : Nat; customerPrincipal : Principal;
+    customerName : Text; customerPhone : Text;
+    serviceName : Text; queueNumber : Nat;
+    status : Text; createdAt : Int; date : Text;
+  };
+  type OldCustomerProfile = { name : Text; phone : Text };
 
   let appointments  = Map.empty<Nat, OldAppointment>();
   let customers     = Map.empty<Nat, OldCustomer>();
   let services      = Map.empty<Nat, OldService>();
   let staff         = Map.empty<Nat, OldStaff>();
   let userProfiles  = Map.empty<Principal, OldUserProfile>();
-  var nextCustomerId: Nat = 1;
-  var nextStaffId   : Nat = 1;
-  var platformSubscriptionPrice : Float = 149.0;
-  let rolePrefMap   = Map.empty<Principal, Text>();
+  var nextCustomerId : Nat = 1;
+  var nextStaffId    : Nat = 1;
+  let rolePrefMap    = Map.empty<Principal, Text>();
   let salonTrialDaysMap = Map.empty<Nat, Nat>();
-  let salonProfiles = Map.empty<Nat, OldSalonProfile>();
+  let salonProfiles  = Map.empty<Nat, OldSalonProfile>();
+  var migrationDone  : Bool = false;
+  let salonProfilesV2 = Map.empty<Nat, OldSalonProfileV2>();
+  let ownerSalonMap  = Map.empty<Principal, Nat>();
+  let custProfiles   = Map.empty<Principal, OldCustomerProfile>();
+  let salonAppointments = Map.empty<Nat, OldSalonAppointment>();
   // ================================================================
 
+  // ================================================================
+  // TYPES (V3 — phone-based)
+  // ================================================================
   public type SalonProfile = {
     name : Text; address : Text; phone : Text; city : Text;
-    ownerPrincipal : Principal;
+    ownerPhone : Text;
     isActive : Bool;
     pendingApproval : Bool;
     trialStartDate : Int;
@@ -58,7 +78,7 @@ actor {
 
   public type SalonWithId = {
     id : Nat; name : Text; address : Text; phone : Text; city : Text;
-    ownerPrincipal : Principal;
+    ownerPhone : Text;
     isActive : Bool;
     pendingApproval : Bool;
     trialStartDate : Int;
@@ -66,20 +86,22 @@ actor {
     trialDays : Nat;
   };
 
-  public type SalonService   = { salonId : Nat; name : Text; price : Float; durationMinutes : Nat };
-  public type ServiceWithId  = { id : Nat; salonId : Nat; name : Text; price : Float; durationMinutes : Nat };
+  public type SalonService  = { salonId : Nat; name : Text; price : Float; durationMinutes : Nat };
+  public type ServiceWithId = { id : Nat; salonId : Nat; name : Text; price : Float; durationMinutes : Nat };
 
-  public type SalonAppointment = {
-    salonId : Nat; customerPrincipal : Principal;
-    customerName : Text; customerPhone : Text;
+  public type Appointment = {
+    salonId : Nat; customerPhone : Text;
+    customerName : Text;
     serviceName : Text; queueNumber : Nat;
     status : Text; createdAt : Int; date : Text;
+    servicePrice : Float;
   };
   public type AppointmentWithId = {
-    id : Nat; salonId : Nat; customerPrincipal : Principal;
-    customerName : Text; customerPhone : Text;
+    id : Nat; salonId : Nat; customerPhone : Text;
+    customerName : Text;
     serviceName : Text; queueNumber : Nat;
     status : Text; createdAt : Int; date : Text;
+    servicePrice : Float;
   };
 
   public type CustomerProfile = { name : Text; phone : Text };
@@ -88,47 +110,42 @@ actor {
     total : Nat; active : Nat; expired : Nat; pending : Nat;
   };
 
-  // ---- New stable state (V2) ----
-  var nextSalonId       : Nat = 1;
-  var nextServiceId     : Nat = 1;
-  var nextAppointmentId : Nat = 1;
-  var defaultTrialDays  : Nat = 7;
-  let MAX_SHOPS         : Nat = 100;
+  public type RevenueStats = {
+    totalRevenue : Float;
+    monthlyRevenue : Float;
+    perSalon : [(Nat, Text, Float)];
+  };
 
-  let salonProfilesV2   = Map.empty<Nat, SalonProfile>();
-  let salonServicesList = Map.empty<Nat, SalonService>();
-  let salonAppointments = Map.empty<Nat, SalonAppointment>();
-  let custProfiles      = Map.empty<Principal, CustomerProfile>();
-  let ownerSalonMap     = Map.empty<Principal, Nat>();
+  public type OwnerRevenueSummary = {
+    totalEarnings : Float;
+    monthlyEarnings : Float;
+    totalAppointments : Nat;
+    completedAppointments : Nat;
+  };
 
-  var migrationDone : Bool = false;
-
+  // ================================================================
+  // STATE (V3)
+  // ================================================================
   let ADMIN_EMAIL : Text = "amitkrji498@gmail.com";
   var adminPasswordHash : ?Text = null;
 
-  system func postupgrade() {
-    if (not migrationDone) {
-      for ((id, s) in salonProfiles.entries().toArray().vals()) {
-        let customTrialDays = switch (salonTrialDaysMap.get(id)) {
-          case (?d) { d };
-          case (null) { defaultTrialDays };
-        };
-        if (salonProfilesV2.get(id) == null) {
-          salonProfilesV2.add(id, {
-            name = s.name; address = s.address; phone = s.phone; city = s.city;
-            ownerPrincipal = s.ownerPrincipal; isActive = s.isActive;
-            pendingApproval = false;
-            trialStartDate = s.trialStartDate; subscriptionActive = s.subscriptionActive;
-            trialDays = customTrialDays;
-          });
-          ownerSalonMap.add(s.ownerPrincipal, id);
-          if (id >= nextSalonId) { nextSalonId := id + 1 };
-        };
-      };
-      migrationDone := true;
-    };
-  };
+  var nextSalonId        : Nat = 1;
+  var nextServiceId      : Nat = 1;
+  var nextAppointmentId  : Nat = 1;
+  var defaultTrialDays   : Nat = 7;
+  var platformSubscriptionPrice : Float = 149.0;
+  let MAX_SHOPS          : Nat = 100;
 
+  // V3 maps (phone-keyed)
+  let salonProfilesV3    = Map.empty<Nat, SalonProfile>();
+  let salonServicesList  = Map.empty<Nat, SalonService>();
+  let salonAppointmentsV3 = Map.empty<Nat, Appointment>();
+  let custProfilesByPhone = Map.empty<Text, CustomerProfile>();
+  let ownerPhoneSalonMap  = Map.empty<Text, Nat>();
+
+  // ================================================================
+  // HELPERS
+  // ================================================================
   func isTrialExpired(s : SalonProfile) : Bool {
     let trialNanos : Int = s.trialDays * 86_400 * 1_000_000_000;
     Time.now() - s.trialStartDate > trialNanos;
@@ -140,24 +157,53 @@ actor {
   };
 
   func makeSalonWithId(id : Nat, s : SalonProfile) : SalonWithId {
-    { id = id; name = s.name; address = s.address; phone = s.phone;
-      city = s.city; ownerPrincipal = s.ownerPrincipal; isActive = s.isActive;
+    { id; name = s.name; address = s.address; phone = s.phone;
+      city = s.city; ownerPhone = s.ownerPhone; isActive = s.isActive;
       pendingApproval = s.pendingApproval; trialStartDate = s.trialStartDate;
       subscriptionActive = s.subscriptionActive; trialDays = s.trialDays };
   };
 
   func countApprovedSalons() : Nat {
     var count : Nat = 0;
-    for ((_, s) in salonProfilesV2.entries().toArray().vals()) {
+    for ((_, s) in salonProfilesV3.entries().toArray().vals()) {
       if (not s.pendingApproval) { count += 1 };
     };
     count;
   };
 
-  // ---- Admin Auth ----
+  func getCurrentMonthStart() : Int {
+    let now = Time.now();
+    let nanosPerDay : Int = 86_400_000_000_000;
+    let nanosPerHour : Int = 3_600_000_000_000;
+    let nanosPerMinute : Int = 60_000_000_000;
+    let nanosPerSecond : Int = 1_000_000_000;
+    
+    // Approximate: get days since epoch, then calculate month
+    let daysSinceEpoch = now / nanosPerDay;
+    let yearsSinceEpoch = daysSinceEpoch / 365;
+    let year = 1970 + yearsSinceEpoch;
+    
+    // Rough approximation: get current month by dividing remaining days
+    let daysInYear = daysSinceEpoch - (yearsSinceEpoch * 365);
+    let month = (daysInYear / 30) + 1;
+    
+    // Calculate first day of current month (approximation)
+    let daysToMonthStart = (yearsSinceEpoch * 365) + ((month - 1) * 30);
+    daysToMonthStart * nanosPerDay;
+  };
+
+  func isCurrentMonth(timestamp : Int) : Bool {
+    let monthStart = getCurrentMonthStart();
+    timestamp >= monthStart;
+  };
+
+  // ================================================================
+  // ADMIN AUTH
+  // ================================================================
   public query func adminPasswordIsSet() : async Bool {
     switch (adminPasswordHash) { case (null) { false }; case (?_) { true } };
   };
+
   public func adminSetPassword(email : Text, passwordHash : Text) : async Bool {
     if (email != ADMIN_EMAIL) { return false };
     switch (adminPasswordHash) {
@@ -165,6 +211,7 @@ actor {
       case (?_) { false };
     };
   };
+
   public query func adminLogin(email : Text, passwordHash : Text) : async Bool {
     if (email != ADMIN_EMAIL) { return false };
     switch (adminPasswordHash) {
@@ -173,7 +220,9 @@ actor {
     };
   };
 
-  // ---- Subscription Price ----
+  // ================================================================
+  // ADMIN — SUBSCRIPTION PRICE
+  // ================================================================
   public query func adminGetSubscriptionPrice() : async Float {
     platformSubscriptionPrice;
   };
@@ -183,41 +232,43 @@ actor {
     platformSubscriptionPrice := price;
   };
 
-  // ---- Admin Dashboard ----
+  // ================================================================
+  // ADMIN — DASHBOARD
+  // ================================================================
   public query func adminGetDashboardStats() : async DashboardStats {
     var total : Nat = 0; var active : Nat = 0;
     var expired : Nat = 0; var pending : Nat = 0;
-    for ((_, s) in salonProfilesV2.entries().toArray().vals()) {
+    for ((_, s) in salonProfilesV3.entries().toArray().vals()) {
       if (s.pendingApproval) { pending += 1 }
       else {
         total += 1;
         if (isSalonEffectivelyActive(s)) { active += 1 } else { expired += 1 };
       };
     };
-    { total = total; active = active; expired = expired; pending = pending };
+    { total; active; expired; pending };
   };
 
   public query func adminGetAllSalons() : async [SalonWithId] {
-    salonProfilesV2.entries().toArray()
+    salonProfilesV3.entries().toArray()
       .filterMap(func((id, s)) {
         if (not s.pendingApproval) { ?makeSalonWithId(id, s) } else { null }
       });
   };
 
   public query func adminGetPendingSalons() : async [SalonWithId] {
-    salonProfilesV2.entries().toArray()
+    salonProfilesV3.entries().toArray()
       .filterMap(func((id, s)) {
         if (s.pendingApproval) { ?makeSalonWithId(id, s) } else { null }
       });
   };
 
   public func adminApproveSalon(salonId : Nat) : async () {
-    switch (salonProfilesV2.get(salonId)) {
+    switch (salonProfilesV3.get(salonId)) {
       case (null) { Runtime.trap("Salon not found") };
       case (?s) {
-        salonProfilesV2.add(salonId, {
+        salonProfilesV3.add(salonId, {
           name = s.name; address = s.address; phone = s.phone; city = s.city;
-          ownerPrincipal = s.ownerPrincipal; isActive = true;
+          ownerPhone = s.ownerPhone; isActive = true;
           pendingApproval = false; trialStartDate = Time.now();
           subscriptionActive = false; trialDays = s.trialDays;
         });
@@ -226,22 +277,22 @@ actor {
   };
 
   public func adminRejectSalon(salonId : Nat) : async () {
-    switch (salonProfilesV2.get(salonId)) {
+    switch (salonProfilesV3.get(salonId)) {
       case (null) { Runtime.trap("Salon not found") };
       case (?s) {
-        salonProfilesV2.remove(salonId);
-        ownerSalonMap.remove(s.ownerPrincipal);
+        salonProfilesV3.remove(salonId);
+        ownerPhoneSalonMap.remove(s.ownerPhone);
       };
     };
   };
 
   public func adminSetSalonActive(salonId : Nat, active : Bool) : async () {
-    switch (salonProfilesV2.get(salonId)) {
+    switch (salonProfilesV3.get(salonId)) {
       case (null) { Runtime.trap("Salon not found") };
       case (?s) {
-        salonProfilesV2.add(salonId, {
+        salonProfilesV3.add(salonId, {
           name = s.name; address = s.address; phone = s.phone; city = s.city;
-          ownerPrincipal = s.ownerPrincipal; isActive = active;
+          ownerPhone = s.ownerPhone; isActive = active;
           pendingApproval = s.pendingApproval; trialStartDate = s.trialStartDate;
           subscriptionActive = s.subscriptionActive; trialDays = s.trialDays;
         });
@@ -250,12 +301,12 @@ actor {
   };
 
   public func adminSetSalonSubscription(salonId : Nat, active : Bool) : async () {
-    switch (salonProfilesV2.get(salonId)) {
+    switch (salonProfilesV3.get(salonId)) {
       case (null) { Runtime.trap("Salon not found") };
       case (?s) {
-        salonProfilesV2.add(salonId, {
+        salonProfilesV3.add(salonId, {
           name = s.name; address = s.address; phone = s.phone; city = s.city;
-          ownerPrincipal = s.ownerPrincipal; isActive = s.isActive;
+          ownerPhone = s.ownerPhone; isActive = s.isActive;
           pendingApproval = s.pendingApproval; trialStartDate = s.trialStartDate;
           subscriptionActive = active; trialDays = s.trialDays;
         });
@@ -272,12 +323,12 @@ actor {
 
   public func adminSetSalonTrialDays(salonId : Nat, days : Nat) : async () {
     if (days == 0) { Runtime.trap("Trial days must be at least 1") };
-    switch (salonProfilesV2.get(salonId)) {
+    switch (salonProfilesV3.get(salonId)) {
       case (null) { Runtime.trap("Salon not found") };
       case (?s) {
-        salonProfilesV2.add(salonId, {
+        salonProfilesV3.add(salonId, {
           name = s.name; address = s.address; phone = s.phone; city = s.city;
-          ownerPrincipal = s.ownerPrincipal; isActive = s.isActive;
+          ownerPhone = s.ownerPhone; isActive = s.isActive;
           pendingApproval = s.pendingApproval; trialStartDate = s.trialStartDate;
           subscriptionActive = s.subscriptionActive; trialDays = days;
         });
@@ -287,11 +338,11 @@ actor {
 
   public func adminProcessTrialExpirations() : async Nat {
     var count : Nat = 0;
-    for ((id, s) in salonProfilesV2.entries().toArray().vals()) {
+    for ((id, s) in salonProfilesV3.entries().toArray().vals()) {
       if (s.isActive and not s.pendingApproval and not s.subscriptionActive and isTrialExpired(s)) {
-        salonProfilesV2.add(id, {
+        salonProfilesV3.add(id, {
           name = s.name; address = s.address; phone = s.phone; city = s.city;
-          ownerPrincipal = s.ownerPrincipal; isActive = false;
+          ownerPhone = s.ownerPhone; isActive = false;
           pendingApproval = false; trialStartDate = s.trialStartDate;
           subscriptionActive = false; trialDays = s.trialDays;
         });
@@ -301,9 +352,53 @@ actor {
     count;
   };
 
-  // ---- Salon Owner APIs ----
-  public shared ({ caller }) func registerSalon(name : Text, address : Text, phone : Text, city : Text) : async Nat {
-    switch (ownerSalonMap.get(caller)) {
+  // ================================================================
+  // ADMIN — REVENUE TRACKING
+  // ================================================================
+  public query ({ caller }) func adminGetRevenueStats() : async RevenueStats {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can view revenue statistics");
+    };
+
+    var totalRevenue : Float = 0.0;
+    var monthlyRevenue : Float = 0.0;
+    let salonRevenueMap = Map.empty<Nat, Float>();
+
+    // Calculate revenue from completed appointments
+    for ((_, appt) in salonAppointmentsV3.entries().toArray().vals()) {
+      if (appt.status == "completed") {
+        totalRevenue += appt.servicePrice;
+        
+        // Add to monthly if in current month
+        if (isCurrentMonth(appt.createdAt)) {
+          monthlyRevenue += appt.servicePrice;
+        };
+
+        // Accumulate per salon
+        let currentSalonRevenue = switch (salonRevenueMap.get(appt.salonId)) {
+          case (null) { 0.0 };
+          case (?rev) { rev };
+        };
+        salonRevenueMap.add(appt.salonId, currentSalonRevenue + appt.servicePrice);
+      };
+    };
+
+    // Build perSalon array with salon names
+    let perSalonArray = salonRevenueMap.entries().toArray().filterMap(func((salonId, revenue)) {
+      switch (salonProfilesV3.get(salonId)) {
+        case (null) { null };
+        case (?salon) { ?(salonId, salon.name, revenue) };
+      };
+    });
+
+    { totalRevenue; monthlyRevenue; perSalon = perSalonArray };
+  };
+
+  // ================================================================
+  // SALON OWNER APIs (phone-based)
+  // ================================================================
+  public func registerSalonByPhone(ownerPhone : Text, name : Text, address : Text, phone : Text, city : Text) : async Nat {
+    switch (ownerPhoneSalonMap.get(ownerPhone)) {
       case (?_) { Runtime.trap("You already have a registered salon") };
       case (null) {};
     };
@@ -312,25 +407,25 @@ actor {
     };
     let id = nextSalonId;
     nextSalonId += 1;
-    salonProfilesV2.add(id, {
-      name = name; address = address; phone = phone; city = city;
-      ownerPrincipal = caller; isActive = false; pendingApproval = true;
+    salonProfilesV3.add(id, {
+      name; address; phone; city;
+      ownerPhone; isActive = false; pendingApproval = true;
       trialStartDate = 0; subscriptionActive = false; trialDays = defaultTrialDays;
     });
-    ownerSalonMap.add(caller, id);
+    ownerPhoneSalonMap.add(ownerPhone, id);
     id;
   };
 
-  public shared ({ caller }) func updateMySalon(name : Text, address : Text, phone : Text, city : Text) : async () {
-    switch (ownerSalonMap.get(caller)) {
-      case (null) { Runtime.trap("No salon found") };
+  public func updateOwnerSalonByPhone(ownerPhone : Text, name : Text, address : Text, phone : Text, city : Text) : async () {
+    switch (ownerPhoneSalonMap.get(ownerPhone)) {
+      case (null) { Runtime.trap("No salon found for this phone") };
       case (?salonId) {
-        switch (salonProfilesV2.get(salonId)) {
+        switch (salonProfilesV3.get(salonId)) {
           case (null) { Runtime.trap("Salon not found") };
           case (?s) {
-            salonProfilesV2.add(salonId, {
-              name = name; address = address; phone = phone; city = city;
-              ownerPrincipal = s.ownerPrincipal; isActive = s.isActive;
+            salonProfilesV3.add(salonId, {
+              name; address; phone; city;
+              ownerPhone = s.ownerPhone; isActive = s.isActive;
               pendingApproval = s.pendingApproval; trialStartDate = s.trialStartDate;
               subscriptionActive = s.subscriptionActive; trialDays = s.trialDays;
             });
@@ -340,11 +435,11 @@ actor {
     };
   };
 
-  public query ({ caller }) func getMySalon() : async ?SalonWithId {
-    switch (ownerSalonMap.get(caller)) {
+  public query func getOwnerSalonByPhone(ownerPhone : Text) : async ?SalonWithId {
+    switch (ownerPhoneSalonMap.get(ownerPhone)) {
       case (null) { null };
       case (?salonId) {
-        switch (salonProfilesV2.get(salonId)) {
+        switch (salonProfilesV3.get(salonId)) {
           case (null) { null };
           case (?s) { ?makeSalonWithId(salonId, s) };
         };
@@ -352,8 +447,39 @@ actor {
     };
   };
 
-  public shared ({ caller }) func addSalonService(salonId : Nat, name : Text, price : Float, durationMinutes : Nat) : async Nat {
-    switch (ownerSalonMap.get(caller)) {
+  public query func getOwnerRevenueSummaryByPhone(ownerPhone : Text) : async OwnerRevenueSummary {
+    // Look up salon for this owner
+    let salonId = switch (ownerPhoneSalonMap.get(ownerPhone)) {
+      case (null) { Runtime.trap("No salon found for this phone number") };
+      case (?id) { id };
+    };
+
+    var totalEarnings : Float = 0.0;
+    var monthlyEarnings : Float = 0.0;
+    var totalAppointments : Nat = 0;
+    var completedAppointments : Nat = 0;
+
+    // Calculate statistics for this salon
+    for ((_, appt) in salonAppointmentsV3.entries().toArray().vals()) {
+      if (appt.salonId == salonId) {
+        totalAppointments += 1;
+        
+        if (appt.status == "completed") {
+          completedAppointments += 1;
+          totalEarnings += appt.servicePrice;
+          
+          if (isCurrentMonth(appt.createdAt)) {
+            monthlyEarnings += appt.servicePrice;
+          };
+        };
+      };
+    };
+
+    { totalEarnings; monthlyEarnings; totalAppointments; completedAppointments };
+  };
+
+  public func addSalonServiceByPhone(ownerPhone : Text, salonId : Nat, name : Text, price : Float, durationMinutes : Nat) : async Nat {
+    switch (ownerPhoneSalonMap.get(ownerPhone)) {
       case (null) { Runtime.trap("You don't own a salon") };
       case (?ownedId) {
         if (ownedId != salonId) { Runtime.trap("You can only add services to your own salon") };
@@ -361,12 +487,12 @@ actor {
     };
     let id = nextServiceId;
     nextServiceId += 1;
-    salonServicesList.add(id, { salonId = salonId; name = name; price = price; durationMinutes = durationMinutes });
+    salonServicesList.add(id, { salonId; name; price; durationMinutes });
     id;
   };
 
-  public shared ({ caller }) func deleteSalonService(salonId : Nat, serviceId : Nat) : async () {
-    switch (ownerSalonMap.get(caller)) {
+  public func deleteSalonServiceByPhone(ownerPhone : Text, salonId : Nat, serviceId : Nat) : async () {
+    switch (ownerPhoneSalonMap.get(ownerPhone)) {
       case (null) { Runtime.trap("You don't own a salon") };
       case (?ownedId) {
         if (ownedId != salonId) { Runtime.trap("You can only delete from your own salon") };
@@ -375,94 +501,112 @@ actor {
     };
   };
 
-  public query func getSalonServices(salonId : Nat) : async [ServiceWithId] {
-    salonServicesList.entries().toArray().filterMap(func((id, s)) {
-      if (s.salonId == salonId) {
-        ?{ id = id; salonId = s.salonId; name = s.name; price = s.price; durationMinutes = s.durationMinutes }
-      } else { null }
-    });
-  };
-
-  public query ({ caller }) func getSalonAppointmentsForDate(salonId : Nat, date : Text) : async [AppointmentWithId] {
-    let callerOwns = switch (ownerSalonMap.get(caller)) {
+  public query func getSalonAppointmentsForDateByPhone(ownerPhone : Text, salonId : Nat, date : Text) : async [AppointmentWithId] {
+    let callerOwns = switch (ownerPhoneSalonMap.get(ownerPhone)) {
       case (?id) { id == salonId };
       case (null) { false };
     };
     if (not callerOwns) { Runtime.trap("Unauthorized") };
-    salonAppointments.entries().toArray().filterMap(func((id, a)) {
+    salonAppointmentsV3.entries().toArray().filterMap(func((id, a)) {
       if (a.salonId == salonId and a.date == date) {
-        ?{ id = id; salonId = a.salonId; customerPrincipal = a.customerPrincipal;
-           customerName = a.customerName; customerPhone = a.customerPhone;
+        ?{ id; salonId = a.salonId; customerPhone = a.customerPhone;
+           customerName = a.customerName;
            serviceName = a.serviceName; queueNumber = a.queueNumber;
-           status = a.status; createdAt = a.createdAt; date = a.date }
+           status = a.status; createdAt = a.createdAt; date = a.date;
+           servicePrice = a.servicePrice }
       } else { null }
     }).sort(func(a, b) { Nat.compare(a.queueNumber, b.queueNumber) });
   };
 
-  public shared ({ caller }) func updateAppointmentStatus(appointmentId : Nat, newStatus : Text) : async () {
-    switch (salonAppointments.get(appointmentId)) {
+  public func updateAppointmentStatusByPhone(ownerPhone : Text, appointmentId : Nat, newStatus : Text) : async () {
+    switch (salonAppointmentsV3.get(appointmentId)) {
       case (null) { Runtime.trap("Appointment not found") };
       case (?appt) {
-        let callerOwns = switch (ownerSalonMap.get(caller)) {
+        let callerOwns = switch (ownerPhoneSalonMap.get(ownerPhone)) {
           case (?id) { id == appt.salonId };
           case (null) { false };
         };
         if (not callerOwns) { Runtime.trap("Unauthorized") };
-        salonAppointments.add(appointmentId, {
-          salonId = appt.salonId; customerPrincipal = appt.customerPrincipal;
-          customerName = appt.customerName; customerPhone = appt.customerPhone;
+        salonAppointmentsV3.add(appointmentId, {
+          salonId = appt.salonId; customerPhone = appt.customerPhone;
+          customerName = appt.customerName;
           serviceName = appt.serviceName; queueNumber = appt.queueNumber;
           status = newStatus; createdAt = appt.createdAt; date = appt.date;
+          servicePrice = appt.servicePrice;
         });
       };
     };
   };
 
-  // ---- Customer APIs ----
+  // ================================================================
+  // PUBLIC READ APIs
+  // ================================================================
   public query func getAllActiveSalons() : async [SalonWithId] {
-    salonProfilesV2.entries().toArray().filterMap(func((id, s)) {
+    salonProfilesV3.entries().toArray().filterMap(func((id, s)) {
       if (isSalonEffectivelyActive(s)) { ?makeSalonWithId(id, s) } else { null }
     });
   };
 
   public query func getSalonById(id : Nat) : async ?SalonWithId {
-    switch (salonProfilesV2.get(id)) {
+    switch (salonProfilesV3.get(id)) {
       case (null) { null };
       case (?s) { ?makeSalonWithId(id, s) };
     };
   };
 
-  public shared ({ caller }) func bookAppointment(salonId : Nat, customerName : Text, customerPhone : Text, serviceName : Text, date : Text) : async Nat {
-    let existingCount = salonAppointments.values().toArray()
+  public query func getSalonServices(salonId : Nat) : async [ServiceWithId] {
+    salonServicesList.entries().toArray().filterMap(func((id, s)) {
+      if (s.salonId == salonId) {
+        ?{ id; salonId = s.salonId; name = s.name; price = s.price; durationMinutes = s.durationMinutes }
+      } else { null }
+    });
+  };
+
+  // ================================================================
+  // CUSTOMER APIs (phone-based)
+  // ================================================================
+  public func bookAppointmentByPhone(customerPhone : Text, salonId : Nat, customerName : Text, serviceName : Text, date : Text) : async Nat {
+    // Look up service price
+    var servicePrice : Float = 0.0;
+    label findPrice for ((_, service) in salonServicesList.entries().toArray().vals()) {
+      if (service.salonId == salonId and service.name == serviceName) {
+        servicePrice := service.price;
+        break findPrice;
+      };
+    };
+
+    let existingCount = salonAppointmentsV3.values().toArray()
       .filter(func(a) { a.salonId == salonId and a.date == date and a.status != "cancelled" }).size();
     let queueNumber = existingCount + 1;
     let id = nextAppointmentId;
     nextAppointmentId += 1;
-    salonAppointments.add(id, {
-      salonId = salonId; customerPrincipal = caller;
-      customerName = customerName; customerPhone = customerPhone;
-      serviceName = serviceName; queueNumber = queueNumber;
-      status = "pending"; createdAt = Time.now(); date = date;
+    salonAppointmentsV3.add(id, {
+      salonId; customerPhone;
+      customerName;
+      serviceName; queueNumber;
+      status = "pending"; createdAt = Time.now(); date;
+      servicePrice;
     });
     id;
   };
 
-  public query ({ caller }) func getMyAppointments() : async [AppointmentWithId] {
-    salonAppointments.entries().toArray().filterMap(func((id, a)) {
-      if (a.customerPrincipal == caller) {
-        ?{ id = id; salonId = a.salonId; customerPrincipal = a.customerPrincipal;
-           customerName = a.customerName; customerPhone = a.customerPhone;
+  public query func getMyAppointmentsByPhone(customerPhone : Text) : async [AppointmentWithId] {
+    salonAppointmentsV3.entries().toArray().filterMap(func((id, a)) {
+      if (a.customerPhone == customerPhone) {
+        ?{ id; salonId = a.salonId; customerPhone = a.customerPhone;
+           customerName = a.customerName;
            serviceName = a.serviceName; queueNumber = a.queueNumber;
-           status = a.status; createdAt = a.createdAt; date = a.date }
+           status = a.status; createdAt = a.createdAt; date = a.date;
+           servicePrice = a.servicePrice }
       } else { null }
     });
   };
 
   public query func getQueueInfo(appointmentId : Nat) : async (Nat, Nat) {
-    switch (salonAppointments.get(appointmentId)) {
+    switch (salonAppointmentsV3.get(appointmentId)) {
       case (null) { Runtime.trap("Appointment not found") };
       case (?myAppt) {
-        let ahead = salonAppointments.values().toArray().filter(func(a) {
+        let ahead = salonAppointmentsV3.values().toArray().filter(func(a) {
           a.salonId == myAppt.salonId and a.date == myAppt.date
           and a.queueNumber < myAppt.queueNumber
           and a.status != "completed" and a.status != "cancelled"
@@ -472,11 +616,11 @@ actor {
     };
   };
 
-  public shared ({ caller }) func saveCustomerProfile(name : Text, phone : Text) : async () {
-    custProfiles.add(caller, { name = name; phone = phone });
+  public func saveCustomerProfileByPhone(phone : Text, name : Text) : async () {
+    custProfilesByPhone.add(phone, { name; phone });
   };
 
-  public query ({ caller }) func getMyCustomerProfile() : async ?CustomerProfile {
-    custProfiles.get(caller);
+  public query func getMyCustomerProfileByPhone(phone : Text) : async ?CustomerProfile {
+    custProfilesByPhone.get(phone);
   };
 };

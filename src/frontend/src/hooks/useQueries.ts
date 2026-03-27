@@ -1,35 +1,40 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
-  AdminDashboardStats,
   AppointmentWithId,
   CustomerProfile,
+  DashboardStats,
   SalonWithId,
   ServiceWithId,
 } from "../backend";
-import { AppointmentStatus } from "../backend";
-import type {
-  Appointment,
-  Customer,
-  DashboardStats,
-  Service,
-  Staff,
-  UserProfile,
-} from "../backend.d";
+
+export type AppointmentStatus =
+  | "pending"
+  | "confirmed"
+  | "inprogress"
+  | "completed"
+  | "cancelled";
+
+// Legacy type stubs (backend no longer exports these)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Appointment = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Customer = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Service = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Staff = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type UserProfile = any;
+
 import { useActor } from "./useActor";
 
 export type {
-  Appointment,
-  Customer,
-  Service,
-  Staff,
   DashboardStats,
   SalonWithId,
   ServiceWithId,
   AppointmentWithId,
   CustomerProfile,
-  AdminDashboardStats,
 };
-export { AppointmentStatus };
 
 export function useIsAdmin() {
   const { actor, isFetching } = useActor();
@@ -53,7 +58,7 @@ export function useGetCallerUserProfile() {
     queryKey: ["currentUserProfile"],
     queryFn: async () => {
       if (!actor) throw new Error("Actor not available");
-      return actor.getCallerUserProfile();
+      return (actor as any).getCallerUserProfile();
     },
     enabled: !!actor && !actorFetching,
     retry: false,
@@ -71,7 +76,7 @@ export function useGetDashboardStats() {
     queryKey: ["dashboardStats"],
     queryFn: async () => {
       if (!actor) throw new Error("No actor");
-      return actor.getDashboardStats();
+      return (actor as any).getDashboardStats();
     },
     enabled: !!actor && !isFetching,
   });
@@ -83,7 +88,7 @@ export function useGetAllAppointments() {
     queryKey: ["appointments"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getAllAppointments();
+      return (actor as any).getAllAppointments();
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 30000,
@@ -96,7 +101,7 @@ export function useGetAllCustomers() {
     queryKey: ["customers"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getAllCustomers();
+      return (actor as any).getAllCustomers();
     },
     enabled: !!actor && !isFetching,
   });
@@ -108,7 +113,7 @@ export function useGetAllServices() {
     queryKey: ["services"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getAllServices();
+      return (actor as any).getAllServices();
     },
     enabled: !!actor && !isFetching,
   });
@@ -120,7 +125,7 @@ export function useGetAllStaff() {
     queryKey: ["staff"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getAllStaff();
+      return (actor as any).getAllStaff();
     },
     enabled: !!actor && !isFetching,
   });
@@ -132,7 +137,7 @@ export function useSaveProfile() {
   return useMutation({
     mutationFn: async (profile: UserProfile) => {
       if (!actor) throw new Error("No actor");
-      return actor.saveCallerUserProfile(profile);
+      return (actor as any).saveCallerUserProfile(profile);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["currentUserProfile"] }),
   });
@@ -144,7 +149,7 @@ export function useSaveProfile() {
 
 export function useAdminGetDashboardStats() {
   const { actor, isFetching } = useActor();
-  return useQuery<AdminDashboardStats>({
+  return useQuery({
     queryKey: ["adminDashboardStats"],
     queryFn: async () => {
       if (!actor) return { total: 0n, active: 0n, expired: 0n, pending: 0n };
@@ -330,52 +335,65 @@ export function useAdminProcessTrialExpirations() {
 }
 
 // ============================================================
-// Salon owner hooks
+// Salon owner hooks (phone-based)
 // ============================================================
 
-export function useGetMySalon() {
+export function useGetMySalon(phone: string) {
   const { actor, isFetching } = useActor();
   return useQuery<SalonWithId | null>({
-    queryKey: ["mySalon"],
+    queryKey: ["mySalon", phone],
     queryFn: async () => {
-      if (!actor) return null;
-      return actor.getMySalon();
+      if (!actor || !phone) return null;
+      const result = await (actor as any).getOwnerSalonByPhone(phone);
+      return result.length > 0 ? result[0] : null;
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !isFetching && !!phone,
   });
 }
 
-export function useRegisterSalon() {
+export function useRegisterSalon(phone: string) {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
       name,
       address,
-      phone,
+      salonPhone,
       city,
-    }: { name: string; address: string; phone: string; city: string }) => {
+    }: { name: string; address: string; salonPhone: string; city: string }) => {
       if (!actor) throw new Error("No actor");
-      return actor.registerSalon(name, address, phone, city);
+      return (actor as any).registerSalonByPhone(
+        phone,
+        name,
+        address,
+        salonPhone,
+        city,
+      );
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["mySalon"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mySalon", phone] }),
   });
 }
 
-export function useUpdateMySalon() {
+export function useUpdateMySalon(phone: string) {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
       name,
       address,
-      phone,
+      salonPhone,
       city,
-    }: { name: string; address: string; phone: string; city: string }) => {
+    }: { name: string; address: string; salonPhone: string; city: string }) => {
       if (!actor) throw new Error("No actor");
-      return actor.updateMySalon(name, address, phone, city);
+      return (actor as any).updateOwnerSalonByPhone(
+        phone,
+        name,
+        address,
+        salonPhone,
+        city,
+      );
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["mySalon"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mySalon", phone] }),
   });
 }
 
@@ -391,7 +409,7 @@ export function useGetSalonServices(salonId: bigint | null | undefined) {
   });
 }
 
-export function useAddSalonService() {
+export function useAddSalonService(phone: string) {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
@@ -407,7 +425,13 @@ export function useAddSalonService() {
       durationMinutes: bigint;
     }) => {
       if (!actor) throw new Error("No actor");
-      return actor.addSalonService(salonId, name, price, durationMinutes);
+      return (actor as any).addSalonServiceByPhone(
+        phone,
+        salonId,
+        name,
+        price,
+        durationMinutes,
+      );
     },
     onSuccess: (_, vars) =>
       qc.invalidateQueries({
@@ -416,7 +440,7 @@ export function useAddSalonService() {
   });
 }
 
-export function useDeleteSalonService() {
+export function useDeleteSalonService(phone: string) {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
@@ -425,7 +449,11 @@ export function useDeleteSalonService() {
       serviceId,
     }: { salonId: bigint; serviceId: bigint }) => {
       if (!actor) throw new Error("No actor");
-      return actor.deleteSalonService(salonId, serviceId);
+      return (actor as any).deleteSalonServiceByPhone(
+        phone,
+        salonId,
+        serviceId,
+      );
     },
     onSuccess: (_, vars) =>
       qc.invalidateQueries({
@@ -435,22 +463,27 @@ export function useDeleteSalonService() {
 }
 
 export function useGetSalonAppointmentsForDate(
+  phone: string,
   salonId: bigint | null | undefined,
   date: string,
 ) {
   const { actor, isFetching } = useActor();
   return useQuery<AppointmentWithId[]>({
-    queryKey: ["salonAppts", salonId?.toString(), date],
+    queryKey: ["salonAppts", phone, salonId?.toString(), date],
     queryFn: async () => {
-      if (!actor || !salonId) return [];
-      return actor.getSalonAppointmentsForDate(salonId, date);
+      if (!actor || !salonId || !phone) return [];
+      return (actor as any).getSalonAppointmentsForDateByPhone(
+        phone,
+        salonId,
+        date,
+      );
     },
-    enabled: !!actor && !isFetching && !!salonId,
+    enabled: !!actor && !isFetching && !!salonId && !!phone,
     refetchInterval: 20000,
   });
 }
 
-export function useUpdateAppointmentStatus() {
+export function useUpdateAppointmentStatus(phone: string) {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
@@ -461,17 +494,21 @@ export function useUpdateAppointmentStatus() {
       date: string;
     }) => {
       if (!actor) throw new Error("No actor");
-      return actor.updateAppointmentStatus(vars.appointmentId, vars.newStatus);
+      return (actor as any).updateAppointmentStatusByPhone(
+        phone,
+        vars.appointmentId,
+        vars.newStatus,
+      );
     },
     onSuccess: (_, vars) =>
       qc.invalidateQueries({
-        queryKey: ["salonAppts", vars.salonId.toString(), vars.date],
+        queryKey: ["salonAppts", phone, vars.salonId.toString(), vars.date],
       }),
   });
 }
 
 // ============================================================
-// Customer hooks
+// Customer hooks (phone-based)
 // ============================================================
 
 export function useGetAllActiveSalons() {
@@ -486,45 +523,44 @@ export function useGetAllActiveSalons() {
   });
 }
 
-export function useBookAppointment() {
+export function useBookAppointment(phone: string) {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
       salonId,
       customerName,
-      customerPhone,
       serviceName,
       date,
     }: {
       salonId: bigint;
       customerName: string;
-      customerPhone: string;
       serviceName: string;
       date: string;
     }) => {
       if (!actor) throw new Error("No actor");
-      return actor.bookAppointment(
+      return (actor as any).bookAppointmentByPhone(
+        phone,
         salonId,
         customerName,
-        customerPhone,
         serviceName,
         date,
       );
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["myAppointments"] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["myAppointments", phone] }),
   });
 }
 
-export function useGetMyAppointments() {
+export function useGetMyAppointments(phone: string) {
   const { actor, isFetching } = useActor();
   return useQuery<AppointmentWithId[]>({
-    queryKey: ["myAppointments"],
+    queryKey: ["myAppointments", phone],
     queryFn: async () => {
-      if (!actor) return [];
-      return actor.getMyAppointments();
+      if (!actor || !phone) return [];
+      return (actor as any).getMyAppointmentsByPhone(phone);
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !isFetching && !!phone,
     refetchInterval: 15000,
   });
 }
@@ -542,39 +578,44 @@ export function useGetQueueInfo(appointmentId: bigint | null | undefined) {
   });
 }
 
-export function useSaveCustomerProfile() {
+export function useSaveCustomerProfile(phone: string) {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ name, phone }: { name: string; phone: string }) => {
+    mutationFn: async ({ name }: { name: string }) => {
       if (!actor) throw new Error("No actor");
-      return actor.saveCustomerProfile(name, phone);
+      return (actor as any).saveCustomerProfileByPhone(phone, name);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["myCustomerProfile"] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["myCustomerProfile", phone] }),
   });
 }
 
-export function useGetMyCustomerProfile() {
+export function useGetMyCustomerProfile(phone: string) {
   const { actor, isFetching } = useActor();
   return useQuery<CustomerProfile | null>({
-    queryKey: ["myCustomerProfile"],
+    queryKey: ["myCustomerProfile", phone],
     queryFn: async () => {
-      if (!actor) return null;
-      return actor.getMyCustomerProfile();
+      if (!actor || !phone) return null;
+      const result = await (actor as any).getMyCustomerProfileByPhone(phone);
+      return result.length > 0 ? result[0] : null;
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !isFetching && !!phone,
   });
 }
 
 // ============================================================
 // Legacy hooks (needed by Appointments, Customers, Services, Staff pages)
 // ============================================================
-import type {
-  Appointment as AppType,
-  Customer as CustType,
-  Staff as StaffType,
-  Service as SvcType,
-} from "../backend.d";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AppType = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CustType = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type StaffType = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SvcType = any;
 
 export function useCreateAppointment() {
   const { actor } = useActor();
@@ -582,7 +623,7 @@ export function useCreateAppointment() {
   return useMutation({
     mutationFn: async (appointment: AppType) => {
       if (!actor) throw new Error("No actor");
-      return actor.createAppointment(appointment);
+      return (actor as any).createAppointment(appointment);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
   });
@@ -594,7 +635,7 @@ export function useDeleteAppointment() {
   return useMutation({
     mutationFn: async (id: bigint) => {
       if (!actor) throw new Error("No actor");
-      return actor.deleteAppointment(id);
+      return (actor as any).deleteAppointment(id);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
   });
@@ -609,7 +650,7 @@ export function useUpdateAppointment() {
       appointment,
     }: { id: bigint; appointment: AppType }) => {
       if (!actor) throw new Error("No actor");
-      return actor.updateAppointment(id, appointment);
+      return (actor as any).updateAppointment(id, appointment);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["appointments"] }),
   });
@@ -621,7 +662,7 @@ export function useCreateCustomer() {
   return useMutation({
     mutationFn: async (customer: CustType) => {
       if (!actor) throw new Error("No actor");
-      return actor.createCustomer(customer);
+      return (actor as any).createCustomer(customer);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
   });
@@ -633,7 +674,7 @@ export function useDeleteCustomer() {
   return useMutation({
     mutationFn: async (id: bigint) => {
       if (!actor) throw new Error("No actor");
-      return actor.deleteCustomer(id);
+      return (actor as any).deleteCustomer(id);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
   });
@@ -645,7 +686,7 @@ export function useCreateService() {
   return useMutation({
     mutationFn: async (service: SvcType) => {
       if (!actor) throw new Error("No actor");
-      return actor.createService(service);
+      return (actor as any).createService(service);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["services"] }),
   });
@@ -657,7 +698,7 @@ export function useDeleteService() {
   return useMutation({
     mutationFn: async (id: bigint) => {
       if (!actor) throw new Error("No actor");
-      return actor.deleteService(id);
+      return (actor as any).deleteService(id);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["services"] }),
   });
@@ -669,7 +710,7 @@ export function useCreateStaff() {
   return useMutation({
     mutationFn: async (staffMember: StaffType) => {
       if (!actor) throw new Error("No actor");
-      return actor.createStaff(staffMember);
+      return (actor as any).createStaff(staffMember);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff"] }),
   });
@@ -681,7 +722,7 @@ export function useDeleteStaff() {
   return useMutation({
     mutationFn: async (id: bigint) => {
       if (!actor) throw new Error("No actor");
-      return actor.deleteStaff(id);
+      return (actor as any).deleteStaff(id);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff"] }),
   });
@@ -693,9 +734,35 @@ export function useSearchAppointmentsByCustomer(customerName: string) {
     queryKey: ["appointmentsByCustomer", customerName],
     queryFn: async () => {
       if (!actor || !customerName) return [];
-      return actor.searchAppointmentsByCustomerName(customerName);
+      return (actor as any).searchAppointmentsByCustomerName(customerName);
     },
     enabled: !!actor && !isFetching && !!customerName,
+    refetchInterval: 30000,
+  });
+}
+
+export function useAdminGetRevenueStats() {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["adminRevenueStats"],
+    queryFn: async () => {
+      if (!actor) throw new Error("No actor");
+      return actor.adminGetRevenueStats();
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
+  });
+}
+
+export function useGetOwnerRevenueSummary(phone: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["ownerRevenueSummary", phone],
+    queryFn: async () => {
+      if (!actor || !phone) throw new Error("No actor or phone");
+      return actor.getOwnerRevenueSummaryByPhone(phone);
+    },
+    enabled: !!actor && !isFetching && !!phone,
     refetchInterval: 30000,
   });
 }

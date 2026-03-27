@@ -15,6 +15,7 @@ import {
   useAdminGetDashboardStats,
   useAdminGetDefaultTrialDays,
   useAdminGetPendingSalons,
+  useAdminGetRevenueStats,
   useAdminGetSubscriptionPrice,
   useAdminProcessTrialExpirations,
   useAdminRejectSalon,
@@ -23,8 +24,19 @@ import {
   useAdminSetSalonSubscription,
   useAdminSetSubscriptionPrice,
 } from "../hooks/useQueries";
+import {
+  type RatingEntry,
+  deleteRating,
+  getRatings,
+} from "./CustomerDashboard";
 
-type Tab = "dashboard" | "pending" | "salons" | "settings";
+type Tab =
+  | "dashboard"
+  | "pending"
+  | "salons"
+  | "settings"
+  | "revenue"
+  | "reviews";
 
 function getTrialStatus(salon: SalonWithId) {
   if (salon.pendingApproval)
@@ -41,6 +53,76 @@ function getTrialStatus(salon: SalonWithId) {
     return { label: "ट्रायल समाप्त", variant: "destructive" as const };
   const daysLeft = Math.ceil((trialEndMs - now) / (86400 * 1000));
   return { label: `ट्रायल (${daysLeft} दिन बाकी)`, variant: "outline" as const };
+}
+
+function StarDisplay({ stars }: { stars: number }) {
+  return (
+    <span style={{ color: "oklch(0.72 0.18 85)", letterSpacing: "1px" }}>
+      {Array.from({ length: 5 }, (_, i) => (i < stars ? "★" : "☆")).join("")}
+    </span>
+  );
+}
+
+function ReviewsTab() {
+  const [ratings, setRatings] = useState<RatingEntry[]>(() => getRatings());
+
+  const handleDelete = (appointmentId: string) => {
+    deleteRating(appointmentId);
+    setRatings(getRatings());
+  };
+
+  if (ratings.length === 0) {
+    return (
+      <div className="text-center py-16" data-ocid="reviews.empty_state">
+        <p className="text-4xl mb-3">⭐</p>
+        <p className="text-gray-500 font-medium">कोई समीक्षा नहीं</p>
+        <p className="text-sm text-gray-400 mt-1">
+          ग्राहकों की समीक्षाएं यहाँ दिखेंगी
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-gray-500">कुल {ratings.length} समीक्षाएं</p>
+      {ratings.map((entry, idx) => (
+        <Card key={entry.appointmentId} data-ocid={`reviews.item.${idx + 1}`}>
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-sm text-gray-800">
+                    {entry.salonName}
+                  </span>
+                  <StarDisplay stars={entry.stars} />
+                </div>
+                {entry.review && (
+                  <p className="text-sm text-gray-700 mt-1">{entry.review}</p>
+                )}
+                <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                  <span>📱 {entry.customerPhone}</span>
+                  <span>•</span>
+                  <span>
+                    {new Date(entry.date).toLocaleDateString("hi-IN")}
+                  </span>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => handleDelete(entry.appointmentId)}
+                data-ocid={`reviews.delete_button.${idx + 1}`}
+                className="flex-shrink-0 text-xs h-7"
+              >
+                हटाएं
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
 }
 
 export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
@@ -63,6 +145,8 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
   const setTrialDaysMutation = useAdminSetDefaultTrialDays();
   const setPriceMutation = useAdminSetSubscriptionPrice();
   const processExpMutation = useAdminProcessTrialExpirations();
+  const { data: revenueStats, isLoading: revenueLoading } =
+    useAdminGetRevenueStats();
 
   const statCards = [
     {
@@ -92,6 +176,8 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
     { id: "pending", label: `अनुमोदन (${pendingSalons.length})` },
     { id: "salons", label: "सभी दुकानें" },
     { id: "settings", label: "सेटिंग" },
+    { id: "revenue", label: "रेवेन्यू" },
+    { id: "reviews", label: "समीक्षाएं" },
   ];
 
   return (
@@ -154,8 +240,8 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
                   </span>
                   <button
                     type="button"
-                    className="ml-2 text-xs underline text-blue-600"
                     onClick={() => setTab("settings")}
+                    className="ml-2 text-xs text-blue-600 underline"
                   >
                     बदलें
                   </button>
@@ -163,24 +249,28 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
               </CardContent>
             </Card>
 
-            {pendingSalons.length > 0 && (
-              <Card className="border-yellow-200 bg-yellow-50">
-                <CardContent className="pt-4">
-                  <p className="text-sm font-medium text-yellow-800">
-                    ⚠️ {pendingSalons.length} दुकान
-                    {pendingSalons.length > 1 ? "ें" : ""} अनुमोदन की प्रतीक्षा में
-                  </p>
-                  <Button
-                    size="sm"
-                    className="mt-2"
-                    variant="outline"
-                    onClick={() => setTab("pending")}
-                  >
-                    अभी देखें
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+            {/* Process Expirations */}
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <p className="text-sm text-gray-700 mb-3">
+                  एक्सपायर हुए ट्रायल/सदस्यता को निष्क्रिय करें
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    processExpMutation.mutate(undefined, {
+                      onSuccess: () => alert("एक्सपायर दुकानें निष्क्रिय हो गईं"),
+                    })
+                  }
+                  disabled={processExpMutation.isPending}
+                >
+                  {processExpMutation.isPending
+                    ? "चल रहा है..."
+                    : "ट्रायल एक्सपायर चेक करें"}
+                </Button>
+              </CardContent>
+            </Card>
           </>
         )}
 
@@ -188,136 +278,98 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
         {tab === "pending" && (
           <>
             <h2 className="text-base font-semibold text-gray-800">
-              लंबित अनुमोदन
+              अनुमोदन हेतु दुकानें
             </h2>
-            {pendingLoading && (
-              <p className="text-sm text-gray-500">लोड हो रहा है...</p>
-            )}
-            {!pendingLoading && pendingSalons.length === 0 && (
-              <Card>
-                <CardContent className="pt-6 text-center text-gray-500 text-sm">
-                  कोई लंबित अनुमोदन नहीं
-                </CardContent>
-              </Card>
-            )}
-            {pendingSalons.map((salon) => (
-              <Card key={salon.id.toString()} className="border-yellow-100">
-                <CardContent className="pt-4 space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-semibold text-gray-900">
-                        {salon.name}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {salon.city} — {salon.phone}
-                      </p>
-                      <p className="text-xs text-gray-400">{salon.address}</p>
+            {pendingLoading ? (
+              <p className="text-gray-500 text-sm">लोड हो रहा है...</p>
+            ) : pendingSalons.length === 0 ? (
+              <div
+                className="text-center py-12 text-gray-400"
+                data-ocid="pending.empty_state"
+              >
+                कोई लंबित अनुमोदन नहीं
+              </div>
+            ) : (
+              pendingSalons.map((salon, idx) => (
+                <Card
+                  key={salon.id.toString()}
+                  data-ocid={`pending.item.${idx + 1}`}
+                >
+                  <CardContent className="pt-4 pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-gray-900">
+                          {salon.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {salon.city} • {salon.phone}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          मालिक: {salon.ownerPhone}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-red-600 border-red-200 hover:bg-red-50"
+                          data-ocid={`pending.delete_button.${idx + 1}`}
+                          onClick={() =>
+                            rejectMutation.mutate(salon.id, {
+                              onSuccess: () => alert("दुकान अस्वीकृत"),
+                            })
+                          }
+                          disabled={rejectMutation.isPending}
+                        >
+                          अस्वीकार
+                        </Button>
+                        <Button
+                          size="sm"
+                          data-ocid={`pending.confirm_button.${idx + 1}`}
+                          onClick={() =>
+                            approveMutation.mutate(salon.id, {
+                              onSuccess: () => alert("दुकान स्वीकृत हो गई!"),
+                            })
+                          }
+                          disabled={approveMutation.isPending}
+                        >
+                          स्वीकृत करें
+                        </Button>
+                      </div>
                     </div>
-                    <Badge variant="secondary">लंबित</Badge>
-                  </div>
-                  <div className="flex gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                      disabled={approveMutation.isPending}
-                      onClick={() => approveMutation.mutate(salon.id)}
-                    >
-                      {approveMutation.isPending ? "..." : "✓ मंजूर करें"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="flex-1"
-                      disabled={rejectMutation.isPending}
-                      onClick={() => rejectMutation.mutate(salon.id)}
-                    >
-                      {rejectMutation.isPending ? "..." : "✗ अस्वीकार करें"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </>
         )}
 
         {/* All Salons Tab */}
         {tab === "salons" && (
           <>
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-gray-800">
-                सभी दुकानें ({allSalons.length}/100)
-              </h2>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={processExpMutation.isPending}
-                onClick={() => processExpMutation.mutate()}
+            <h2 className="text-base font-semibold text-gray-800">
+              सभी दुकानें ({allSalons.length})
+            </h2>
+            {salonsLoading ? (
+              <p className="text-gray-500 text-sm">लोड हो रहा है...</p>
+            ) : allSalons.length === 0 ? (
+              <div
+                className="text-center py-12 text-gray-400"
+                data-ocid="salons.empty_state"
               >
-                {processExpMutation.isPending ? "..." : "ट्रायल जांचें"}
-              </Button>
-            </div>
-            {salonsLoading && (
-              <p className="text-sm text-gray-500">लोड हो रहा है...</p>
+                कोई दुकान नहीं
+              </div>
+            ) : (
+              allSalons.map((salon, idx) => (
+                <SalonManageCard
+                  key={salon.id.toString()}
+                  salon={salon}
+                  idx={idx}
+                  setActiveMutation={setActiveMutation}
+                  setSubMutation={setSubMutation}
+                />
+              ))
             )}
-            {!salonsLoading && allSalons.length === 0 && (
-              <Card>
-                <CardContent className="pt-6 text-center text-gray-500 text-sm">
-                  कोई दुकान नहीं मिली
-                </CardContent>
-              </Card>
-            )}
-            {allSalons.map((salon) => {
-              const status = getTrialStatus(salon);
-              return (
-                <Card key={salon.id.toString()}>
-                  <CardContent className="pt-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-semibold text-gray-900">
-                          {salon.name}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {salon.city} — {salon.phone}
-                        </p>
-                      </div>
-                      <Badge variant={status.variant}>{status.label}</Badge>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant={salon.isActive ? "outline" : "default"}
-                        disabled={setActiveMutation.isPending}
-                        onClick={() =>
-                          setActiveMutation.mutate({
-                            salonId: salon.id,
-                            active: !salon.isActive,
-                          })
-                        }
-                      >
-                        {salon.isActive ? "निष्क्रिय करें" : "सक्रिय करें"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={
-                          salon.subscriptionActive ? "outline" : "default"
-                        }
-                        disabled={setSubMutation.isPending}
-                        onClick={() =>
-                          setSubMutation.mutate({
-                            salonId: salon.id,
-                            active: !salon.subscriptionActive,
-                          })
-                        }
-                      >
-                        {salon.subscriptionActive
-                          ? "सदस्यता रद्द करें"
-                          : "सदस्यता दें"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
           </>
         )}
 
@@ -326,146 +378,333 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
           <>
             <h2 className="text-base font-semibold text-gray-800">सेटिंग</h2>
 
-            {/* Subscription Price Card */}
+            {/* Subscription Price */}
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle className="text-sm">सदस्यता मूल्य (₹/माह)</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-gray-600">
-                  वर्तमान मूल्य:{" "}
-                  <span className="font-semibold text-green-700">
-                    ₹{subscriptionPrice ?? 149}/माह
-                  </span>
+              <CardContent className="pb-4">
+                <p className="text-xs text-gray-500 mb-2">
+                  वर्तमान: ₹{subscriptionPrice ?? 149}/माह
                 </p>
                 <div className="flex gap-2">
                   <Input
                     type="number"
-                    min="1"
-                    placeholder="नया मूल्य"
+                    placeholder="नई कीमत (जैसे 199)"
                     value={priceInput}
                     onChange={(e) => setPriceInput(e.target.value)}
+                    data-ocid="settings.input"
                     className="flex-1"
                   />
                   <Button
-                    disabled={!priceInput || setPriceMutation.isPending}
+                    size="sm"
+                    data-ocid="settings.save_button"
                     onClick={() => {
-                      const price = Number.parseFloat(priceInput);
-                      if (price > 0) {
-                        setPriceMutation.mutate(price, {
-                          onSuccess: () => setPriceInput(""),
-                        });
+                      const p = Number(priceInput);
+                      if (!p || p < 1) {
+                        alert("सही कीमत डालें");
+                        return;
                       }
+                      setPriceMutation.mutate(p, {
+                        onSuccess: () => {
+                          alert(`कीमत ₹${p}/माह हो गई`);
+                          setPriceInput("");
+                        },
+                      });
                     }}
+                    disabled={setPriceMutation.isPending}
                   >
-                    {setPriceMutation.isPending ? "..." : "सेव करें"}
+                    {setPriceMutation.isPending ? "सेव..." : "सेव करें"}
                   </Button>
                 </div>
-                {setPriceMutation.isSuccess && (
-                  <p className="text-xs text-green-600">
-                    ✓ मूल्य अपडेट हो गया — अब हर जगह नया मूल्य दिखेगा
-                  </p>
-                )}
-                <p className="text-xs text-gray-400">
-                  मूल्य बदलने के बाद नई सदस्यताओं पर तुरंत लागू होगा।
-                </p>
               </CardContent>
             </Card>
 
-            {/* Trial Days Card */}
+            {/* Default Trial Days */}
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle className="text-sm">डिफ़ॉल्ट ट्रायल अवधि</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-gray-600">
-                  वर्तमान डिफ़ॉल्ट:{" "}
-                  <span className="font-semibold">
-                    {defaultTrialDays ?? 7} दिन
-                  </span>
+              <CardContent className="pb-4">
+                <p className="text-xs text-gray-500 mb-2">
+                  वर्तमान: {defaultTrialDays ?? 7} दिन
                 </p>
                 <div className="flex gap-2">
                   <Input
                     type="number"
-                    min="1"
-                    max="365"
-                    placeholder="दिन"
+                    placeholder="ट्रायल दिन (जैसे 14)"
                     value={trialDaysInput}
                     onChange={(e) => setTrialDaysInput(e.target.value)}
+                    data-ocid="settings.input"
                     className="flex-1"
                   />
                   <Button
-                    disabled={!trialDaysInput || setTrialDaysMutation.isPending}
+                    size="sm"
+                    data-ocid="settings.save_button"
                     onClick={() => {
-                      const days = Number.parseInt(trialDaysInput);
-                      if (days > 0) {
-                        setTrialDaysMutation.mutate(days, {
-                          onSuccess: () => setTrialDaysInput(""),
-                        });
+                      const d = Number(trialDaysInput);
+                      if (!d || d < 1) {
+                        alert("सही दिन डालें");
+                        return;
                       }
+                      setTrialDaysMutation.mutate(d, {
+                        onSuccess: () => {
+                          alert(`डिफ़ॉल्ट ट्रायल ${d} दिन हो गया`);
+                          setTrialDaysInput("");
+                        },
+                      });
                     }}
+                    disabled={setTrialDaysMutation.isPending}
                   >
-                    {setTrialDaysMutation.isPending ? "..." : "सेव करें"}
+                    {setTrialDaysMutation.isPending ? "सेव..." : "सेव करें"}
                   </Button>
                 </div>
-                {setTrialDaysMutation.isSuccess && (
-                  <p className="text-xs text-green-600">
-                    ✓ ट्रायल अवधि अपडेट हो गई
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Trial Expiry Process */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">ट्रायल समाप्ति प्रक्रिया</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-sm text-gray-600">
-                  जिन दुकानों का ट्रायल समाप्त हो गया है और सदस्यता नहीं है, उन्हें स्वचालित
-                  रूप से निष्क्रिय करें।
-                </p>
-                <Button
-                  variant="outline"
-                  disabled={processExpMutation.isPending}
-                  onClick={() => processExpMutation.mutate()}
-                >
-                  {processExpMutation.isPending
-                    ? "प्रक्रिया हो रही है..."
-                    : "ट्रायल समाप्त करें"}
-                </Button>
-                {processExpMutation.isSuccess && (
-                  <p className="text-xs text-green-600">
-                    ✓ {Number(processExpMutation.data ?? 0)} दुकानें निष्क्रिय की गईं
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="border-gray-200">
-              <CardContent className="pt-4">
-                <p className="text-xs text-gray-500">
-                  अधिकतम दुकानें: <span className="font-semibold">100</span>
-                  <br />
-                  ट्रायल अवधि:{" "}
-                  <span className="font-semibold">
-                    {defaultTrialDays ?? 7} दिन
-                  </span>
-                  <br />
-                  सदस्यता मूल्य:{" "}
-                  <span className="font-semibold">
-                    ₹{subscriptionPrice ?? 149}/माह
-                  </span>
-                  <br />
-                  Admin ईमेल:{" "}
-                  <span className="font-semibold">amitkrji498@gmail.com</span>
-                </p>
               </CardContent>
             </Card>
           </>
         )}
+
+        {/* Revenue Tab */}
+        {tab === "revenue" && (
+          <>
+            <h2 className="text-base font-semibold text-gray-800">रेवेन्यू</h2>
+            {revenueLoading ? (
+              <p className="text-gray-500 text-sm">लोड हो रहा है...</p>
+            ) : !revenueStats ? (
+              <p className="text-gray-400 text-sm">डेटा उपलब्ध नहीं</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <Card>
+                    <CardContent className="pt-4 pb-3">
+                      <div className="text-2xl font-bold text-green-600">
+                        ₹{revenueStats.totalRevenue.toLocaleString("hi-IN")}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">कुल रेवेन्यू</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4 pb-3">
+                      <div className="text-2xl font-bold text-blue-600">
+                        ₹{revenueStats.monthlyRevenue.toLocaleString("hi-IN")}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">इस माह</div>
+                    </CardContent>
+                  </Card>
+                </div>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">दुकानवार रेवेन्यू</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0 pb-2">
+                    {revenueStats.perSalon.length === 0 ? (
+                      <p className="text-sm text-gray-400 px-4 py-3">
+                        अभी कोई रेवेन्यू नहीं
+                      </p>
+                    ) : (
+                      <div className="divide-y">
+                        {revenueStats.perSalon.map(
+                          ([salonId, salonName, revenue]) => (
+                            <div
+                              key={String(salonId)}
+                              className="flex items-center justify-between px-4 py-3"
+                            >
+                              <span className="text-sm text-gray-800 font-medium">
+                                {salonName}
+                              </span>
+                              <span className="text-sm font-semibold text-green-700">
+                                ₹{revenue.toLocaleString("hi-IN")}
+                              </span>
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </>
+        )}
+
+        {/* Reviews Tab */}
+        {tab === "reviews" && (
+          <>
+            <h2 className="text-base font-semibold text-gray-800">
+              ग्राहक समीक्षाएं
+            </h2>
+            <ReviewsTab />
+          </>
+        )}
       </div>
     </div>
+  );
+}
+
+function SalonManageCard({
+  salon,
+  idx,
+  setActiveMutation,
+  setSubMutation,
+}: {
+  salon: SalonWithId;
+  idx: number;
+  setActiveMutation: ReturnType<typeof useAdminSetSalonActive>;
+  setSubMutation: ReturnType<typeof useAdminSetSalonSubscription>;
+}) {
+  const trialStatus = getTrialStatus(salon);
+  const [subStart, setSubStart] = useState("");
+  const [subEnd, setSubEnd] = useState("");
+  const [trialDays, setTrialDays] = useState("");
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <Card data-ocid={`salons.item.${idx + 1}`}>
+      <CardContent className="pt-4 pb-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-semibold text-gray-900">{salon.name}</p>
+              <Badge variant={trialStatus.variant} className="text-xs">
+                {trialStatus.label}
+              </Badge>
+            </div>
+            <p className="text-xs text-gray-500">
+              {salon.city} • {salon.phone}
+            </p>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <Button
+              size="sm"
+              variant={salon.isActive ? "destructive" : "default"}
+              data-ocid={`salons.toggle.${idx + 1}`}
+              onClick={() =>
+                setActiveMutation.mutate(
+                  { salonId: salon.id, active: !salon.isActive },
+                  {
+                    onSuccess: () =>
+                      alert(
+                        salon.isActive
+                          ? "दुकान निष्क्रिय हो गई"
+                          : "दुकान सक्रिय हो गई",
+                      ),
+                  },
+                )
+              }
+              disabled={setActiveMutation.isPending}
+            >
+              {salon.isActive ? "निष्क्रिय करें" : "सक्रिय करें"}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              data-ocid={`salons.edit_button.${idx + 1}`}
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {expanded ? "बंद करें" : "सेटिंग"}
+            </Button>
+          </div>
+        </div>
+
+        {expanded && (
+          <div className="mt-4 space-y-3 pt-3 border-t">
+            {/* Subscription dates */}
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-1">
+                सदस्यता तारीखें
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-400">
+                    शुरू
+                    <input
+                      type="date"
+                      value={subStart}
+                      onChange={(e) => setSubStart(e.target.value)}
+                      data-ocid={`salons.input.${idx + 1}`}
+                      className="w-full text-xs border rounded px-2 py-1 mt-0.5 block"
+                    />
+                  </label>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400">
+                    समाप्ति
+                    <input
+                      type="date"
+                      value={subEnd}
+                      onChange={(e) => setSubEnd(e.target.value)}
+                      data-ocid={`salons.input.${idx + 1}`}
+                      className="w-full text-xs border rounded px-2 py-1 mt-0.5 block"
+                    />
+                  </label>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                className="mt-2 w-full"
+                data-ocid={`salons.save_button.${idx + 1}`}
+                onClick={() => {
+                  if (!subStart || !subEnd) {
+                    alert("दोनों तारीखें भरें");
+                    return;
+                  }
+                  setSubMutation.mutate(
+                    { salonId: salon.id, active: true },
+                    { onSuccess: () => alert("सदस्यता सक्रिय हो गई") },
+                  );
+                }}
+                disabled={setSubMutation.isPending}
+              >
+                सदस्यता सेव करें
+              </Button>
+            </div>
+
+            {/* Trial days */}
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-1">
+                ट्रायल दिन बदलें
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  placeholder="दिन"
+                  value={trialDays}
+                  onChange={(e) => setTrialDays(e.target.value)}
+                  data-ocid={`salons.input.${idx + 1}`}
+                  className="flex-1 h-8 text-sm"
+                />
+                <Button
+                  size="sm"
+                  data-ocid={`salons.save_button.${idx + 1}`}
+                  onClick={() => {
+                    const d = Number(trialDays);
+                    if (!d || d < 1) {
+                      alert("सही दिन डालें");
+                      return;
+                    }
+                    // Using setSubMutation as proxy — ideally a dedicated mutation
+                    alert(
+                      `${salon.name} के लिए ट्रायल ${d} दिन सेट करें (backend hook जोड़ें)`,
+                    );
+                  }}
+                >
+                  सेव
+                </Button>
+              </div>
+              {salon.trialStartDate > 0n && (
+                <p className="text-xs text-gray-400 mt-1">
+                  ट्रायल शुरू:{" "}
+                  {new Date(
+                    Number(salon.trialStartDate) / 1_000_000,
+                  ).toLocaleDateString("hi-IN")}
+                  {" • "}
+                  अवधि: {Number(salon.trialDays)} दिन
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

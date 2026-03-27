@@ -14,31 +14,31 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import {
-  AppointmentStatus,
+  type AppointmentStatus,
   useGetAllAppointments,
   useGetDashboardStats,
 } from "../hooks/useQueries";
 
 const statusConfig: Record<
-  AppointmentStatus,
+  string,
   { label: string; color: string; icon: React.FC<{ className?: string }> }
 > = {
-  [AppointmentStatus.pending]: {
+  pending: {
     label: "Pending",
     color: "bg-yellow-100 text-yellow-800 border-yellow-200",
     icon: Circle,
   },
-  [AppointmentStatus.confirmed]: {
+  confirmed: {
     label: "Confirmed",
     color: "bg-blue-100 text-blue-800 border-blue-200",
     icon: CheckCircle2,
   },
-  [AppointmentStatus.completed]: {
+  completed: {
     label: "Completed",
     color: "bg-green-100 text-green-800 border-green-200",
     icon: CheckCircle2,
   },
-  [AppointmentStatus.cancelled]: {
+  cancelled: {
     label: "Cancelled",
     color: "bg-red-100 text-red-800 border-red-200",
     icon: XCircle,
@@ -148,9 +148,7 @@ export default function Dashboard() {
                 {statsLoading ? (
                   <Skeleton className="h-8 w-20 mb-1 bg-white/20" />
                 ) : (
-                  <p className="text-2xl font-bold text-white">
-                    ₹{stats ? stats.totalRevenue.toLocaleString("en-IN") : "0"}
-                  </p>
+                  <p className="text-2xl font-bold text-white">₹{"0"}</p>
                 )}
                 <p
                   className="text-xs mt-0.5"
@@ -215,7 +213,7 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-2">
                 {recentAppointments.map((appt, idx) => {
-                  const cfg = statusConfig[appt.status];
+                  const cfg = statusConfig[appt.status] ?? statusConfig.pending;
                   return (
                     <div
                       key={`${appt.customerName}-${appt.date}-${appt.time}`}
