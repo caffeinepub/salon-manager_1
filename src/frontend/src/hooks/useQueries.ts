@@ -349,6 +349,8 @@ export function useGetMySalon(phone: string) {
       return result.length > 0 ? result[0] : null;
     },
     enabled: !!actor && !isFetching && !!phone,
+    retry: 2,
+    staleTime: 3 * 60 * 1000, // 3 min cache
   });
 }
 
@@ -605,6 +607,7 @@ export function useGetMyCustomerProfile(phone: string) {
       return result.length > 0 ? result[0] : null;
     },
     enabled: !!actor && !isFetching && !!phone,
+    staleTime: 5 * 60 * 1000, // 5 min cache — profile rarely changes
   });
 }
 

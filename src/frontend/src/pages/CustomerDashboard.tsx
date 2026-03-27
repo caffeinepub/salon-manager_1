@@ -111,10 +111,17 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
   const { data: profile, isLoading: profileLoading } =
     useGetMyCustomerProfile(phone);
   const [loadTimedOut, setLoadTimedOut] = useState(false);
+  const [slowMessage, setSlowMessage] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [savedProfileName, setSavedProfileName] = useState<string>("");
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoadTimedOut(true), 15000);
-    return () => clearTimeout(timer);
+    const timer = setTimeout(() => setLoadTimedOut(true), 45000);
+    const slowTimer = setTimeout(() => setSlowMessage(true), 10000);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(slowTimer);
+    };
   }, []);
 
   useEffect(() => {
@@ -123,21 +130,28 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
     }
   }, []);
 
-  if ((profileLoading || actorFetching) && !loadTimedOut) {
+  if (actorFetching && !loadTimedOut) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
         style={{ background: "oklch(0.12 0.04 155)" }}
       >
-        <Loader2
-          className="w-8 h-8 animate-spin"
-          style={{ color: "oklch(0.52 0.18 145)" }}
-        />
+        <div className="flex flex-col items-center gap-3">
+          <Loader2
+            className="w-8 h-8 animate-spin"
+            style={{ color: "oklch(0.52 0.18 145)" }}
+          />
+          <p className="text-sm" style={{ color: "oklch(0.75 0.05 145)" }}>
+            {slowMessage
+              ? "कनेक्ट हो रहा है... (पहली बार थोड़ा समय लग सकता है)"
+              : "लोड हो रहा है..."}
+          </p>
+        </div>
       </div>
     );
   }
 
-  if (loadTimedOut && !profile) {
+  if (loadTimedOut && actorFetching) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -170,8 +184,69 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
     );
   }
 
-  if (!profile) {
-    return <ProfileSetupForm phone={phone} onLogout={onSwitchRole} />;
+  if (profileLoading && !loadTimedOut) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "oklch(0.12 0.04 155)" }}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <Loader2
+            className="w-8 h-8 animate-spin"
+            style={{ color: "oklch(0.52 0.18 145)" }}
+          />
+          <p className="text-sm" style={{ color: "oklch(0.75 0.05 145)" }}>
+            लोड हो रहा है...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile && !profileSaved) {
+    return (
+      <ProfileSetupForm
+        phone={phone}
+        onLogout={onSwitchRole}
+        onProfileSaved={(name: string) => {
+          setProfileSaved(true);
+          setSavedProfileName(name);
+        }}
+      />
+    );
+  }
+
+  const effectiveProfile =
+    profile ??
+    (profileSaved && savedProfileName
+      ? { name: savedProfileName, phone, createdAt: BigInt(0) }
+      : null);
+
+  if (!effectiveProfile) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "oklch(0.12 0.04 155)" }}
+      >
+        <div className="flex flex-col items-center gap-4 text-center p-6">
+          <Loader2
+            className="w-8 h-8 animate-spin"
+            style={{ color: "oklch(0.52 0.18 145)" }}
+          />
+          <p className="text-sm" style={{ color: "oklch(0.75 0.05 145)" }}>
+            प्रोफ़ाइल लोड हो रही है...
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 rounded-lg text-sm font-semibold text-white mt-2"
+            style={{ background: "oklch(0.52 0.18 145)" }}
+          >
+            पेज Reload करें
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -201,7 +276,7 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
               Salon360
             </p>
             <p className="text-xs" style={{ color: "oklch(0.6 0.05 145)" }}>
-              नमस्ते, {profile.name}
+              नमस्ते, {effectiveProfile.name}
             </p>
           </div>
         </div>
@@ -241,7 +316,7 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
 
           <TabsContent value="salons">
             <ErrorBoundary>
-              <SalonListTab phone={phone} profile={profile} />
+              <SalonListTab phone={phone} profile={effectiveProfile} />
             </ErrorBoundary>
           </TabsContent>
 
@@ -274,7 +349,12 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
 function ProfileSetupForm({
   phone,
   onLogout,
-}: { phone: string; onLogout: () => void }) {
+  onProfileSaved,
+}: {
+  phone: string;
+  onLogout: () => void;
+  onProfileSaved?: (name: string) => void;
+}) {
   const [name, setName] = useState("");
   const { mutate, isPending } = useSaveCustomerProfile(phone);
 
@@ -287,7 +367,10 @@ function ProfileSetupForm({
     mutate(
       { name: name.trim() },
       {
-        onSuccess: () => toast.success("प्रोफ़ाइल सेव हो गई!"),
+        onSuccess: () => {
+          toast.success("प्रोफ़ाइल सेव हो गई!");
+          onProfileSaved?.(name.trim());
+        },
         onError: () => toast.error("कुछ गलत हुआ"),
       },
     );

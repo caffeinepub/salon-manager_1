@@ -81,17 +81,28 @@ interface Props {
 
 export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   const { isFetching: actorFetching } = useActor();
-  const { data: salon, isLoading: salonLoading } = useGetMySalon(phone);
+  const {
+    data: salon,
+    isLoading: salonLoading,
+
+    isError: salonError,
+  } = useGetMySalon(phone);
   const today = getTodayString();
   const { data: earnings } = useGetOwnerRevenueSummary(phone);
   const [loadTimedOut, setLoadTimedOut] = useState(false);
+  const [slowMessage, setSlowMessage] = useState(false);
+  const [showRegisterForm, setShowRegisterForm] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoadTimedOut(true), 15000);
-    return () => clearTimeout(timer);
+    const timer = setTimeout(() => setLoadTimedOut(true), 45000);
+    const slowTimer = setTimeout(() => setSlowMessage(true), 10000);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(slowTimer);
+    };
   }, []);
 
-  if ((salonLoading || actorFetching) && !loadTimedOut) {
+  if (actorFetching && !loadTimedOut) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -103,14 +114,16 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
             style={{ color: "oklch(0.52 0.18 145)" }}
           />
           <p className="text-sm" style={{ color: "oklch(0.75 0.05 145)" }}>
-            लोड हो रहा है...
+            {slowMessage
+              ? "कनेक्ट हो रहा है... (पहली बार थोड़ा समय लग सकता है)"
+              : "लोड हो रहा है..."}
           </p>
         </div>
       </div>
     );
   }
 
-  if (loadTimedOut && !salon) {
+  if (loadTimedOut && actorFetching) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -143,13 +156,101 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
     );
   }
 
-  if (!salon) {
+  if (salonLoading && !loadTimedOut) {
     return (
-      <RegisterSalonForm
-        phone={phone}
-        onSwitchRole={onSwitchRole}
-        onLogout={onSwitchRole}
-      />
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "oklch(0.12 0.04 155)" }}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <Loader2
+            className="w-8 h-8 animate-spin"
+            style={{ color: "oklch(0.52 0.18 145)" }}
+          />
+          <p className="text-sm" style={{ color: "oklch(0.75 0.05 145)" }}>
+            लोड हो रहा है...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // If query errored (backend unavailable), show retry — not register form
+  if (salonError) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "oklch(0.12 0.04 155)" }}
+      >
+        <div className="flex flex-col items-center gap-4 text-center p-6">
+          <p
+            className="text-lg font-semibold"
+            style={{ color: "oklch(0.95 0.02 145)" }}
+          >
+            डेटा लोड नहीं हो पाया
+          </p>
+          <p className="text-sm" style={{ color: "oklch(0.65 0.05 145)" }}>
+            कृपया पेज reload करें
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 rounded-xl font-semibold text-white"
+            style={{ background: "oklch(0.52 0.18 145)" }}
+          >
+            पेज Reload करें
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!salon) {
+    if (showRegisterForm) {
+      return (
+        <RegisterSalonForm
+          phone={phone}
+          onSwitchRole={onSwitchRole}
+          onLogout={onSwitchRole}
+        />
+      );
+    }
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "oklch(0.12 0.04 155)" }}
+      >
+        <div className="flex flex-col items-center gap-4 text-center p-6">
+          <p
+            className="text-lg font-semibold"
+            style={{ color: "oklch(0.95 0.02 145)" }}
+          >
+            सैलून नहीं मिला
+          </p>
+          <p className="text-sm" style={{ color: "oklch(0.65 0.05 145)" }}>
+            आपके नंबर पर कोई सैलून नहीं मिला। क्या आप नए सैलून का पंजीकरण करना चाहते हैं?
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowRegisterForm(true)}
+            className="px-6 py-3 rounded-xl font-semibold text-white"
+            style={{ background: "oklch(0.52 0.18 145)" }}
+          >
+            हाँ, नया पंजीकरण करें
+          </button>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 rounded-xl font-semibold"
+            style={{
+              background: "oklch(0.20 0.05 155)",
+              color: "oklch(0.75 0.05 145)",
+            }}
+          >
+            दोबारा लोड करें
+          </button>
+        </div>
+      </div>
     );
   }
 

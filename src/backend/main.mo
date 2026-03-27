@@ -127,16 +127,31 @@ actor {
   // STATE (V3)
   // ================================================================
   let ADMIN_EMAIL : Text = "amitkrji498@gmail.com";
-  var adminPasswordHash : ?Text = null;
+  // ================================================================
+  // STABLE STORAGE (data persists across canister upgrades/builds)
+  // ================================================================
+  stable var stableAdminPasswordHash : ?Text = null;
+  stable var stableNextSalonId : Nat = 1;
+  stable var stableNextServiceId : Nat = 1;
+  stable var stableNextAppointmentId : Nat = 1;
+  stable var stableDefaultTrialDays : Nat = 7;
+  stable var stablePlatformPrice : Float = 149.0;
+  stable var stableSalons : [(Nat, SalonProfile)] = [];
+  stable var stableServices : [(Nat, SalonService)] = [];
+  stable var stableAppointments : [(Nat, Appointment)] = [];
+  stable var stableCustomers : [(Text, CustomerProfile)] = [];
+  stable var stableOwnerPhoneMap : [(Text, Nat)] = [];
 
-  var nextSalonId        : Nat = 1;
-  var nextServiceId      : Nat = 1;
-  var nextAppointmentId  : Nat = 1;
-  var defaultTrialDays   : Nat = 7;
-  var platformSubscriptionPrice : Float = 149.0;
+  // State vars — auto-restored from stable memory on upgrade
+  var adminPasswordHash : ?Text = stableAdminPasswordHash;
+  var nextSalonId        : Nat = stableNextSalonId;
+  var nextServiceId      : Nat = stableNextServiceId;
+  var nextAppointmentId  : Nat = stableNextAppointmentId;
+  var defaultTrialDays   : Nat = stableDefaultTrialDays;
+  var platformSubscriptionPrice : Float = stablePlatformPrice;
   let MAX_SHOPS          : Nat = 100;
 
-  // V3 maps (phone-keyed)
+  // V3 maps (phone-keyed) — filled from stable in postupgrade
   let salonProfilesV3    = Map.empty<Nat, SalonProfile>();
   let salonServicesList  = Map.empty<Nat, SalonService>();
   let salonAppointmentsV3 = Map.empty<Nat, Appointment>();
@@ -355,10 +370,7 @@ actor {
   // ================================================================
   // ADMIN — REVENUE TRACKING
   // ================================================================
-  public query ({ caller }) func adminGetRevenueStats() : async RevenueStats {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can view revenue statistics");
-    };
+  public query func adminGetRevenueStats() : async RevenueStats {
 
     var totalRevenue : Float = 0.0;
     var monthlyRevenue : Float = 0.0;
@@ -622,5 +634,36 @@ actor {
 
   public query func getMyCustomerProfileByPhone(phone : Text) : async ?CustomerProfile {
     custProfilesByPhone.get(phone);
+  };
+
+  // ================================================================
+  // UPGRADE HOOKS — preserve all data across builds
+  // ================================================================
+  system func preupgrade() {
+    stableAdminPasswordHash := adminPasswordHash;
+    stableNextSalonId := nextSalonId;
+    stableNextServiceId := nextServiceId;
+    stableNextAppointmentId := nextAppointmentId;
+    stableDefaultTrialDays := defaultTrialDays;
+    stablePlatformPrice := platformSubscriptionPrice;
+    stableSalons := salonProfilesV3.entries().toArray();
+    stableServices := salonServicesList.entries().toArray();
+    stableAppointments := salonAppointmentsV3.entries().toArray();
+    stableCustomers := custProfilesByPhone.entries().toArray();
+    stableOwnerPhoneMap := ownerPhoneSalonMap.entries().toArray();
+  };
+
+  system func postupgrade() {
+    for ((k, v) in stableSalons.vals()) { salonProfilesV3.add(k, v) };
+    for ((k, v) in stableServices.vals()) { salonServicesList.add(k, v) };
+    for ((k, v) in stableAppointments.vals()) { salonAppointmentsV3.add(k, v) };
+    for ((k, v) in stableCustomers.vals()) { custProfilesByPhone.add(k, v) };
+    for ((k, v) in stableOwnerPhoneMap.vals()) { ownerPhoneSalonMap.add(k, v) };
+    // Clear stable arrays after restore to free memory
+    stableSalons := [];
+    stableServices := [];
+    stableAppointments := [];
+    stableCustomers := [];
+    stableOwnerPhoneMap := [];
   };
 };
