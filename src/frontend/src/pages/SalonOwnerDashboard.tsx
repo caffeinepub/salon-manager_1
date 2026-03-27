@@ -19,8 +19,9 @@ import {
   Trash2,
   User,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useActor } from "../hooks/useActor";
 import type { SalonWithId } from "../hooks/useQueries";
 import {
   useAddSalonService,
@@ -79,11 +80,18 @@ interface Props {
 }
 
 export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
+  const { isFetching: actorFetching } = useActor();
   const { data: salon, isLoading: salonLoading } = useGetMySalon(phone);
   const today = getTodayString();
   const { data: earnings } = useGetOwnerRevenueSummary(phone);
+  const [loadTimedOut, setLoadTimedOut] = useState(false);
 
-  if (salonLoading) {
+  useEffect(() => {
+    const timer = setTimeout(() => setLoadTimedOut(true), 15000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if ((salonLoading || actorFetching) && !loadTimedOut) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -97,6 +105,39 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
           <p className="text-sm" style={{ color: "oklch(0.75 0.05 145)" }}>
             लोड हो रहा है...
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadTimedOut && !salon) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "oklch(0.12 0.04 155)" }}
+      >
+        <div className="flex flex-col items-center gap-4 text-center p-6">
+          <Scissors
+            className="w-10 h-10"
+            style={{ color: "oklch(0.52 0.18 145)" }}
+          />
+          <p
+            className="text-lg font-semibold"
+            style={{ color: "oklch(0.95 0.02 145)" }}
+          >
+            कनेक्शन धीमा है
+          </p>
+          <p className="text-sm" style={{ color: "oklch(0.65 0.05 145)" }}>
+            सर्वर से कनेक्ट नहीं हो पाया
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 rounded-xl font-semibold text-white"
+            style={{ background: "oklch(0.52 0.18 145)" }}
+          >
+            पेज Reload करें
+          </button>
         </div>
       </div>
     );

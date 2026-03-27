@@ -36,20 +36,17 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [isFirstLogin, setIsFirstLogin] = useState<boolean | null>(null);
+  const [isFirstLogin, setIsFirstLogin] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
-  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     async function checkPasswordSet() {
+      if (!backend) return;
       try {
-        if (!backend) return;
         const isSet = await backend.adminPasswordIsSet();
         setIsFirstLogin(!isSet);
       } catch {
         setIsFirstLogin(false);
-      } finally {
-        setChecking(false);
       }
     }
     checkPasswordSet();
@@ -72,7 +69,11 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
     setLoading(true);
     try {
       const hash = await hashPassword(password);
-      if (!backend) return;
+      if (!backend) {
+        toast.error("सर्वर से कनेक्शन नहीं हो पाया। पेज reload करें।");
+        setLoading(false);
+        return;
+      }
       const ok = await backend.adminSetPassword(email, hash);
       if (ok) {
         sessionStorage.setItem(ADMIN_SESSION_KEY, "authenticated");
@@ -101,7 +102,11 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
     setLoading(true);
     try {
       const hash = await hashPassword(password);
-      if (!backend) return;
+      if (!backend) {
+        toast.error("सर्वर से कनेक्शन नहीं हो पाया। पेज reload करें।");
+        setLoading(false);
+        return;
+      }
       const ok = await backend.adminLogin(email, hash);
       if (ok) {
         sessionStorage.setItem(ADMIN_SESSION_KEY, "authenticated");
@@ -116,25 +121,6 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
       setLoading(false);
     }
   };
-
-  if (checking) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "oklch(0.12 0.04 155)" }}
-      >
-        <div className="flex flex-col items-center gap-4">
-          <div
-            className="w-14 h-14 rounded-full flex items-center justify-center animate-pulse"
-            style={{ background: "oklch(0.52 0.18 145)" }}
-          >
-            <Scissors className="w-6 h-6 text-white" />
-          </div>
-          <p style={{ color: "oklch(0.7 0.05 145)" }}>लोड हो रहा है...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div

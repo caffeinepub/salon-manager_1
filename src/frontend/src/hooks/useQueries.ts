@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type {
   AppointmentWithId,
   CustomerProfile,
@@ -91,7 +92,7 @@ export function useGetAllAppointments() {
       return (actor as any).getAllAppointments();
     },
     enabled: !!actor && !isFetching,
-    refetchInterval: 30000,
+    refetchInterval: 60000,
   });
 }
 
@@ -156,7 +157,7 @@ export function useAdminGetDashboardStats() {
       return actor.adminGetDashboardStats();
     },
     enabled: !!actor && !isFetching,
-    refetchInterval: 30000,
+    refetchInterval: 60000,
   });
 }
 
@@ -206,7 +207,7 @@ export function useAdminGetPendingSalons() {
       return actor.adminGetPendingSalons();
     },
     enabled: !!actor && !isFetching,
-    refetchInterval: 30000,
+    refetchInterval: 60000,
   });
 }
 
@@ -479,7 +480,7 @@ export function useGetSalonAppointmentsForDate(
       );
     },
     enabled: !!actor && !isFetching && !!salonId && !!phone,
-    refetchInterval: 20000,
+    refetchInterval: 45000,
   });
 }
 
@@ -561,7 +562,7 @@ export function useGetMyAppointments(phone: string) {
       return (actor as any).getMyAppointmentsByPhone(phone);
     },
     enabled: !!actor && !isFetching && !!phone,
-    refetchInterval: 15000,
+    refetchInterval: 45000,
   });
 }
 
@@ -574,7 +575,7 @@ export function useGetQueueInfo(appointmentId: bigint | null | undefined) {
       return actor.getQueueInfo(appointmentId);
     },
     enabled: !!actor && !isFetching && !!appointmentId,
-    refetchInterval: 15000,
+    refetchInterval: 45000,
   });
 }
 
@@ -588,6 +589,9 @@ export function useSaveCustomerProfile(phone: string) {
     },
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["myCustomerProfile", phone] }),
+    onError: () => {
+      toast.error("कनेक्ट नहीं हो पाया। दोबारा कोशिश करें।");
+    },
   });
 }
 
@@ -737,7 +741,7 @@ export function useSearchAppointmentsByCustomer(customerName: string) {
       return (actor as any).searchAppointmentsByCustomerName(customerName);
     },
     enabled: !!actor && !isFetching && !!customerName,
-    refetchInterval: 30000,
+    refetchInterval: 60000,
   });
 }
 
@@ -750,7 +754,7 @@ export function useAdminGetRevenueStats() {
       return actor.adminGetRevenueStats();
     },
     enabled: !!actor && !isFetching,
-    refetchInterval: 30000,
+    refetchInterval: 60000,
   });
 }
 
@@ -763,6 +767,6 @@ export function useGetOwnerRevenueSummary(phone: string) {
       return actor.getOwnerRevenueSummaryByPhone(phone);
     },
     enabled: !!actor && !isFetching && !!phone,
-    refetchInterval: 30000,
+    refetchInterval: 60000,
   });
 }
