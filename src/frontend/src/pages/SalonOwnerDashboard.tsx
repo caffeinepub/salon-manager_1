@@ -84,14 +84,16 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   const {
     data: salon,
     isLoading: salonLoading,
-
+    isFetching: salonFetching,
     isError: salonError,
+    refetch: refetchSalon,
   } = useGetMySalon(phone);
   const today = getTodayString();
   const { data: earnings } = useGetOwnerRevenueSummary(phone);
   const [loadTimedOut, setLoadTimedOut] = useState(false);
   const [slowMessage, setSlowMessage] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
+  const [manualRetryCount, setManualRetryCount] = useState(0);
 
   useEffect(() => {
     const timer = setTimeout(() => setLoadTimedOut(true), 45000);
@@ -206,6 +208,26 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   }
 
   if (!salon) {
+    // Still fetching in background — wait
+    if (salonFetching) {
+      return (
+        <div
+          className="min-h-screen flex items-center justify-center"
+          style={{ background: "oklch(0.12 0.04 155)" }}
+        >
+          <div className="flex flex-col items-center gap-3">
+            <Loader2
+              className="w-8 h-8 animate-spin"
+              style={{ color: "oklch(0.52 0.18 145)" }}
+            />
+            <p className="text-sm" style={{ color: "oklch(0.75 0.05 145)" }}>
+              सैलून खोज रहे हैं...
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     if (showRegisterForm) {
       return (
         <RegisterSalonForm
@@ -215,6 +237,52 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
         />
       );
     }
+
+    // Only show "register" option after user manually retried at least once
+    // This prevents false "no salon" on slow backend
+    if (manualRetryCount < 1) {
+      return (
+        <div
+          className="min-h-screen flex items-center justify-center"
+          style={{ background: "oklch(0.12 0.04 155)" }}
+        >
+          <div className="flex flex-col items-center gap-4 text-center p-6">
+            <p
+              className="text-lg font-semibold"
+              style={{ color: "oklch(0.95 0.02 145)" }}
+            >
+              डेटा लोड नहीं हुआ
+            </p>
+            <p className="text-sm" style={{ color: "oklch(0.65 0.05 145)" }}>
+              सर्वर धीमा हो सकता है। दोबारा कोशिश करें।
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setManualRetryCount((n) => n + 1);
+                refetchSalon();
+              }}
+              className="px-6 py-3 rounded-xl font-semibold text-white"
+              style={{ background: "oklch(0.52 0.18 145)" }}
+            >
+              दोबारा कोशिश करें
+            </button>
+            <button
+              type="button"
+              onClick={onSwitchRole}
+              className="px-4 py-2 rounded-xl font-semibold text-sm"
+              style={{
+                background: "oklch(0.20 0.05 155)",
+                color: "oklch(0.75 0.05 145)",
+              }}
+            >
+              लॉगआउट
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -228,7 +296,7 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
             सैलून नहीं मिला
           </p>
           <p className="text-sm" style={{ color: "oklch(0.65 0.05 145)" }}>
-            आपके नंबर पर कोई सैलून नहीं मिला। क्या आप नए सैलून का पंजीकरण करना चाहते हैं?
+            आपके नंबर {phone} पर कोई सैलून नहीं मिला।
           </p>
           <button
             type="button"
@@ -236,18 +304,29 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
             className="px-6 py-3 rounded-xl font-semibold text-white"
             style={{ background: "oklch(0.52 0.18 145)" }}
           >
-            हाँ, नया पंजीकरण करें
+            नया सैलून पंजीकरण करें
           </button>
           <button
             type="button"
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 rounded-xl font-semibold"
+            onClick={() => {
+              setManualRetryCount(0);
+              refetchSalon();
+            }}
+            className="px-4 py-2 rounded-xl font-semibold text-sm"
             style={{
               background: "oklch(0.20 0.05 155)",
               color: "oklch(0.75 0.05 145)",
             }}
           >
-            दोबारा लोड करें
+            दोबारा जाँचें
+          </button>
+          <button
+            type="button"
+            onClick={onSwitchRole}
+            className="px-4 py-2 rounded-xl text-sm"
+            style={{ color: "oklch(0.6 0.05 145)" }}
+          >
+            लॉगआउट
           </button>
         </div>
       </div>

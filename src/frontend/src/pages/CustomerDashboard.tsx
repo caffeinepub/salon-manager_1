@@ -184,7 +184,8 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
     );
   }
 
-  if (profileLoading && !loadTimedOut) {
+  // Only show profile loading spinner if we don't already have a saved name locally
+  if (profileLoading && !loadTimedOut && !profileSaved) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"

@@ -349,8 +349,9 @@ export function useGetMySalon(phone: string) {
       return result.length > 0 ? result[0] : null;
     },
     enabled: !!actor && !isFetching && !!phone,
-    retry: 2,
-    staleTime: 3 * 60 * 1000, // 3 min cache
+    retry: 3, // retry up to 3 times (cold start)
+    retryDelay: (attempt) => Math.min(2000 * (attempt + 1), 8000),
+    staleTime: 5 * 60 * 1000, // 5 min cache — owners rarely change salons
   });
 }
 
