@@ -131,7 +131,7 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
     }
   }, []);
 
-  if (actorFetching && !loadTimedOut) {
+  if (actorFetching && !profile && !profileSaved && !loadTimedOut) {
     return (
       <SalonLoadingScreen
         message={
@@ -143,7 +143,7 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
     );
   }
 
-  if (loadTimedOut && actorFetching) {
+  if (loadTimedOut && actorFetching && !profile && !profileSaved) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"

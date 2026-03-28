@@ -5,6 +5,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import MobileLoginPage from "./components/MobileLoginPage";
 import RoleSelect from "./components/RoleSelect";
 import SalonLoadingScreen from "./components/SalonLoadingScreen";
+import { createActorWithConfig } from "./config";
 import AdminLoginPage, {
   isAdminLoggedIn,
   logoutAdmin,
@@ -74,6 +75,11 @@ export default function App() {
   const [onAdminRoute, setOnAdminRoute] = useState<boolean>(() =>
     isAdminRoute(),
   );
+
+  // Health check: pre-warm backend on app open so ICP cold start happens early
+  useEffect(() => {
+    createActorWithConfig().catch(() => {});
+  }, []);
 
   // 30-min inactivity auto-logout
   const lastActivityRef = useRef<number>(Date.now());

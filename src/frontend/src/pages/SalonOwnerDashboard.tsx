@@ -82,7 +82,7 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   const {
     data: salon,
     isLoading: salonLoading,
-    isFetching: salonFetching,
+
     isError: salonError,
   } = useGetMySalon(phone);
   const today = getTodayString();
@@ -99,10 +99,12 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
     };
   }, []);
 
-  const isLoading = actorFetching || salonLoading || salonFetching;
+  // Only block on initial load when we have no data yet. Background refetches (salonFetching)
+  // should not show the loading screen 2014 that causes "connection error" for simple re-fetches.
+  const isInitialLoading = (actorFetching || salonLoading) && !salon;
 
   // Show spinner while any loading is happening (unless timed out)
-  if (isLoading && !loadTimedOut) {
+  if (isInitialLoading && !loadTimedOut) {
     return (
       <SalonLoadingScreen
         message={
@@ -115,7 +117,7 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   }
 
   // Timed out — show reload prompt
-  if (loadTimedOut && isLoading) {
+  if (loadTimedOut && isInitialLoading) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -436,6 +438,7 @@ function RegisterSalonForm({
     city: "",
   });
   const { mutate, isPending } = useRegisterSalon(phone);
+  const { actor, isFetching: actorLoading } = useActor();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -446,7 +449,14 @@ function RegisterSalonForm({
     mutate(form, {
       onSuccess: () =>
         toast.success("सैलून रजिस्टर हो गया! Admin मंजूरी का इंतज़ार करें"),
-      onError: () => toast.error("कुछ गलत हुआ, दोबारा कोशिश करें"),
+      onError: (err: any) => {
+        const msg = err?.message || "";
+        if (msg.includes("पेज रीलोड")) {
+          toast.error("सर्वर से कनेक्ट नहीं हो पाया। पेज रीलोड करें।");
+        } else {
+          toast.error("कुछ गलत हुआ, दोबारा कोशिश करें");
+        }
+      },
     });
   };
 
@@ -600,6 +610,14 @@ function RegisterSalonForm({
                   }}
                 />
               </div>
+              {!actor && actorLoading && (
+                <p
+                  className="text-xs text-center mb-2"
+                  style={{ color: "oklch(0.7 0.08 50)" }}
+                >
+                  सर्वर से जुड़ रहे हैं... कृपया प्रतीक्षा करें
+                </p>
+              )}
               <Button
                 type="submit"
                 className="w-full"

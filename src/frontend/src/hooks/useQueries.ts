@@ -365,8 +365,25 @@ export function useRegisterSalon(phone: string) {
       salonPhone,
       city,
     }: { name: string; address: string; salonPhone: string; city: string }) => {
-      if (!actor) throw new Error("No actor");
-      return (actor as any).registerSalonByPhone(
+      // Wait for actor to be ready (up to 45 seconds)
+      let resolvedActor = actor;
+      if (!resolvedActor) {
+        const start = Date.now();
+        while (Date.now() - start < 45000) {
+          const queries = qc.getQueriesData<any>({ queryKey: ["actor"] });
+          for (const [, data] of queries) {
+            if (data) {
+              resolvedActor = data;
+              break;
+            }
+          }
+          if (resolvedActor) break;
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
+      if (!resolvedActor)
+        throw new Error("सर्वर से कनेक्ट नहीं हो पाया। पेज रीलोड करें।");
+      return (resolvedActor as any).registerSalonByPhone(
         phone,
         name,
         address,
