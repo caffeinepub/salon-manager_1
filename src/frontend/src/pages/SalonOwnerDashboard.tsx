@@ -1,9 +1,7 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertCircle,
@@ -17,10 +15,10 @@ import {
   Scissors,
   Store,
   Trash2,
-  User,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import SalonLoadingScreen from "../components/SalonLoadingScreen";
 import { useActor } from "../hooks/useActor";
 import type { SalonWithId } from "../hooks/useQueries";
 import {
@@ -86,14 +84,11 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
     isLoading: salonLoading,
     isFetching: salonFetching,
     isError: salonError,
-    refetch: refetchSalon,
   } = useGetMySalon(phone);
   const today = getTodayString();
   const { data: earnings } = useGetOwnerRevenueSummary(phone);
   const [loadTimedOut, setLoadTimedOut] = useState(false);
   const [slowMessage, setSlowMessage] = useState(false);
-  const [showRegisterForm, setShowRegisterForm] = useState(false);
-  const [manualRetryCount, setManualRetryCount] = useState(0);
 
   useEffect(() => {
     const timer = setTimeout(() => setLoadTimedOut(true), 45000);
@@ -104,28 +99,23 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
     };
   }, []);
 
-  if (actorFetching && !loadTimedOut) {
+  const isLoading = actorFetching || salonLoading || salonFetching;
+
+  // Show spinner while any loading is happening (unless timed out)
+  if (isLoading && !loadTimedOut) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "oklch(0.12 0.04 155)" }}
-      >
-        <div className="flex flex-col items-center gap-3">
-          <Loader2
-            className="w-8 h-8 animate-spin"
-            style={{ color: "oklch(0.52 0.18 145)" }}
-          />
-          <p className="text-sm" style={{ color: "oklch(0.75 0.05 145)" }}>
-            {slowMessage
-              ? "कनेक्ट हो रहा है... (पहली बार थोड़ा समय लग सकता है)"
-              : "लोड हो रहा है..."}
-          </p>
-        </div>
-      </div>
+      <SalonLoadingScreen
+        message={
+          slowMessage
+            ? "कनेक्ट हो रहा है... (पहली बार थोड़ा समय लग सकता है)"
+            : "आपका सैलून तैयार हो रहा है..."
+        }
+      />
     );
   }
 
-  if (loadTimedOut && actorFetching) {
+  // Timed out — show reload prompt
+  if (loadTimedOut && isLoading) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -158,26 +148,7 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
     );
   }
 
-  if (salonLoading && !loadTimedOut) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "oklch(0.12 0.04 155)" }}
-      >
-        <div className="flex flex-col items-center gap-3">
-          <Loader2
-            className="w-8 h-8 animate-spin"
-            style={{ color: "oklch(0.52 0.18 145)" }}
-          />
-          <p className="text-sm" style={{ color: "oklch(0.75 0.05 145)" }}>
-            लोड हो रहा है...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // If query errored (backend unavailable), show retry — not register form
+  // Backend error
   if (salonError) {
     return (
       <div
@@ -185,6 +156,10 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
         style={{ background: "oklch(0.12 0.04 155)" }}
       >
         <div className="flex flex-col items-center gap-4 text-center p-6">
+          <AlertCircle
+            className="w-10 h-10"
+            style={{ color: "oklch(0.577 0.245 27.325)" }}
+          />
           <p
             className="text-lg font-semibold"
             style={{ color: "oklch(0.95 0.02 145)" }}
@@ -207,133 +182,12 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
     );
   }
 
+  // No salon found — new user, show registration form directly
   if (!salon) {
-    // Still fetching in background — wait
-    if (salonFetching) {
-      return (
-        <div
-          className="min-h-screen flex items-center justify-center"
-          style={{ background: "oklch(0.12 0.04 155)" }}
-        >
-          <div className="flex flex-col items-center gap-3">
-            <Loader2
-              className="w-8 h-8 animate-spin"
-              style={{ color: "oklch(0.52 0.18 145)" }}
-            />
-            <p className="text-sm" style={{ color: "oklch(0.75 0.05 145)" }}>
-              सैलून खोज रहे हैं...
-            </p>
-          </div>
-        </div>
-      );
-    }
-
-    if (showRegisterForm) {
-      return (
-        <RegisterSalonForm
-          phone={phone}
-          onSwitchRole={onSwitchRole}
-          onLogout={onSwitchRole}
-        />
-      );
-    }
-
-    // Only show "register" option after user manually retried at least once
-    // This prevents false "no salon" on slow backend
-    if (manualRetryCount < 1) {
-      return (
-        <div
-          className="min-h-screen flex items-center justify-center"
-          style={{ background: "oklch(0.12 0.04 155)" }}
-        >
-          <div className="flex flex-col items-center gap-4 text-center p-6">
-            <p
-              className="text-lg font-semibold"
-              style={{ color: "oklch(0.95 0.02 145)" }}
-            >
-              डेटा लोड नहीं हुआ
-            </p>
-            <p className="text-sm" style={{ color: "oklch(0.65 0.05 145)" }}>
-              सर्वर धीमा हो सकता है। दोबारा कोशिश करें।
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setManualRetryCount((n) => n + 1);
-                refetchSalon();
-              }}
-              className="px-6 py-3 rounded-xl font-semibold text-white"
-              style={{ background: "oklch(0.52 0.18 145)" }}
-            >
-              दोबारा कोशिश करें
-            </button>
-            <button
-              type="button"
-              onClick={onSwitchRole}
-              className="px-4 py-2 rounded-xl font-semibold text-sm"
-              style={{
-                background: "oklch(0.20 0.05 155)",
-                color: "oklch(0.75 0.05 145)",
-              }}
-            >
-              लॉगआउट
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "oklch(0.12 0.04 155)" }}
-      >
-        <div className="flex flex-col items-center gap-4 text-center p-6">
-          <p
-            className="text-lg font-semibold"
-            style={{ color: "oklch(0.95 0.02 145)" }}
-          >
-            सैलून नहीं मिला
-          </p>
-          <p className="text-sm" style={{ color: "oklch(0.65 0.05 145)" }}>
-            आपके नंबर {phone} पर कोई सैलून नहीं मिला।
-          </p>
-          <button
-            type="button"
-            onClick={() => setShowRegisterForm(true)}
-            className="px-6 py-3 rounded-xl font-semibold text-white"
-            style={{ background: "oklch(0.52 0.18 145)" }}
-          >
-            नया सैलून पंजीकरण करें
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setManualRetryCount(0);
-              refetchSalon();
-            }}
-            className="px-4 py-2 rounded-xl font-semibold text-sm"
-            style={{
-              background: "oklch(0.20 0.05 155)",
-              color: "oklch(0.75 0.05 145)",
-            }}
-          >
-            दोबारा जाँचें
-          </button>
-          <button
-            type="button"
-            onClick={onSwitchRole}
-            className="px-4 py-2 rounded-xl text-sm"
-            style={{ color: "oklch(0.6 0.05 145)" }}
-          >
-            लॉगआउट
-          </button>
-        </div>
-      </div>
-    );
+    return <RegisterSalonForm phone={phone} onLogout={onSwitchRole} />;
   }
 
-  // Pending approval screen
+  // Pending admin approval
   if (salon.pendingApproval) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -361,7 +215,7 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
     );
   }
 
-  // Inactive
+  // Inactive salon
   if (!salon.isActive) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -388,6 +242,7 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
     );
   }
 
+  // Active salon — show full dashboard
   return (
     <div
       className="min-h-screen"
@@ -589,7 +444,8 @@ function RegisterSalonForm({
       return;
     }
     mutate(form, {
-      onSuccess: () => toast.success("सैलून रजिस्टर हो गया!"),
+      onSuccess: () =>
+        toast.success("सैलून रजिस्टर हो गया! Admin मंजूरी का इंतज़ार करें"),
       onError: () => toast.error("कुछ गलत हुआ, दोबारा कोशिश करें"),
     });
   };
@@ -619,6 +475,7 @@ function RegisterSalonForm({
           variant="ghost"
           size="sm"
           onClick={onLogout}
+          data-ocid="salon.close_button"
           style={{ color: "oklch(0.6 0.05 145)" }}
         >
           <LogOut className="w-4 h-4 mr-1" />
@@ -781,14 +638,8 @@ function QueueTab({
 
   if (isLoading) {
     return (
-      <div
-        className="flex items-center justify-center py-12"
-        data-ocid="queue.loading_state"
-      >
-        <Loader2
-          className="w-6 h-6 animate-spin"
-          style={{ color: "oklch(0.52 0.18 145)" }}
-        />
+      <div data-ocid="queue.loading_state">
+        <SalonLoadingScreen compact />
       </div>
     );
   }
@@ -958,14 +809,8 @@ function ServicesTab({ phone, salonId }: { phone: string; salonId: bigint }) {
 
   if (isLoading) {
     return (
-      <div
-        className="flex justify-center py-12"
-        data-ocid="services.loading_state"
-      >
-        <Loader2
-          className="w-6 h-6 animate-spin"
-          style={{ color: "oklch(0.52 0.18 145)" }}
-        />
+      <div data-ocid="services.loading_state">
+        <SalonLoadingScreen compact />
       </div>
     );
   }

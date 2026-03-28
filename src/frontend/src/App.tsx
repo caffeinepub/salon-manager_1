@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import MobileLoginPage from "./components/MobileLoginPage";
 import RoleSelect from "./components/RoleSelect";
+import SalonLoadingScreen from "./components/SalonLoadingScreen";
 import AdminLoginPage, {
   isAdminLoggedIn,
   logoutAdmin,
@@ -53,25 +54,6 @@ function saveSession(phone: string, role: AppRole) {
 function clearSession() {
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(ROLE_KEY);
-}
-
-function LoadingSpinner() {
-  return (
-    <div
-      className="min-h-screen flex items-center justify-center"
-      style={{ background: "oklch(0.98 0.005 145)" }}
-    >
-      <div className="flex flex-col items-center gap-4">
-        <div
-          className="w-14 h-14 rounded-full flex items-center justify-center animate-pulse"
-          style={{ background: "oklch(0.52 0.18 145)" }}
-        >
-          <Scissors className="w-6 h-6 text-white" />
-        </div>
-        <p className="text-muted-foreground text-sm">लोड हो रहा है...</p>
-      </div>
-    </div>
-  );
 }
 
 function isAdminRoute(): boolean {
@@ -151,7 +133,7 @@ export default function App() {
     }
     return (
       <ErrorBoundary>
-        <Suspense fallback={<LoadingSpinner />}>
+        <Suspense fallback={<SalonLoadingScreen />}>
           <AdminPanel
             onLogout={() => {
               logoutAdmin();
@@ -175,7 +157,7 @@ export default function App() {
     if (session.role === "salon") {
       return (
         <ErrorBoundary>
-          <Suspense fallback={<LoadingSpinner />}>
+          <Suspense fallback={<SalonLoadingScreen />}>
             <SalonOwnerDashboard
               phone={session.phone}
               onSwitchRole={handleLogout}
@@ -186,7 +168,7 @@ export default function App() {
     }
     return (
       <ErrorBoundary>
-        <Suspense fallback={<LoadingSpinner />}>
+        <Suspense fallback={<SalonLoadingScreen />}>
           <CustomerDashboard
             phone={session.phone}
             onSwitchRole={handleLogout}

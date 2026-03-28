@@ -27,6 +27,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import SalonLoadingScreen from "../components/SalonLoadingScreen";
 import { useActor } from "../hooks/useActor";
 import {
   type AppointmentWithId,
@@ -132,22 +133,13 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
 
   if (actorFetching && !loadTimedOut) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "oklch(0.12 0.04 155)" }}
-      >
-        <div className="flex flex-col items-center gap-3">
-          <Loader2
-            className="w-8 h-8 animate-spin"
-            style={{ color: "oklch(0.52 0.18 145)" }}
-          />
-          <p className="text-sm" style={{ color: "oklch(0.75 0.05 145)" }}>
-            {slowMessage
-              ? "कनेक्ट हो रहा है... (पहली बार थोड़ा समय लग सकता है)"
-              : "लोड हो रहा है..."}
-          </p>
-        </div>
-      </div>
+      <SalonLoadingScreen
+        message={
+          slowMessage
+            ? "कनेक्ट हो रहा है... (पहली बार थोड़ा समय लग सकता है)"
+            : "आपका सैलून तैयार हो रहा है..."
+        }
+      />
     );
   }
 
@@ -186,22 +178,7 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
 
   // Only show profile loading spinner if we don't already have a saved name locally
   if (profileLoading && !loadTimedOut && !profileSaved) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "oklch(0.12 0.04 155)" }}
-      >
-        <div className="flex flex-col items-center gap-3">
-          <Loader2
-            className="w-8 h-8 animate-spin"
-            style={{ color: "oklch(0.52 0.18 145)" }}
-          />
-          <p className="text-sm" style={{ color: "oklch(0.75 0.05 145)" }}>
-            लोड हो रहा है...
-          </p>
-        </div>
-      </div>
-    );
+    return <SalonLoadingScreen />;
   }
 
   if (!profile && !profileSaved) {
@@ -224,30 +201,7 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
       : null);
 
   if (!effectiveProfile) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "oklch(0.12 0.04 155)" }}
-      >
-        <div className="flex flex-col items-center gap-4 text-center p-6">
-          <Loader2
-            className="w-8 h-8 animate-spin"
-            style={{ color: "oklch(0.52 0.18 145)" }}
-          />
-          <p className="text-sm" style={{ color: "oklch(0.75 0.05 145)" }}>
-            प्रोफ़ाइल लोड हो रही है...
-          </p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 rounded-lg text-sm font-semibold text-white mt-2"
-            style={{ background: "oklch(0.52 0.18 145)" }}
-          >
-            पेज Reload करें
-          </button>
-        </div>
-      </div>
-    );
+    return <SalonLoadingScreen message="प्रोफ़ाइल लोड हो रही है..." />;
   }
 
   return (
@@ -661,14 +615,8 @@ function SalonListTab({
 
   if (isLoading) {
     return (
-      <div
-        className="flex justify-center py-12"
-        data-ocid="salons.loading_state"
-      >
-        <Loader2
-          className="w-6 h-6 animate-spin"
-          style={{ color: "oklch(0.52 0.18 145)" }}
-        />
+      <div data-ocid="salons.loading_state">
+        <SalonLoadingScreen compact />
       </div>
     );
   }
@@ -1191,14 +1139,8 @@ function MyBookingsTab({ phone }: { phone: string }) {
 
   if (isLoading) {
     return (
-      <div
-        className="flex justify-center py-12"
-        data-ocid="bookings.loading_state"
-      >
-        <Loader2
-          className="w-6 h-6 animate-spin"
-          style={{ color: "oklch(0.52 0.18 145)" }}
-        />
+      <div data-ocid="bookings.loading_state">
+        <SalonLoadingScreen compact />
       </div>
     );
   }
