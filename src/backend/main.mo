@@ -189,20 +189,10 @@ actor {
   func getCurrentMonthStart() : Int {
     let now = Time.now();
     let nanosPerDay : Int = 86_400_000_000_000;
-    let nanosPerHour : Int = 3_600_000_000_000;
-    let nanosPerMinute : Int = 60_000_000_000;
-    let nanosPerSecond : Int = 1_000_000_000;
-    
-    // Approximate: get days since epoch, then calculate month
     let daysSinceEpoch = now / nanosPerDay;
     let yearsSinceEpoch = daysSinceEpoch / 365;
-    let year = 1970 + yearsSinceEpoch;
-    
-    // Rough approximation: get current month by dividing remaining days
     let daysInYear = daysSinceEpoch - (yearsSinceEpoch * 365);
     let month = (daysInYear / 30) + 1;
-    
-    // Calculate first day of current month (approximation)
     let daysToMonthStart = (yearsSinceEpoch * 365) + ((month - 1) * 30);
     daysToMonthStart * nanosPerDay;
   };
@@ -371,22 +361,16 @@ actor {
   // ADMIN — REVENUE TRACKING
   // ================================================================
   public query func adminGetRevenueStats() : async RevenueStats {
-
     var totalRevenue : Float = 0.0;
     var monthlyRevenue : Float = 0.0;
     let salonRevenueMap = Map.empty<Nat, Float>();
 
-    // Calculate revenue from completed appointments
     for ((_, appt) in salonAppointmentsV3.entries().toArray().vals()) {
       if (appt.status == "completed") {
         totalRevenue += appt.servicePrice;
-        
-        // Add to monthly if in current month
         if (isCurrentMonth(appt.createdAt)) {
           monthlyRevenue += appt.servicePrice;
         };
-
-        // Accumulate per salon
         let currentSalonRevenue = switch (salonRevenueMap.get(appt.salonId)) {
           case (null) { 0.0 };
           case (?rev) { rev };
@@ -395,7 +379,6 @@ actor {
       };
     };
 
-    // Build perSalon array with salon names
     let perSalonArray = salonRevenueMap.entries().toArray().filterMap(func((salonId, revenue)) {
       switch (salonProfilesV3.get(salonId)) {
         case (null) { null };
@@ -404,6 +387,107 @@ actor {
     });
 
     { totalRevenue; monthlyRevenue; perSalon = perSalonArray };
+  };
+
+  // ================================================================
+  // ADMIN — BACKUP & RESTORE
+  // ================================================================
+  public query func adminGetAllSalonsForBackup() : async [SalonWithId] {
+    salonProfilesV3.entries().toArray().map(func((id, s)) {
+      makeSalonWithId(id, s)
+    });
+  };
+
+  public query func adminGetAllServicesForBackup() : async [ServiceWithId] {
+    salonServicesList.entries().toArray().map(func((id, s)) {
+      { id; salonId = s.salonId; name = s.name; price = s.price; durationMinutes = s.durationMinutes }
+    });
+  };
+
+  public query func adminGetAllAppointmentsForBackup() : async [AppointmentWithId] {
+    salonAppointmentsV3.entries().toArray().map(func((id, a)) {
+      { id; salonId = a.salonId; customerPhone = a.customerPhone;
+        customerName = a.customerName; serviceName = a.serviceName;
+        queueNumber = a.queueNumber; status = a.status;
+        createdAt = a.createdAt; date = a.date; servicePrice = a.servicePrice }
+    });
+  };
+
+  public query func adminGetAllCustomersForBackup() : async [CustomerProfile] {
+    custProfilesByPhone.values().toArray();
+  };
+
+  public query func adminGetOwnerPhoneMapForBackup() : async [(Text, Nat)] {
+    ownerPhoneSalonMap.entries().toArray();
+  };
+
+  public query func adminGetNextIdsForBackup() : async (Nat, Nat, Nat) {
+    (nextSalonId, nextServiceId, nextAppointmentId);
+  };
+
+  public func adminRestoreAllData(
+    salons : [SalonWithId],
+    svcs : [ServiceWithId],
+    appts : [AppointmentWithId],
+    custs : [CustomerProfile],
+    ownerPhoneMap : [(Text, Nat)],
+    nSalonId : Nat,
+    nServiceId : Nat,
+    nAppointmentId : Nat
+  ) : async () {
+    // Clear all existing data
+    for ((k, _) in salonProfilesV3.entries().toArray().vals()) {
+      salonProfilesV3.remove(k);
+    };
+    for ((k, _) in salonServicesList.entries().toArray().vals()) {
+      salonServicesList.remove(k);
+    };
+    for ((k, _) in salonAppointmentsV3.entries().toArray().vals()) {
+      salonAppointmentsV3.remove(k);
+    };
+    for ((k, _) in custProfilesByPhone.entries().toArray().vals()) {
+      custProfilesByPhone.remove(k);
+    };
+    for ((k, _) in ownerPhoneSalonMap.entries().toArray().vals()) {
+      ownerPhoneSalonMap.remove(k);
+    };
+    // Restore salons
+    for (s in salons.vals()) {
+      salonProfilesV3.add(s.id, {
+        name = s.name; address = s.address; phone = s.phone; city = s.city;
+        ownerPhone = s.ownerPhone; isActive = s.isActive;
+        pendingApproval = s.pendingApproval; trialStartDate = s.trialStartDate;
+        subscriptionActive = s.subscriptionActive; trialDays = s.trialDays;
+      });
+    };
+    // Restore services
+    for (svc in svcs.vals()) {
+      salonServicesList.add(svc.id, {
+        salonId = svc.salonId; name = svc.name;
+        price = svc.price; durationMinutes = svc.durationMinutes;
+      });
+    };
+    // Restore appointments
+    for (a in appts.vals()) {
+      salonAppointmentsV3.add(a.id, {
+        salonId = a.salonId; customerPhone = a.customerPhone;
+        customerName = a.customerName; serviceName = a.serviceName;
+        queueNumber = a.queueNumber; status = a.status;
+        createdAt = a.createdAt; date = a.date; servicePrice = a.servicePrice;
+      });
+    };
+    // Restore customers
+    for (c in custs.vals()) {
+      custProfilesByPhone.add(c.phone, c);
+    };
+    // Restore owner phone map
+    for ((phone, sId) in ownerPhoneMap.vals()) {
+      ownerPhoneSalonMap.add(phone, sId);
+    };
+    // Restore counters
+    nextSalonId := nSalonId;
+    nextServiceId := nServiceId;
+    nextAppointmentId := nAppointmentId;
   };
 
   // ================================================================
@@ -460,7 +544,6 @@ actor {
   };
 
   public query func getOwnerRevenueSummaryByPhone(ownerPhone : Text) : async OwnerRevenueSummary {
-    // Look up salon for this owner
     let salonId = switch (ownerPhoneSalonMap.get(ownerPhone)) {
       case (null) { Runtime.trap("No salon found for this phone number") };
       case (?id) { id };
@@ -471,15 +554,12 @@ actor {
     var totalAppointments : Nat = 0;
     var completedAppointments : Nat = 0;
 
-    // Calculate statistics for this salon
     for ((_, appt) in salonAppointmentsV3.entries().toArray().vals()) {
       if (appt.salonId == salonId) {
         totalAppointments += 1;
-        
         if (appt.status == "completed") {
           completedAppointments += 1;
           totalEarnings += appt.servicePrice;
-          
           if (isCurrentMonth(appt.createdAt)) {
             monthlyEarnings += appt.servicePrice;
           };
@@ -578,7 +658,6 @@ actor {
   // CUSTOMER APIs (phone-based)
   // ================================================================
   public func bookAppointmentByPhone(customerPhone : Text, salonId : Nat, customerName : Text, serviceName : Text, date : Text) : async Nat {
-    // Look up service price
     var servicePrice : Float = 0.0;
     label findPrice for ((_, service) in salonServicesList.entries().toArray().vals()) {
       if (service.salonId == salonId and service.name == serviceName) {
@@ -659,7 +738,6 @@ actor {
     for ((k, v) in stableAppointments.vals()) { salonAppointmentsV3.add(k, v) };
     for ((k, v) in stableCustomers.vals()) { custProfilesByPhone.add(k, v) };
     for ((k, v) in stableOwnerPhoneMap.vals()) { ownerPhoneSalonMap.add(k, v) };
-    // Clear stable arrays after restore to free memory
     stableSalons := [];
     stableServices := [];
     stableAppointments := [];

@@ -1,5 +1,6 @@
 import { Scissors } from "lucide-react";
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import MobileLoginPage from "./components/MobileLoginPage";
 import RoleSelect from "./components/RoleSelect";
@@ -14,6 +15,7 @@ const SalonOwnerDashboard = lazy(() => import("./pages/SalonOwnerDashboard"));
 
 const SESSION_KEY = "salon360_session";
 const ROLE_KEY = "salon360_role";
+const INACTIVITY_MS = 30 * 60 * 1000;
 
 export type AppRole = "salon" | "customer";
 
@@ -90,6 +92,40 @@ export default function App() {
   const [onAdminRoute, setOnAdminRoute] = useState<boolean>(() =>
     isAdminRoute(),
   );
+
+  // 30-min inactivity auto-logout
+  const lastActivityRef = useRef<number>(Date.now());
+
+  useEffect(() => {
+    const updateActivity = () => {
+      lastActivityRef.current = Date.now();
+    };
+    const events = ["mousemove", "keydown", "click", "touchstart"] as const;
+    for (const e of events) {
+      window.addEventListener(e, updateActivity, { passive: true });
+    }
+
+    const interval = setInterval(() => {
+      if (Date.now() - lastActivityRef.current > INACTIVITY_MS) {
+        const isLoggedIn = !!getSession() || isAdminLoggedIn();
+        if (isLoggedIn) {
+          clearSession();
+          logoutAdmin();
+          setSession(null);
+          setAdminSession(false);
+          setPendingRole(null);
+          toast("30 मिनट की निष्क्रियता के कारण लॉगआउट हो गए");
+        }
+      }
+    }, 60_000);
+
+    return () => {
+      for (const e of events) {
+        window.removeEventListener(e, updateActivity);
+      }
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     const handleHashChange = () => {

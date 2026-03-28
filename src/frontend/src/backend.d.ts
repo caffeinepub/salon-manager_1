@@ -69,6 +69,13 @@ export interface backendInterface {
     addSalonServiceByPhone(ownerPhone: string, salonId: bigint, name: string, price: number, durationMinutes: bigint): Promise<bigint>;
     adminApproveSalon(salonId: bigint): Promise<void>;
     adminGetAllSalons(): Promise<Array<SalonWithId>>;
+    adminGetAllSalonsForBackup(): Promise<Array<SalonWithId>>;
+    adminGetAllServicesForBackup(): Promise<Array<ServiceWithId>>;
+    adminGetAllAppointmentsForBackup(): Promise<Array<AppointmentWithId>>;
+    adminGetAllCustomersForBackup(): Promise<Array<CustomerProfile>>;
+    adminGetOwnerPhoneMapForBackup(): Promise<Array<[string, bigint]>>;
+    adminGetNextIdsForBackup(): Promise<[bigint, bigint, bigint]>;
+    adminRestoreAllData(salons: Array<SalonWithId>, services: Array<ServiceWithId>, appointments: Array<AppointmentWithId>, customers: Array<CustomerProfile>, ownerPhoneMap: Array<[string, bigint]>, nSalonId: bigint, nServiceId: bigint, nAppointmentId: bigint): Promise<void>;
     adminGetDashboardStats(): Promise<DashboardStats>;
     adminGetDefaultTrialDays(): Promise<bigint>;
     adminGetPendingSalons(): Promise<Array<SalonWithId>>;

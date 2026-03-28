@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ReactDOM from "react-dom/client";
-import { Toaster } from "sonner";
 import App from "./App";
+import { Toaster } from "./components/ui/sonner";
 import { InternetIdentityProvider } from "./hooks/useInternetIdentity";
 import "./index.css";
 
@@ -18,11 +18,9 @@ declare global {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 2 * 60 * 1000, // 2 minutes cache
-      retry: 1, // only retry once on failure
-      retryDelay: 2000, // wait 2s before retry
-      refetchOnWindowFocus: false, // don't refetch on tab switch
-      refetchOnReconnect: false, // don't refetch on reconnect
+      staleTime: 2 * 60 * 1000,
+      retry: 1,
+      refetchOnWindowFocus: false,
     },
   },
 });
@@ -31,18 +29,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
     <InternetIdentityProvider>
       <App />
-      <Toaster
-        position="top-center"
-        richColors
-        duration={3000}
-        toastOptions={{
-          style: {
-            background: "oklch(0.18 0.05 155)",
-            border: "1px solid oklch(0.28 0.05 155)",
-            color: "oklch(0.95 0.02 145)",
-          },
-        }}
-      />
+      <Toaster richColors position="top-center" />
     </InternetIdentityProvider>
   </QueryClientProvider>,
 );

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
@@ -11,6 +12,7 @@ import { Input } from "../components/ui/input";
 import {
   type SalonWithId,
   useAdminApproveSalon,
+  useAdminBackup,
   useAdminGetAllSalons,
   useAdminGetDashboardStats,
   useAdminGetDefaultTrialDays,
@@ -19,6 +21,7 @@ import {
   useAdminGetSubscriptionPrice,
   useAdminProcessTrialExpirations,
   useAdminRejectSalon,
+  useAdminRestore,
   useAdminSetDefaultTrialDays,
   useAdminSetSalonActive,
   useAdminSetSalonSubscription,
@@ -36,7 +39,8 @@ type Tab =
   | "salons"
   | "settings"
   | "revenue"
-  | "reviews";
+  | "reviews"
+  | "backup";
 
 function getTrialStatus(salon: SalonWithId) {
   if (salon.pendingApproval)
@@ -125,6 +129,141 @@ function ReviewsTab() {
   );
 }
 
+function BackupTab() {
+  const backupMutation = useAdminBackup();
+  const restoreMutation = useAdminRestore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBackup = async () => {
+    try {
+      const data = await backupMutation.mutateAsync();
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `salon360-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("बैकअप सफलतापूर्वक डाउनलोड हो गया!");
+    } catch {
+      toast.error("बैकअप में समस्या आई। दोबारा कोशिश करें।");
+    }
+  };
+
+  const handleRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const convertIds = (arr: any[]) =>
+        arr.map((item) => {
+          const out: any = {};
+          for (const [k, v] of Object.entries(item)) {
+            out[k] = typeof v === "string" && /^\d+$/.test(v) ? BigInt(v) : v;
+          }
+          return out;
+        });
+      const ownerMap = (data.ownerMap as [string, string][]).map(
+        ([phone, id]) => [phone, BigInt(id)] as [string, bigint],
+      );
+      const nextIds: [bigint, bigint, bigint] = [
+        BigInt(data.nextIds[0]),
+        BigInt(data.nextIds[1]),
+        BigInt(data.nextIds[2]),
+      ];
+      await restoreMutation.mutateAsync({
+        salons: convertIds(data.salons),
+        services: convertIds(data.services),
+        appointments: convertIds(data.appointments),
+        customers: data.customers,
+        ownerMap,
+        nextIds,
+      });
+      toast.success("डेटा सफलतापूर्वक रिस्टोर हो गया!");
+    } catch {
+      toast.error("रिस्टोर में समस्या आई। सही JSON फ़ाइल चुनें।");
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">डेटा बैकअप</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-gray-600">
+            सभी सैलून, सेवाएं, अपॉइंटमेंट और ग्राहकों का पूरा डेटा JSON फ़ाइल में डाउनलोड
+            होगा।
+          </p>
+          <Button
+            onClick={handleBackup}
+            disabled={backupMutation.isPending}
+            className="w-full"
+            data-ocid="backup.primary_button"
+          >
+            {backupMutation.isPending
+              ? "बैकअप हो रहा है..."
+              : "⬇️ Backup Data डाउनलोड करें"}
+          </Button>
+          {backupMutation.isPending && (
+            <p
+              className="text-xs text-gray-500 text-center"
+              data-ocid="backup.loading_state"
+            >
+              पूरा डेटा लोड हो रहा है, इंतज़ार करें...
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">डेटा रिस्टोर</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-red-600 font-medium">
+            ⚠️ सावधान: रिस्टोर करने पर मौजूदा सारा डेटा हट जाएगा और बैकअप फ़ाइल का डेटा
+            आ जाएगा।
+          </p>
+          <p className="text-sm text-gray-600">
+            पहले से डाउनलोड की गई JSON बैकअप फ़ाइल चुनें।
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={handleRestoreFile}
+          />
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={restoreMutation.isPending}
+            className="w-full border-red-300 text-red-700 hover:bg-red-50"
+            data-ocid="backup.upload_button"
+          >
+            {restoreMutation.isPending
+              ? "रिस्टोर हो रहा है..."
+              : "⬆️ Restore Data (JSON अपलोड करें)"}
+          </Button>
+          {restoreMutation.isPending && (
+            <p
+              className="text-xs text-gray-500 text-center"
+              data-ocid="backup.loading_state"
+            >
+              डेटा रिस्टोर हो रहा है...
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
   const [tab, setTab] = useState<Tab>("dashboard");
   const [trialDaysInput, setTrialDaysInput] = useState("");
@@ -178,6 +317,7 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
     { id: "settings", label: "सेटिंग" },
     { id: "revenue", label: "रेवेन्यू" },
     { id: "reviews", label: "समीक्षाएं" },
+    { id: "backup", label: "बैकअप" },
   ];
 
   return (
@@ -536,6 +676,16 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
             <ReviewsTab />
           </>
         )}
+
+        {/* Backup Tab */}
+        {tab === "backup" && (
+          <>
+            <h2 className="text-base font-semibold text-gray-800">
+              डेटा बैकअप और रिस्टोर
+            </h2>
+            <BackupTab />
+          </>
+        )}
       </div>
     </div>
   );
@@ -682,7 +832,6 @@ function SalonManageCard({
                       alert("सही दिन डालें");
                       return;
                     }
-                    // Using setSubMutation as proxy — ideally a dedicated mutation
                     alert(
                       `${salon.name} के लिए ट्रायल ${d} दिन सेट करें (backend hook जोड़ें)`,
                     );

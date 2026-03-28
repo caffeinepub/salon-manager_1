@@ -774,3 +774,54 @@ export function useGetOwnerRevenueSummary(phone: string) {
     refetchInterval: 60000,
   });
 }
+
+// ── BACKUP ──────────────────────────────────────────────────────────────────
+
+export function useAdminBackup() {
+  const { actor } = useActor();
+  return useMutation({
+    mutationFn: async () => {
+      if (!actor) throw new Error("Backend not ready");
+      const [salons, services, appointments, customers, ownerMap, nextIds] =
+        await Promise.all([
+          (actor as any).adminGetAllSalonsForBackup(),
+          (actor as any).adminGetAllServicesForBackup(),
+          (actor as any).adminGetAllAppointmentsForBackup(),
+          (actor as any).adminGetAllCustomersForBackup(),
+          (actor as any).adminGetOwnerPhoneMapForBackup(),
+          (actor as any).adminGetNextIdsForBackup(),
+        ]);
+      return { salons, services, appointments, customers, ownerMap, nextIds };
+    },
+  });
+}
+
+export function useAdminRestore() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      salons: any[];
+      services: any[];
+      appointments: any[];
+      customers: any[];
+      ownerMap: [string, bigint][];
+      nextIds: [bigint, bigint, bigint];
+    }) => {
+      if (!actor) throw new Error("Backend not ready");
+      await (actor as any).adminRestoreAllData(
+        data.salons,
+        data.services,
+        data.appointments,
+        data.customers,
+        data.ownerMap,
+        data.nextIds[0],
+        data.nextIds[1],
+        data.nextIds[2],
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+    },
+  });
+}
