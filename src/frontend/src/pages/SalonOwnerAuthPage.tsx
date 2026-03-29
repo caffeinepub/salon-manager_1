@@ -275,11 +275,17 @@ export default function SalonOwnerAuthPage({ onBack, onLoginSuccess }: Props) {
     setLoading(true);
     try {
       const a = await waitForActor();
+      if (typeof (a as any).salonOwnerLogin !== "function") {
+        toast.error("Backend function not available. Please rebuild backend.");
+        setLoading(false);
+        return;
+      }
       const hash = await hashPassword(loginPassword);
       const result = (await (a as any).salonOwnerLogin(phone, hash)) as [
         string,
         any,
       ];
+      console.log("[SalonOwner Login] Backend response:", result);
       const [status, salonRaw] = result;
       const salon = Array.isArray(salonRaw)
         ? salonRaw.length > 0
@@ -343,6 +349,11 @@ export default function SalonOwnerAuthPage({ onBack, onLoginSuccess }: Props) {
     setLoading(true);
     try {
       const a = await waitForActor();
+      if (typeof (a as any).salonOwnerRegisterV2 !== "function") {
+        toast.error("Backend function not available. Please rebuild backend.");
+        setLoading(false);
+        return;
+      }
       const hash = await hashPassword(regPassword);
       const parsedServices = regServices
         .split(",")
@@ -354,6 +365,7 @@ export default function SalonOwnerAuthPage({ onBack, onLoginSuccess }: Props) {
         parsedServices,
         hash,
       )) as string;
+      console.log("[SalonOwner Register] Backend response:", result);
 
       switch (result) {
         case "ok":
@@ -391,11 +403,17 @@ export default function SalonOwnerAuthPage({ onBack, onLoginSuccess }: Props) {
     setLoading(true);
     try {
       const a = await waitForActor();
+      if (typeof (a as any).salonOwnerSetPassword !== "function") {
+        toast.error("Backend function not available. Please rebuild backend.");
+        setLoading(false);
+        return;
+      }
       const hash = await hashPassword(spPassword);
       const ok = (await (a as any).salonOwnerSetPassword(
         spPhone,
         hash,
       )) as boolean;
+      console.log("[SalonOwner SetPassword] Backend response:", ok);
       if (ok) {
         toast.success("पासवर्ड सेट हो गया! डैशबोर्ड खुल रहा है...");
         onLoginSuccess(spPhone);

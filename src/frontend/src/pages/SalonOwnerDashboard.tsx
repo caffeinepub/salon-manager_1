@@ -88,7 +88,7 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   const today = getTodayString();
   const { data: earnings } = useGetOwnerRevenueSummary(phone);
   const [nullRetryCount, setNullRetryCount] = useState(0);
-  const MAX_NULL_RETRIES = 6;
+  const MAX_NULL_RETRIES = 12;
 
   // Auto-retry when backend returns null (cold start returns null, not error)
   useEffect(() => {
