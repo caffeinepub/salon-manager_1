@@ -85,11 +85,14 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
     isFetching: salonFetching,
     isFetched: salonFetched,
     isError: salonError,
+    refetch: refetchSalon,
   } = useGetMySalon(phone);
   const today = getTodayString();
   const { data: earnings } = useGetOwnerRevenueSummary(phone);
   const [loadTimedOut, setLoadTimedOut] = useState(false);
   const [slowMessage, setSlowMessage] = useState(false);
+  const [showRegisterForm, setShowRegisterForm] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   useEffect(() => {
     // Increased to 90s: retries (5x with 5-25s delays) can take up to ~75s total for ICP cold start
@@ -109,13 +112,15 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   const isInitialLoading = stillWaitingForFirstFetch;
 
   // Show spinner while any loading is happening (unless timed out)
-  if (isInitialLoading && !loadTimedOut) {
+  if ((isInitialLoading || isRetrying) && !loadTimedOut) {
     return (
       <SalonLoadingScreen
         message={
-          slowMessage
-            ? "सर्वर से जुड़ रहे हैं... थोड़ा इंतज़ार करें (दोबारा कोशिश हो रही है)"
-            : "आपका सैलून तैयार हो रहा है..."
+          isRetrying
+            ? "आपका सैलून ढूंढ रहे हैं..."
+            : slowMessage
+              ? "सर्वर से जुड़ रहे हैं... थोड़ा इंतज़ार करें (दोबारा कोशिश हो रही है)"
+              : "आपका सैलून तैयार हो रहा है..."
         }
       />
     );
@@ -189,9 +194,134 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
     );
   }
 
-  // No salon found — show registration ONLY after the query has definitively confirmed no salon
+  // No salon found after a confirmed fetch — show choice screen or register form
   if (salonFetched && !salon && !salonError) {
-    return <RegisterSalonForm phone={phone} onLogout={onSwitchRole} />;
+    if (showRegisterForm) {
+      return (
+        <RegisterSalonForm
+          phone={phone}
+          onLogout={onSwitchRole}
+          onRetryFetch={() => {
+            setShowRegisterForm(false);
+            setIsRetrying(true);
+            refetchSalon().finally(() => setIsRetrying(false));
+          }}
+        />
+      );
+    }
+
+    // Choice screen
+    return (
+      <div
+        className="min-h-screen flex flex-col"
+        style={{ background: "oklch(0.12 0.04 155)" }}
+      >
+        <header
+          className="px-4 py-3 flex items-center justify-between"
+          style={{
+            background: "oklch(0.16 0.05 155)",
+            borderBottom: "1px solid oklch(0.25 0.05 155)",
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <Scissors
+              className="w-5 h-5"
+              style={{ color: "oklch(0.52 0.18 145)" }}
+            />
+            <span
+              className="font-bold"
+              style={{ color: "oklch(0.95 0.02 145)" }}
+            >
+              Salon360
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onSwitchRole}
+            data-ocid="salon.close_button"
+            style={{ color: "oklch(0.6 0.05 145)" }}
+          >
+            <LogOut className="w-4 h-4 mr-1" />
+            बाहर
+          </Button>
+        </header>
+
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Card
+            className="w-full max-w-md"
+            style={{
+              background: "oklch(0.18 0.05 155)",
+              border: "1px solid oklch(0.28 0.05 155)",
+            }}
+          >
+            <CardHeader>
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2"
+                style={{ background: "oklch(0.52 0.18 145 / 0.2)" }}
+              >
+                <Store
+                  className="w-6 h-6"
+                  style={{ color: "oklch(0.52 0.18 145)" }}
+                />
+              </div>
+              <CardTitle
+                className="text-center"
+                style={{ color: "oklch(0.95 0.02 145)" }}
+              >
+                सैलून मिला नहीं
+              </CardTitle>
+              <p
+                className="text-center text-sm"
+                style={{ color: "oklch(0.6 0.05 145)" }}
+              >
+                आपका नंबर:{" "}
+                <strong style={{ color: "oklch(0.8 0.08 145)" }}>
+                  {phone}
+                </strong>
+              </p>
+              <p
+                className="text-center text-sm mt-1"
+                style={{ color: "oklch(0.6 0.05 145)" }}
+              >
+                क्या आप पहली बार register कर रहे हैं?
+                <br />
+                अगर पहले register किया है तो "दोबारा लोड करें" दबाएं।
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRetrying(true);
+                  refetchSalon().finally(() => setIsRetrying(false));
+                }}
+                className="w-full px-4 py-3 rounded-xl font-semibold text-sm"
+                style={{
+                  background: "oklch(0.52 0.18 145 / 0.15)",
+                  border: "1px solid oklch(0.52 0.18 145 / 0.5)",
+                  color: "oklch(0.85 0.1 145)",
+                }}
+                data-ocid="salon.secondary_button"
+              >
+                <RefreshCw className="w-4 h-4 inline mr-2" />
+                पहले से रजिस्टर हूँ, दोबारा लोड करें
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRegisterForm(true)}
+                className="w-full px-4 py-3 rounded-xl font-semibold text-sm text-white"
+                style={{ background: "oklch(0.52 0.18 145)" }}
+                data-ocid="salon.primary_button"
+              >
+                <Plus className="w-4 h-4 inline mr-2" />
+                नया सैलून रजिस्टर करें
+              </button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   // If we have an error but also fetched before — show reload option (not register form)
@@ -448,7 +578,13 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
 function RegisterSalonForm({
   phone,
   onLogout,
-}: { phone: string; onSwitchRole?: () => void; onLogout: () => void }) {
+  onRetryFetch,
+}: {
+  phone: string;
+  onSwitchRole?: () => void;
+  onLogout: () => void;
+  onRetryFetch?: () => void;
+}) {
   const [form, setForm] = useState({
     name: "",
     address: "",
@@ -470,7 +606,9 @@ function RegisterSalonForm({
       onError: (err: any) => {
         const msg = (err?.message || "").toLowerCase();
         if (msg.includes("already") || msg.includes("already have")) {
-          toast.error("इस नंबर से पहले से सैलून रजिस्टर है। Admin से approve करवाएं।");
+          // Phone is already registered — refetch their salon data
+          toast.success("आपका सैलून मिल गया! लोड हो रहा है...");
+          onRetryFetch?.();
         } else if (msg.includes("reload") || msg.includes("connect")) {
           toast.error("सर्वर से कनेक्ट नहीं हो पाया। पेज रीलोड करें।");
         } else {
