@@ -78,89 +78,18 @@ interface Props {
 }
 
 export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
-  const { isFetching: actorFetching } = useActor();
   const {
     data: salon,
     isLoading: salonLoading,
-    isFetching: salonFetching,
     isFetched: salonFetched,
     isError: salonError,
     refetch: refetchSalon,
   } = useGetMySalon(phone);
   const today = getTodayString();
   const { data: earnings } = useGetOwnerRevenueSummary(phone);
-  const [loadTimedOut, setLoadTimedOut] = useState(false);
-  const [slowMessage, setSlowMessage] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
-  const [isRetrying, setIsRetrying] = useState(false);
 
-  useEffect(() => {
-    // Increased to 90s: retries (5x with 5-25s delays) can take up to ~75s total for ICP cold start
-    const timer = setTimeout(() => setLoadTimedOut(true), 90000);
-    const slowTimer = setTimeout(() => setSlowMessage(true), 12000);
-    return () => {
-      clearTimeout(timer);
-      clearTimeout(slowTimer);
-    };
-  }, []);
-
-  // Block the UI only while we genuinely don't have confirmed data yet.
-  // salonFetched=true means at least one successful fetch has completed.
-  // After that, trust the cached data — don't flash loading screens on background refetches.
-  const stillWaitingForFirstFetch =
-    !salonFetched && (actorFetching || salonLoading || salonFetching);
-  const isInitialLoading = stillWaitingForFirstFetch;
-
-  // Show spinner while any loading is happening (unless timed out)
-  if ((isInitialLoading || isRetrying) && !loadTimedOut) {
-    return (
-      <SalonLoadingScreen
-        message={
-          isRetrying
-            ? "आपका सैलून ढूंढ रहे हैं..."
-            : slowMessage
-              ? "सर्वर से जुड़ रहे हैं... थोड़ा इंतज़ार करें (दोबारा कोशिश हो रही है)"
-              : "आपका सैलून तैयार हो रहा है..."
-        }
-      />
-    );
-  }
-
-  // Timed out — show reload prompt
-  if (loadTimedOut && isInitialLoading) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "oklch(0.12 0.04 155)" }}
-      >
-        <div className="flex flex-col items-center gap-4 text-center p-6">
-          <Scissors
-            className="w-10 h-10"
-            style={{ color: "oklch(0.52 0.18 145)" }}
-          />
-          <p
-            className="text-lg font-semibold"
-            style={{ color: "oklch(0.95 0.02 145)" }}
-          >
-            कनेक्शन धीमा है
-          </p>
-          <p className="text-sm" style={{ color: "oklch(0.65 0.05 145)" }}>
-            सर्वर से कनेक्ट नहीं हो पाया
-          </p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 rounded-xl font-semibold text-white"
-            style={{ background: "oklch(0.52 0.18 145)" }}
-          >
-            पेज Reload करें
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Backend error
+  // Backend error — show reload screen
   if (salonError) {
     return (
       <div
@@ -194,8 +123,8 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
     );
   }
 
-  // No salon found after a confirmed fetch — show choice screen or register form
-  if (salonFetched && !salon && !salonError) {
+  // No salon found — confirmed by backend (not still loading)
+  if (salonFetched && !salonLoading && !salon && !salonError) {
     if (showRegisterForm) {
       return (
         <RegisterSalonForm
@@ -203,8 +132,7 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
           onLogout={onSwitchRole}
           onRetryFetch={() => {
             setShowRegisterForm(false);
-            setIsRetrying(true);
-            refetchSalon().finally(() => setIsRetrying(false));
+            refetchSalon();
           }}
         />
       );
@@ -293,8 +221,7 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
               <button
                 type="button"
                 onClick={() => {
-                  setIsRetrying(true);
-                  refetchSalon().finally(() => setIsRetrying(false));
+                  refetchSalon();
                 }}
                 className="w-full px-4 py-3 rounded-xl font-semibold text-sm"
                 style={{
@@ -324,15 +251,58 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
     );
   }
 
-  // If we have an error but also fetched before — show reload option (not register form)
-  // If we have no data and no fetch yet — wait (handled by isInitialLoading above)
+  // Still waiting for first fetch — show shell with inline loading skeleton
   if (!salon) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center"
+        className="min-h-screen"
         style={{ background: "oklch(0.12 0.04 155)" }}
       >
-        <SalonLoadingScreen message="आपका डेटा लोड हो रहा है..." />
+        <header
+          className="sticky top-0 z-10 px-4 py-3 flex items-center justify-between"
+          style={{
+            background: "oklch(0.16 0.05 155)",
+            borderBottom: "1px solid oklch(0.25 0.05 155)",
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center"
+              style={{ background: "oklch(0.52 0.18 145)" }}
+            >
+              <Scissors className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <div
+                className="h-3.5 w-28 rounded animate-pulse mb-1"
+                style={{ background: "oklch(0.28 0.05 155)" }}
+              />
+              <div
+                className="h-2.5 w-16 rounded animate-pulse"
+                style={{ background: "oklch(0.25 0.05 155)" }}
+              />
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onSwitchRole}
+            data-ocid="salon.close_button"
+            style={{ color: "oklch(0.6 0.05 145)" }}
+          >
+            <LogOut className="w-4 h-4 mr-1" />
+            बाहर
+          </Button>
+        </header>
+        <main className="max-w-2xl mx-auto p-4 flex flex-col items-center justify-center gap-4 pt-24">
+          <Loader2
+            className="w-8 h-8 animate-spin"
+            style={{ color: "oklch(0.52 0.18 145)" }}
+          />
+          <p className="text-sm" style={{ color: "oklch(0.65 0.05 145)" }}>
+            आपका सैलून लोड हो रहा है...
+          </p>
+        </main>
       </div>
     );
   }

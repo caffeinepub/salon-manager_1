@@ -108,23 +108,10 @@ interface Props {
 }
 
 export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
-  const { isFetching: actorFetching } = useActor();
   const { data: profile, isLoading: profileLoading } =
     useGetMyCustomerProfile(phone);
-  const [loadTimedOut, setLoadTimedOut] = useState(false);
-  const [slowMessage, setSlowMessage] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const [savedProfileName, setSavedProfileName] = useState<string>("");
-
-  useEffect(() => {
-    // Increased to 90s: retries (5x with 5-25s delays) can take up to ~75s total for ICP cold start
-    const timer = setTimeout(() => setLoadTimedOut(true), 90000);
-    const slowTimer = setTimeout(() => setSlowMessage(true), 12000);
-    return () => {
-      clearTimeout(timer);
-      clearTimeout(slowTimer);
-    };
-  }, []);
 
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {
@@ -132,57 +119,8 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
     }
   }, []);
 
-  if (actorFetching && !profile && !profileSaved && !loadTimedOut) {
-    return (
-      <SalonLoadingScreen
-        message={
-          slowMessage
-            ? "सर्वर से जुड़ रहे हैं... थोड़ा इंतज़ार करें (दोबारा कोशिश हो रही है)"
-            : "आपका सैलून तैयार हो रहा है..."
-        }
-      />
-    );
-  }
-
-  if (loadTimedOut && actorFetching && !profile && !profileSaved) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "oklch(0.12 0.04 155)" }}
-      >
-        <div className="flex flex-col items-center gap-4 text-center p-6">
-          <Scissors
-            className="w-10 h-10"
-            style={{ color: "oklch(0.52 0.18 145)" }}
-          />
-          <p
-            className="text-lg font-semibold"
-            style={{ color: "oklch(0.95 0.02 145)" }}
-          >
-            कनेक्शन धीमा है
-          </p>
-          <p className="text-sm" style={{ color: "oklch(0.65 0.05 145)" }}>
-            सर्वर से कनेक्ट नहीं हो पाया
-          </p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 rounded-xl font-semibold text-white"
-            style={{ background: "oklch(0.52 0.18 145)" }}
-          >
-            पेज Reload करें
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Only show profile loading spinner if we don't already have a saved name locally
-  if (profileLoading && !loadTimedOut && !profileSaved) {
-    return <SalonLoadingScreen />;
-  }
-
-  if (!profile && !profileSaved) {
+  // Profile confirmed missing (not loading) — show setup form
+  if (!profileLoading && !profile && !profileSaved) {
     return (
       <ProfileSetupForm
         phone={phone}
@@ -201,9 +139,7 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
       ? { name: savedProfileName, phone, createdAt: BigInt(0) }
       : null);
 
-  if (!effectiveProfile) {
-    return <SalonLoadingScreen message="प्रोफ़ाइल लोड हो रही है..." />;
-  }
+  const effectiveProfileName = effectiveProfile?.name ?? "";
 
   return (
     <div
@@ -231,9 +167,16 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
             >
               Salon360
             </p>
-            <p className="text-xs" style={{ color: "oklch(0.6 0.05 145)" }}>
-              नमस्ते, {effectiveProfile.name}
-            </p>
+            {effectiveProfileName ? (
+              <p className="text-xs" style={{ color: "oklch(0.6 0.05 145)" }}>
+                नमस्ते, {effectiveProfileName}
+              </p>
+            ) : (
+              <div
+                className="h-2.5 w-20 rounded animate-pulse mt-0.5"
+                style={{ background: "oklch(0.25 0.05 155)" }}
+              />
+            )}
           </div>
         </div>
         <Button
@@ -272,7 +215,12 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
 
           <TabsContent value="salons">
             <ErrorBoundary>
-              <SalonListTab phone={phone} profile={effectiveProfile} />
+              <SalonListTab
+                phone={phone}
+                profile={
+                  effectiveProfile ?? { name: effectiveProfileName, phone }
+                }
+              />
             </ErrorBoundary>
           </TabsContent>
 

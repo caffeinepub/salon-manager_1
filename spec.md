@@ -1,28 +1,26 @@
 # Salon Manager
 
 ## Current State
-Version 30 is live. App has Admin Panel (tabs: dashboard, pending, salons, settings, revenue, reviews), Salon Owner Dashboard, Customer Dashboard. Permanent storage works (v24+). Mobile number login is direct (no OTP). Session persists 30 days. No auto-logout on inactivity. No backup/restore feature.
+Admin panel works instantly because it checks session from storage and renders UI immediately — backend data loads per-tab in background. Salon Owner and Customer dashboards block the entire screen behind a loading spinner until `useGetMySalon` or `useGetMyCustomerProfile` resolves. This means if ICP is cold-starting, users see a spinner or 'Data load failed' before they even see the UI. Additionally, `useActor.ts` still has both `invalidateQueries` and `refetchQueries` causing a thundering herd on every actor load.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Backend: `adminGetAllSalonsForBackup`, `adminGetAllServicesForBackup`, `adminGetAllAppointmentsForBackup`, `adminGetAllCustomersForBackup`, `adminGetOwnerPhoneMapForBackup`, `adminGetNextIdsForBackup` — query functions for full data export
-- Backend: `adminRestoreAllData(salons, services, appointments, customers, ownerPhoneMap, nextSalonId, nextServiceId, nextAppointmentId)` — clears all data maps and refills from provided arrays
-- Frontend: "Backup" tab in Admin Panel with "Backup Data" button (downloads JSON file) and "Restore Data" button (uploads JSON, calls restore function)
-- Frontend: Auto-logout after 30 minutes of inactivity — tracks last activity via mousemove/keydown/click/touchstart, checks every 60 seconds, logs out both admin and user sessions
+- Salon Owner dashboard shows immediately (skeleton UI) — salon data loads in background, no full-screen block
+- Customer dashboard shows immediately (skeleton UI) — profile and salon list load in background
 
 ### Modify
-- main.tsx: Add QueryClient defaultOptions (staleTime: 2min, retry: 1, refetchOnWindowFocus: false) and add `<Toaster />` component
-- App.tsx: Add inactivity timer logic, auto-logout after 30 min with warning toast
+- `SalonOwnerDashboard.tsx`: Remove full-screen loading gate. Show dashboard shell immediately. Show skeleton/loading states inside components while data loads. Only show register form after data is definitively confirmed missing (not during loading).
+- `CustomerDashboard.tsx`: Remove full-screen loading gate tied to profile. Show UI immediately, load profile and salon list in background with inline loading states.
+- `useActor.ts`: Remove `refetchQueries` call — only keep `invalidateQueries`.
+- `useGetMySalon` in `useQueries.ts`: Set `staleTime: 2 * 60 * 1000` so cached data is used within 2 minutes.
 
 ### Remove
-- Nothing removed
+- Full-screen `SalonLoadingScreen` blocks in SalonOwnerDashboard and CustomerDashboard that prevent the UI from rendering
 
 ## Implementation Plan
-1. Add 6 query + 1 mutation function to main.mo for backup/restore
-2. Update backend.d.ts with new function signatures
-3. Add useAdminGetBackupData hook in useQueries.ts (calls all backup queries in parallel)
-4. Add BackupTab component in AdminPanel.tsx with download + upload/restore UI
-5. Add "backup" tab to tab list in AdminPanel
-6. Add 30-min inactivity auto-logout in App.tsx using event listeners + setInterval
-7. Fix main.tsx: QueryClient config + Toaster
+1. Fix `useActor.ts` — remove `refetchQueries`, keep only `invalidateQueries`
+2. Fix `useGetMySalon` staleTime to 2 minutes
+3. Refactor `SalonOwnerDashboard` — render dashboard shell immediately, show skeleton inside while `salonLoading`, only show register form when `salonFetched && !salon`
+4. Refactor `CustomerDashboard` — render main UI shell immediately, show inline skeletons for salon list and profile while loading
+5. Validate build
