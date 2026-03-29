@@ -328,13 +328,19 @@ export function useRegisterSalon(phone: string) {
       }
       if (!resolvedActor)
         throw new Error("सर्वर से कनेक्ट नहीं हो पाया। पेज रीलोड करें।");
-      return (resolvedActor as any).registerSalonByPhone(
+      const result = await (resolvedActor as any).registerSalonByPhone(
         phone,
         name,
         address,
         salonPhone,
         city,
       );
+      // ICP backend returns {ok: ...} or {err: "..."}
+      // If err variant is returned, it is NOT a thrown exception — we must check manually
+      if (result && typeof result === "object" && "err" in result) {
+        throw new Error(String(result.err));
+      }
+      return result;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["mySalon", phone] }),
   });

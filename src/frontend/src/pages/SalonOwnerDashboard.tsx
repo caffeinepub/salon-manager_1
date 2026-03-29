@@ -81,6 +81,7 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   const {
     data: salon,
     isLoading: salonLoading,
+    isFetching: salonRefreshing,
     isFetched: salonFetched,
     isError: salonError,
     refetch: refetchSalon,
@@ -223,16 +224,24 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
                 onClick={() => {
                   refetchSalon();
                 }}
+                disabled={salonRefreshing}
                 className="w-full px-4 py-3 rounded-xl font-semibold text-sm"
                 style={{
                   background: "oklch(0.52 0.18 145 / 0.15)",
                   border: "1px solid oklch(0.52 0.18 145 / 0.5)",
                   color: "oklch(0.85 0.1 145)",
+                  opacity: salonRefreshing ? 0.7 : 1,
                 }}
                 data-ocid="salon.secondary_button"
               >
-                <RefreshCw className="w-4 h-4 inline mr-2" />
-                पहले से रजिस्टर हूँ, दोबारा लोड करें
+                {salonRefreshing ? (
+                  <Loader2 className="w-4 h-4 inline mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 inline mr-2" />
+                )}
+                {salonRefreshing
+                  ? "लोड हो रहा है..."
+                  : "पहले से रजिस्टर हूँ, दोबारा लोड करें"}
               </button>
               <button
                 type="button"
