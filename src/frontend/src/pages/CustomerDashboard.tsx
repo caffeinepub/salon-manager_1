@@ -117,8 +117,9 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
   const [savedProfileName, setSavedProfileName] = useState<string>("");
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoadTimedOut(true), 45000);
-    const slowTimer = setTimeout(() => setSlowMessage(true), 10000);
+    // Increased to 90s: retries (5x with 5-25s delays) can take up to ~75s total for ICP cold start
+    const timer = setTimeout(() => setLoadTimedOut(true), 90000);
+    const slowTimer = setTimeout(() => setSlowMessage(true), 12000);
     return () => {
       clearTimeout(timer);
       clearTimeout(slowTimer);
@@ -136,7 +137,7 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
       <SalonLoadingScreen
         message={
           slowMessage
-            ? "कनेक्ट हो रहा है... (पहली बार थोड़ा समय लग सकता है)"
+            ? "सर्वर से जुड़ रहे हैं... थोड़ा इंतज़ार करें (दोबारा कोशिश हो रही है)"
             : "आपका सैलून तैयार हो रहा है..."
         }
       />

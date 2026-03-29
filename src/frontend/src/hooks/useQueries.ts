@@ -349,9 +349,12 @@ export function useGetMySalon(phone: string) {
       return result.length > 0 ? result[0] : null;
     },
     enabled: !!actor && !isFetching && !!phone,
-    retry: 3, // retry up to 3 times (cold start)
-    retryDelay: (attempt) => Math.min(2000 * (attempt + 1), 8000),
-    staleTime: 5 * 60 * 1000, // 5 min cache — owners rarely change salons
+    // Permanent ICP cold-start fix: 5 retries with growing delays (5s, 10s, 15s, 20s, 25s)
+    // React Query keeps isLoading=true during all retries — cartoon screen stays visible
+    // Total wait: up to ~75s which covers ICP cold start (max 45s) + network variance
+    retry: 5,
+    retryDelay: (attempt) => Math.min(5000 * (attempt + 1), 25000),
+    staleTime: 0,
   });
 }
 
@@ -625,7 +628,10 @@ export function useGetMyCustomerProfile(phone: string) {
       return result.length > 0 ? result[0] : null;
     },
     enabled: !!actor && !isFetching && !!phone,
-    staleTime: 5 * 60 * 1000, // 5 min cache — profile rarely changes
+    staleTime: 5 * 60 * 1000,
+    // Same ICP cold-start fix as useGetMySalon
+    retry: 5,
+    retryDelay: (attempt) => Math.min(5000 * (attempt + 1), 25000),
   });
 }
 

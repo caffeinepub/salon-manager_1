@@ -82,7 +82,8 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   const {
     data: salon,
     isLoading: salonLoading,
-
+    isFetching: salonFetching,
+    isFetched: salonFetched,
     isError: salonError,
   } = useGetMySalon(phone);
   const today = getTodayString();
@@ -91,17 +92,21 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   const [slowMessage, setSlowMessage] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoadTimedOut(true), 45000);
-    const slowTimer = setTimeout(() => setSlowMessage(true), 10000);
+    // Increased to 90s: retries (5x with 5-25s delays) can take up to ~75s total for ICP cold start
+    const timer = setTimeout(() => setLoadTimedOut(true), 90000);
+    const slowTimer = setTimeout(() => setSlowMessage(true), 12000);
     return () => {
       clearTimeout(timer);
       clearTimeout(slowTimer);
     };
   }, []);
 
-  // Only block on initial load when we have no data yet. Background refetches (salonFetching)
-  // should not show the loading screen 2014 that causes "connection error" for simple re-fetches.
-  const isInitialLoading = (actorFetching || salonLoading) && !salon;
+  // Block the UI only while we genuinely don't have confirmed data yet.
+  // salonFetched=true means at least one successful fetch has completed.
+  // After that, trust the cached data — don't flash loading screens on background refetches.
+  const stillWaitingForFirstFetch =
+    !salonFetched && (actorFetching || salonLoading || salonFetching);
+  const isInitialLoading = stillWaitingForFirstFetch;
 
   // Show spinner while any loading is happening (unless timed out)
   if (isInitialLoading && !loadTimedOut) {
@@ -109,7 +114,7 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
       <SalonLoadingScreen
         message={
           slowMessage
-            ? "कनेक्ट हो रहा है... (पहली बार थोड़ा समय लग सकता है)"
+            ? "सर्वर से जुड़ रहे हैं... थोड़ा इंतज़ार करें (दोबारा कोशिश हो रही है)"
             : "आपका सैलून तैयार हो रहा है..."
         }
       />
@@ -184,9 +189,22 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
     );
   }
 
-  // No salon found — new user, show registration form directly
-  if (!salon) {
+  // No salon found — show registration ONLY after the query has definitively confirmed no salon
+  if (salonFetched && !salon && !salonError) {
     return <RegisterSalonForm phone={phone} onLogout={onSwitchRole} />;
+  }
+
+  // If we have an error but also fetched before — show reload option (not register form)
+  // If we have no data and no fetch yet — wait (handled by isInitialLoading above)
+  if (!salon) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "oklch(0.12 0.04 155)" }}
+      >
+        <SalonLoadingScreen message="आपका डेटा लोड हो रहा है..." />
+      </div>
+    );
   }
 
   // Pending admin approval
@@ -450,11 +468,15 @@ function RegisterSalonForm({
       onSuccess: () =>
         toast.success("सैलून रजिस्टर हो गया! Admin मंजूरी का इंतज़ार करें"),
       onError: (err: any) => {
-        const msg = err?.message || "";
-        if (msg.includes("पेज रीलोड")) {
+        const msg = (err?.message || "").toLowerCase();
+        if (msg.includes("already") || msg.includes("already have")) {
+          toast.error("इस नंबर से पहले से सैलून रजिस्टर है। Admin से approve करवाएं।");
+        } else if (msg.includes("reload") || msg.includes("connect")) {
           toast.error("सर्वर से कनेक्ट नहीं हो पाया। पेज रीलोड करें।");
         } else {
-          toast.error("कुछ गलत हुआ, दोबारा कोशिश करें");
+          toast.error(
+            `रजिस्ट्रेशन नहीं हो पाया: ${err?.message || "दोबारा कोशिश करें"}`,
+          );
         }
       },
     });
