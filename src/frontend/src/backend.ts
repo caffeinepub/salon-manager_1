@@ -182,6 +182,9 @@ export interface backendInterface {
     getSalonServices(salonId: bigint): Promise<Array<ServiceWithId>>;
     isCallerAdmin(): Promise<boolean>;
     registerSalonByPhone(ownerPhone: string, name: string, address: string, phone: string, city: string): Promise<bigint>;
+    salonOwnerLogin(ownerPhone: string, passwordHash: string): Promise<[string, SalonWithId | null]>;
+    salonOwnerRegisterV2(ownerPhone: string, salonName: string, services: Array<string>, passwordHash: string): Promise<string>;
+    salonOwnerSetPassword(ownerPhone: string, passwordHash: string): Promise<boolean>;
     saveCustomerProfileByPhone(phone: string, name: string): Promise<void>;
     updateAppointmentStatusByPhone(ownerPhone: string, appointmentId: bigint, newStatus: string): Promise<void>;
     updateOwnerSalonByPhone(ownerPhone: string, name: string, address: string, phone: string, city: string): Promise<void>;
@@ -668,6 +671,48 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.registerSalonByPhone(arg0, arg1, arg2, arg3, arg4);
+            return result;
+        }
+    }
+    async salonOwnerLogin(arg0: string, arg1: string): Promise<[string, SalonWithId | null]> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.salonOwnerLogin(arg0, arg1);
+                return [result[0], result[1].length === 0 ? null : result[1][0]];
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.salonOwnerLogin(arg0, arg1);
+            return [result[0], result[1].length === 0 ? null : result[1][0]];
+        }
+    }
+    async salonOwnerRegisterV2(arg0: string, arg1: string, arg2: Array<string>, arg3: string): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.salonOwnerRegisterV2(arg0, arg1, arg2, arg3);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.salonOwnerRegisterV2(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async salonOwnerSetPassword(arg0: string, arg1: string): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.salonOwnerSetPassword(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.salonOwnerSetPassword(arg0, arg1);
             return result;
         }
     }

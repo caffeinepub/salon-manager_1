@@ -113,6 +113,9 @@ export interface _SERVICE {
     [string, string, string, string, string],
     bigint
   >,
+  'salonOwnerLogin' : ActorMethod<[string, string], [string, [] | [SalonWithId]]>,
+  'salonOwnerRegisterV2' : ActorMethod<[string, string, Array<string>, string], string>,
+  'salonOwnerSetPassword' : ActorMethod<[string, string], boolean>,
   'saveCustomerProfileByPhone' : ActorMethod<[string, string], undefined>,
   'updateAppointmentStatusByPhone' : ActorMethod<
     [string, bigint, string],

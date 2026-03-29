@@ -134,6 +134,17 @@ export const idlService = IDL.Service({
       [IDL.Nat],
       [],
     ),
+  'salonOwnerLogin' : IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Text, IDL.Opt(SalonWithId)],
+      ['query'],
+    ),
+  'salonOwnerRegisterV2' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Vec(IDL.Text), IDL.Text],
+      [IDL.Text],
+      [],
+    ),
+  'salonOwnerSetPassword' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
   'saveCustomerProfileByPhone' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'updateAppointmentStatusByPhone' : IDL.Func(
       [IDL.Text, IDL.Nat, IDL.Text],
@@ -281,6 +292,17 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Nat],
         [],
       ),
+    'salonOwnerLogin' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Text, IDL.Opt(SalonWithId)],
+        ['query'],
+      ),
+    'salonOwnerRegisterV2' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Vec(IDL.Text), IDL.Text],
+        [IDL.Text],
+        [],
+      ),
+    'salonOwnerSetPassword' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
     'saveCustomerProfileByPhone' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'updateAppointmentStatusByPhone' : IDL.Func(
         [IDL.Text, IDL.Nat, IDL.Text],

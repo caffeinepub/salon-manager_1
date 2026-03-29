@@ -12,6 +12,7 @@ import AdminLoginPage, {
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const CustomerDashboard = lazy(() => import("./pages/CustomerDashboard"));
 const SalonOwnerDashboard = lazy(() => import("./pages/SalonOwnerDashboard"));
+const SalonOwnerAuthPage = lazy(() => import("./pages/SalonOwnerAuthPage"));
 
 const SESSION_KEY = "salon360_session";
 const ROLE_KEY = "salon360_role";
@@ -24,6 +25,7 @@ interface Session {
   phone: string;
   role: AppRole;
   expiresAt: number;
+  salonVerified?: boolean;
 }
 
 function getSession(): Session | null {
@@ -41,11 +43,12 @@ function getSession(): Session | null {
   }
 }
 
-function saveSession(phone: string, role: AppRole) {
+function saveSession(phone: string, role: AppRole, salonVerified?: boolean) {
   const session: Session = {
     phone,
     role,
     expiresAt: Date.now() + SESSION_DURATION_MS,
+    salonVerified: salonVerified ?? false,
   };
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   localStorage.setItem(ROLE_KEY, role);
@@ -131,6 +134,7 @@ export default function App() {
           <Suspense fallback={<SalonLoadingScreen />}>
             <SalonOwnerDashboard
               phone={session.phone}
+              salonVerified={session.salonVerified ?? false}
               onSwitchRole={handleLogout}
             />
           </Suspense>
@@ -160,6 +164,25 @@ export default function App() {
     );
   }
 
+  // Salon owner: new dedicated auth page with login + register
+  if (pendingRole === "salon") {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<SalonLoadingScreen />}>
+          <SalonOwnerAuthPage
+            onBack={() => setPendingRole(null)}
+            onLoginSuccess={(phone) => {
+              saveSession(phone, "salon", true);
+              setSession(getSession());
+              setPendingRole(null);
+            }}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  // Customer: existing simple phone login
   return (
     <MobileLoginPage
       role={pendingRole}

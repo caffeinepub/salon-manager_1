@@ -15,6 +15,7 @@ export function useActor() {
       const isAuthenticated = !!identity;
 
       if (!isAuthenticated) {
+        // Return anonymous actor if not authenticated
         return await createActorWithConfig();
       }
 
@@ -29,11 +30,13 @@ export function useActor() {
       await actor._initializeAccessControlWithSecret(adminToken);
       return actor;
     },
+    // Only refetch when identity changes
     staleTime: Number.POSITIVE_INFINITY,
+    // This will cause the actor to be recreated when the identity changes
     enabled: true,
   });
 
-  // When actor becomes ready, invalidate dependent queries ONCE (no double-fetch)
+  // When the actor changes, invalidate dependent queries
   useEffect(() => {
     if (actorQuery.data) {
       queryClient.invalidateQueries({
@@ -41,9 +44,11 @@ export function useActor() {
           return !query.queryKey.includes(ACTOR_QUERY_KEY);
         },
       });
-      // NOTE: Do NOT call refetchQueries here — invalidateQueries is enough.
-      // Calling both causes thundering herd: all queries fire simultaneously
-      // during ICP cold start, causing some to fail with "data load failed".
+      queryClient.refetchQueries({
+        predicate: (query) => {
+          return !query.queryKey.includes(ACTOR_QUERY_KEY);
+        },
+      });
     }
   }, [actorQuery.data, queryClient]);
 

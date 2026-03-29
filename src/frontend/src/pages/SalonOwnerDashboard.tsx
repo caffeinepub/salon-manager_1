@@ -13,7 +13,6 @@ import {
   Plus,
   RefreshCw,
   Scissors,
-  Store,
   Trash2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -28,7 +27,6 @@ import {
   useGetOwnerRevenueSummary,
   useGetSalonAppointmentsForDate,
   useGetSalonServices,
-  useRegisterSalon,
   useUpdateAppointmentStatus,
   useUpdateMySalon,
 } from "../hooks/useQueries";
@@ -74,6 +72,7 @@ function getTrialDaysRemaining(trialStartDate: bigint, trialDays = 7n) {
 
 interface Props {
   phone: string;
+  salonVerified?: boolean;
   onSwitchRole: () => void;
 }
 
@@ -88,7 +87,34 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   } = useGetMySalon(phone);
   const today = getTodayString();
   const { data: earnings } = useGetOwnerRevenueSummary(phone);
-  const [showRegisterForm, setShowRegisterForm] = useState(false);
+  const [nullRetryCount, setNullRetryCount] = useState(0);
+  const MAX_NULL_RETRIES = 6;
+
+  // Auto-retry when backend returns null (cold start returns null, not error)
+  useEffect(() => {
+    if (
+      salonFetched &&
+      !salonLoading &&
+      !salonRefreshing &&
+      !salon &&
+      !salonError &&
+      nullRetryCount < MAX_NULL_RETRIES
+    ) {
+      const timer = setTimeout(() => {
+        setNullRetryCount((c) => c + 1);
+        refetchSalon();
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [
+    salonFetched,
+    salonLoading,
+    salonRefreshing,
+    salon,
+    salonError,
+    nullRetryCount,
+    refetchSalon,
+  ]);
 
   // Backend error — show reload screen
   if (salonError) {
@@ -124,22 +150,15 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
     );
   }
 
-  // No salon found — confirmed by backend (not still loading)
-  if (salonFetched && !salonLoading && !salon && !salonError) {
-    if (showRegisterForm) {
-      return (
-        <RegisterSalonForm
-          phone={phone}
-          onLogout={onSwitchRole}
-          onRetryFetch={() => {
-            setShowRegisterForm(false);
-            refetchSalon();
-          }}
-        />
-      );
-    }
-
-    // Choice screen
+  // No salon found after all retries — show simple reload screen (user is already authenticated)
+  if (
+    salonFetched &&
+    !salonLoading &&
+    !salonRefreshing &&
+    !salon &&
+    !salonError &&
+    nullRetryCount >= MAX_NULL_RETRIES
+  ) {
     return (
       <div
         className="min-h-screen flex flex-col"
@@ -175,92 +194,42 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
             बाहर
           </Button>
         </header>
-
         <div className="flex-1 flex items-center justify-center p-4">
-          <Card
-            className="w-full max-w-md"
-            style={{
-              background: "oklch(0.18 0.05 155)",
-              border: "1px solid oklch(0.28 0.05 155)",
-            }}
-          >
-            <CardHeader>
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2"
-                style={{ background: "oklch(0.52 0.18 145 / 0.2)" }}
-              >
-                <Store
-                  className="w-6 h-6"
-                  style={{ color: "oklch(0.52 0.18 145)" }}
-                />
-              </div>
-              <CardTitle
-                className="text-center"
-                style={{ color: "oklch(0.95 0.02 145)" }}
-              >
-                सैलून मिला नहीं
-              </CardTitle>
-              <p
-                className="text-center text-sm"
-                style={{ color: "oklch(0.6 0.05 145)" }}
-              >
-                आपका नंबर:{" "}
-                <strong style={{ color: "oklch(0.8 0.08 145)" }}>
-                  {phone}
-                </strong>
-              </p>
-              <p
-                className="text-center text-sm mt-1"
-                style={{ color: "oklch(0.6 0.05 145)" }}
-              >
-                क्या आप पहली बार register कर रहे हैं?
-                <br />
-                अगर पहले register किया है तो "दोबारा लोड करें" दबाएं।
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <button
-                type="button"
-                onClick={() => {
-                  refetchSalon();
-                }}
-                disabled={salonRefreshing}
-                className="w-full px-4 py-3 rounded-xl font-semibold text-sm"
-                style={{
-                  background: "oklch(0.52 0.18 145 / 0.15)",
-                  border: "1px solid oklch(0.52 0.18 145 / 0.5)",
-                  color: "oklch(0.85 0.1 145)",
-                  opacity: salonRefreshing ? 0.7 : 1,
-                }}
-                data-ocid="salon.secondary_button"
-              >
-                {salonRefreshing ? (
-                  <Loader2 className="w-4 h-4 inline mr-2 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4 inline mr-2" />
-                )}
-                {salonRefreshing
-                  ? "लोड हो रहा है..."
-                  : "पहले से रजिस्टर हूँ, दोबारा लोड करें"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowRegisterForm(true)}
-                className="w-full px-4 py-3 rounded-xl font-semibold text-sm text-white"
-                style={{ background: "oklch(0.52 0.18 145)" }}
-                data-ocid="salon.primary_button"
-              >
-                <Plus className="w-4 h-4 inline mr-2" />
-                नया सैलून रजिस्टर करें
-              </button>
-            </CardContent>
-          </Card>
+          <div className="text-center space-y-4">
+            <RefreshCw
+              className="w-10 h-10 mx-auto"
+              style={{ color: "oklch(0.52 0.18 145)" }}
+            />
+            <p style={{ color: "oklch(0.95 0.02 145)" }}>डेटा लोड नहीं हो पाया</p>
+            <p className="text-sm" style={{ color: "oklch(0.6 0.05 145)" }}>
+              आप पहले से लॉगिन हैं। पेज reload करें।
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setNullRetryCount(0);
+                refetchSalon();
+              }}
+              className="px-6 py-3 rounded-xl font-semibold text-white"
+              style={{ background: "oklch(0.52 0.18 145)" }}
+            >
+              दोबारा लोड करें
+            </button>
+            <button
+              type="button"
+              onClick={onSwitchRole}
+              className="block text-sm mt-2 mx-auto"
+              style={{ color: "oklch(0.6 0.05 145)" }}
+            >
+              लॉगआउट
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Still waiting for first fetch — show shell with inline loading skeleton
+  // Still waiting for first fetch OR retrying null — show shell with inline loading skeleton
   if (!salon) {
     return (
       <div
@@ -309,7 +278,9 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
             style={{ color: "oklch(0.52 0.18 145)" }}
           />
           <p className="text-sm" style={{ color: "oklch(0.65 0.05 145)" }}>
-            आपका सैलून लोड हो रहा है...
+            {nullRetryCount > 0
+              ? `सर्वर से कनेक्ट हो रहा है... (कोशिश ${nullRetryCount}/${MAX_NULL_RETRIES})`
+              : "आपका सैलून लोड हो रहा है..."}
           </p>
         </main>
       </div>
@@ -550,229 +521,6 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
           caffeine.ai
         </a>
       </footer>
-    </div>
-  );
-}
-
-function RegisterSalonForm({
-  phone,
-  onLogout,
-  onRetryFetch,
-}: {
-  phone: string;
-  onSwitchRole?: () => void;
-  onLogout: () => void;
-  onRetryFetch?: () => void;
-}) {
-  const [form, setForm] = useState({
-    name: "",
-    address: "",
-    salonPhone: "",
-    city: "",
-  });
-  const { mutate, isPending } = useRegisterSalon(phone);
-  const { actor, isFetching: actorLoading } = useActor();
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name || !form.city) {
-      toast.error("नाम और शहर जरूरी है");
-      return;
-    }
-    mutate(form, {
-      onSuccess: () =>
-        toast.success("सैलून रजिस्टर हो गया! Admin मंजूरी का इंतज़ार करें"),
-      onError: (err: any) => {
-        const msg = (err?.message || "").toLowerCase();
-        if (msg.includes("already") || msg.includes("already have")) {
-          // Phone is already registered — refetch their salon data
-          toast.success("आपका सैलून मिल गया! लोड हो रहा है...");
-          onRetryFetch?.();
-        } else if (msg.includes("reload") || msg.includes("connect")) {
-          toast.error("सर्वर से कनेक्ट नहीं हो पाया। पेज रीलोड करें।");
-        } else {
-          toast.error(
-            `रजिस्ट्रेशन नहीं हो पाया: ${err?.message || "दोबारा कोशिश करें"}`,
-          );
-        }
-      },
-    });
-  };
-
-  return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{ background: "oklch(0.12 0.04 155)" }}
-    >
-      <header
-        className="px-4 py-3 flex items-center justify-between"
-        style={{
-          background: "oklch(0.16 0.05 155)",
-          borderBottom: "1px solid oklch(0.25 0.05 155)",
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <Scissors
-            className="w-5 h-5"
-            style={{ color: "oklch(0.52 0.18 145)" }}
-          />
-          <span className="font-bold" style={{ color: "oklch(0.95 0.02 145)" }}>
-            Salon360
-          </span>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onLogout}
-          data-ocid="salon.close_button"
-          style={{ color: "oklch(0.6 0.05 145)" }}
-        >
-          <LogOut className="w-4 h-4 mr-1" />
-          बाहर
-        </Button>
-      </header>
-      <div className="flex-1 flex items-center justify-center p-4">
-        <Card
-          className="w-full max-w-md"
-          style={{
-            background: "oklch(0.18 0.05 155)",
-            border: "1px solid oklch(0.28 0.05 155)",
-          }}
-        >
-          <CardHeader>
-            <div
-              className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2"
-              style={{ background: "oklch(0.52 0.18 145 / 0.2)" }}
-            >
-              <Store
-                className="w-6 h-6"
-                style={{ color: "oklch(0.52 0.18 145)" }}
-              />
-            </div>
-            <CardTitle
-              className="text-center"
-              style={{ color: "oklch(0.95 0.02 145)" }}
-            >
-              अपना सैलून रजिस्टर करें
-            </CardTitle>
-            <p
-              className="text-center text-sm"
-              style={{ color: "oklch(0.6 0.05 145)" }}
-            >
-              Admin की मंजूरी के बाद आपका सैलून दिखने लगेगा
-            </p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label
-                  className="text-sm"
-                  style={{ color: "oklch(0.75 0.05 145)" }}
-                >
-                  सैलून का नाम *
-                </Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
-                  placeholder="जैसे: राज हेयर सैलून"
-                  data-ocid="salon.input"
-                  style={{
-                    background: "oklch(0.22 0.05 155)",
-                    border: "1px solid oklch(0.32 0.05 155)",
-                    color: "oklch(0.95 0.02 145)",
-                  }}
-                />
-              </div>
-              <div>
-                <Label
-                  className="text-sm"
-                  style={{ color: "oklch(0.75 0.05 145)" }}
-                >
-                  शहर *
-                </Label>
-                <Input
-                  value={form.city}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, city: e.target.value }))
-                  }
-                  placeholder="जैसे: मुंबई, दिल्ली"
-                  data-ocid="salon.input"
-                  style={{
-                    background: "oklch(0.22 0.05 155)",
-                    border: "1px solid oklch(0.32 0.05 155)",
-                    color: "oklch(0.95 0.02 145)",
-                  }}
-                />
-              </div>
-              <div>
-                <Label
-                  className="text-sm"
-                  style={{ color: "oklch(0.75 0.05 145)" }}
-                >
-                  पता
-                </Label>
-                <Input
-                  value={form.address}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, address: e.target.value }))
-                  }
-                  placeholder="दुकान का पूरा पता"
-                  data-ocid="salon.input"
-                  style={{
-                    background: "oklch(0.22 0.05 155)",
-                    border: "1px solid oklch(0.32 0.05 155)",
-                    color: "oklch(0.95 0.02 145)",
-                  }}
-                />
-              </div>
-              <div>
-                <Label
-                  className="text-sm"
-                  style={{ color: "oklch(0.75 0.05 145)" }}
-                >
-                  संपर्क नंबर
-                </Label>
-                <Input
-                  value={form.salonPhone}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, salonPhone: e.target.value }))
-                  }
-                  placeholder="9876543210"
-                  type="tel"
-                  data-ocid="salon.input"
-                  style={{
-                    background: "oklch(0.22 0.05 155)",
-                    border: "1px solid oklch(0.32 0.05 155)",
-                    color: "oklch(0.95 0.02 145)",
-                  }}
-                />
-              </div>
-              {!actor && actorLoading && (
-                <p
-                  className="text-xs text-center mb-2"
-                  style={{ color: "oklch(0.7 0.08 50)" }}
-                >
-                  सर्वर से जुड़ रहे हैं... कृपया प्रतीक्षा करें
-                </p>
-              )}
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isPending}
-                data-ocid="salon.submit_button"
-                style={{ background: "oklch(0.52 0.18 145)", color: "white" }}
-              >
-                {isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : null}
-                {isPending ? "रजिस्टर हो रहा है..." : "रजिस्टर करें"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }

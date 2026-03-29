@@ -141,6 +141,7 @@ actor {
   stable var stableAppointments : [(Nat, Appointment)] = [];
   stable var stableCustomers : [(Text, CustomerProfile)] = [];
   stable var stableOwnerPhoneMap : [(Text, Nat)] = [];
+  stable var stableOwnerPasswords : [(Text, Text)] = [];
 
   // State vars — auto-restored from stable memory on upgrade
   var adminPasswordHash : ?Text = stableAdminPasswordHash;
@@ -157,6 +158,7 @@ actor {
   let salonAppointmentsV3 = Map.empty<Nat, Appointment>();
   let custProfilesByPhone = Map.empty<Text, CustomerProfile>();
   let ownerPhoneSalonMap  = Map.empty<Text, Nat>();
+  let ownerPasswordMap    = Map.empty<Text, Text>();
 
   // ================================================================
   // HELPERS
@@ -435,7 +437,6 @@ actor {
     nServiceId : Nat,
     nAppointmentId : Nat
   ) : async () {
-    // Clear all existing data
     for ((k, _) in salonProfilesV3.entries().toArray().vals()) {
       salonProfilesV3.remove(k);
     };
@@ -451,7 +452,6 @@ actor {
     for ((k, _) in ownerPhoneSalonMap.entries().toArray().vals()) {
       ownerPhoneSalonMap.remove(k);
     };
-    // Restore salons
     for (s in salons.vals()) {
       salonProfilesV3.add(s.id, {
         name = s.name; address = s.address; phone = s.phone; city = s.city;
@@ -460,14 +460,12 @@ actor {
         subscriptionActive = s.subscriptionActive; trialDays = s.trialDays;
       });
     };
-    // Restore services
     for (svc in svcs.vals()) {
       salonServicesList.add(svc.id, {
         salonId = svc.salonId; name = svc.name;
         price = svc.price; durationMinutes = svc.durationMinutes;
       });
     };
-    // Restore appointments
     for (a in appts.vals()) {
       salonAppointmentsV3.add(a.id, {
         salonId = a.salonId; customerPhone = a.customerPhone;
@@ -476,22 +474,106 @@ actor {
         createdAt = a.createdAt; date = a.date; servicePrice = a.servicePrice;
       });
     };
-    // Restore customers
     for (c in custs.vals()) {
       custProfilesByPhone.add(c.phone, c);
     };
-    // Restore owner phone map
     for ((phone, sId) in ownerPhoneMap.vals()) {
       ownerPhoneSalonMap.add(phone, sId);
     };
-    // Restore counters
     nextSalonId := nSalonId;
     nextServiceId := nServiceId;
     nextAppointmentId := nAppointmentId;
   };
 
   // ================================================================
-  // SALON OWNER APIs (phone-based)
+  // SALON OWNER AUTH V2 — password-based
+  // ================================================================
+
+  // Register new salon owner with password
+  public func salonOwnerRegisterV2(
+    ownerPhone : Text,
+    salonName : Text,
+    services : [Text],
+    passwordHash : Text
+  ) : async Text {
+    switch (ownerPhoneSalonMap.get(ownerPhone)) {
+      case (?_) { return "already_registered" };
+      case (null) {};
+    };
+    if (countApprovedSalons() >= MAX_SHOPS) {
+      return "limit_reached";
+    };
+    let id = nextSalonId;
+    nextSalonId += 1;
+    salonProfilesV3.add(id, {
+      name = salonName; address = ""; phone = ownerPhone; city = "";
+      ownerPhone; isActive = false; pendingApproval = true;
+      trialStartDate = 0; subscriptionActive = false; trialDays = defaultTrialDays;
+    });
+    ownerPhoneSalonMap.add(ownerPhone, id);
+    ownerPasswordMap.add(ownerPhone, passwordHash);
+    for (serviceName in services.vals()) {
+      if (serviceName != "") {
+        let svcId = nextServiceId;
+        nextServiceId += 1;
+        salonServicesList.add(svcId, {
+          salonId = id; name = serviceName; price = 0.0; durationMinutes = 30;
+        });
+      };
+    };
+    "ok"
+  };
+
+  // Login with password — returns (status, optional salon)
+  public query func salonOwnerLogin(
+    ownerPhone : Text,
+    passwordHash : Text
+  ) : async (Text, ?SalonWithId) {
+    switch (ownerPhoneSalonMap.get(ownerPhone)) {
+      case (null) { return ("not_found", null) };
+      case (?salonId) {
+        switch (ownerPasswordMap.get(ownerPhone)) {
+          case (null) { return ("no_password", null) };
+          case (?stored) {
+            if (stored != passwordHash) {
+              return ("wrong_password", null);
+            };
+            switch (salonProfilesV3.get(salonId)) {
+              case (null) { return ("not_found", null) };
+              case (?salon) {
+                if (salon.pendingApproval) {
+                  return ("pending", ?makeSalonWithId(salonId, salon));
+                } else if (not salon.isActive) {
+                  return ("inactive", ?makeSalonWithId(salonId, salon));
+                } else {
+                  return ("approved", ?makeSalonWithId(salonId, salon));
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+
+  // Set password for existing/legacy owners who have no password yet
+  public func salonOwnerSetPassword(ownerPhone : Text, passwordHash : Text) : async Bool {
+    switch (ownerPhoneSalonMap.get(ownerPhone)) {
+      case (null) { return false };
+      case (?_) {
+        switch (ownerPasswordMap.get(ownerPhone)) {
+          case (?_) { return false };
+          case (null) {
+            ownerPasswordMap.add(ownerPhone, passwordHash);
+            true
+          };
+        };
+      };
+    };
+  };
+
+  // ================================================================
+  // SALON OWNER APIs (phone-based — legacy, kept for compat)
   // ================================================================
   public func registerSalonByPhone(ownerPhone : Text, name : Text, address : Text, phone : Text, city : Text) : async Nat {
     switch (ownerPhoneSalonMap.get(ownerPhone)) {
@@ -730,6 +812,7 @@ actor {
     stableAppointments := salonAppointmentsV3.entries().toArray();
     stableCustomers := custProfilesByPhone.entries().toArray();
     stableOwnerPhoneMap := ownerPhoneSalonMap.entries().toArray();
+    stableOwnerPasswords := ownerPasswordMap.entries().toArray();
   };
 
   system func postupgrade() {
@@ -738,10 +821,12 @@ actor {
     for ((k, v) in stableAppointments.vals()) { salonAppointmentsV3.add(k, v) };
     for ((k, v) in stableCustomers.vals()) { custProfilesByPhone.add(k, v) };
     for ((k, v) in stableOwnerPhoneMap.vals()) { ownerPhoneSalonMap.add(k, v) };
+    for ((k, v) in stableOwnerPasswords.vals()) { ownerPasswordMap.add(k, v) };
     stableSalons := [];
     stableServices := [];
     stableAppointments := [];
     stableCustomers := [];
     stableOwnerPhoneMap := [];
+    stableOwnerPasswords := [];
   };
 };

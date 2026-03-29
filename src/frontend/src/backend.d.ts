@@ -107,6 +107,9 @@ export interface backendInterface {
     isCallerAdmin(): Promise<boolean>;
     registerSalonByPhone(ownerPhone: string, name: string, address: string, phone: string, city: string): Promise<bigint>;
     saveCustomerProfileByPhone(phone: string, name: string): Promise<void>;
+    salonOwnerLogin(ownerPhone: string, passwordHash: string): Promise<[string, SalonWithId | null]>;
+    salonOwnerRegisterV2(ownerPhone: string, salonName: string, services: Array<string>, passwordHash: string): Promise<string>;
+    salonOwnerSetPassword(ownerPhone: string, passwordHash: string): Promise<boolean>;
     updateAppointmentStatusByPhone(ownerPhone: string, appointmentId: bigint, newStatus: string): Promise<void>;
     updateOwnerSalonByPhone(ownerPhone: string, name: string, address: string, phone: string, city: string): Promise<void>;
 }

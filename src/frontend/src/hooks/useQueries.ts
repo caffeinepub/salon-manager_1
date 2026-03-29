@@ -594,3 +594,63 @@ export function useGetMyCustomerProfile(phone: string) {
     retryDelay: (attempt) => Math.min(5000 * (attempt + 1), 25000),
   });
 }
+
+// ============================================================
+// Salon Owner Auth hooks (V2 with password)
+// ============================================================
+
+export function useSalonOwnerLogin() {
+  const { actor } = useActor();
+  return useMutation({
+    mutationFn: async ({
+      phone,
+      passwordHash,
+    }: { phone: string; passwordHash: string }) => {
+      if (!actor) throw new Error("No actor");
+      return (actor as any).salonOwnerLogin(phone, passwordHash) as Promise<
+        [string, any]
+      >;
+    },
+  });
+}
+
+export function useSalonOwnerRegisterV2() {
+  const { actor } = useActor();
+  return useMutation({
+    mutationFn: async ({
+      ownerPhone,
+      salonName,
+      services,
+      passwordHash,
+    }: {
+      ownerPhone: string;
+      salonName: string;
+      services: string[];
+      passwordHash: string;
+    }) => {
+      if (!actor) throw new Error("No actor");
+      return (actor as any).salonOwnerRegisterV2(
+        ownerPhone,
+        salonName,
+        services,
+        passwordHash,
+      ) as Promise<string>;
+    },
+  });
+}
+
+export function useSalonOwnerSetPassword() {
+  const { actor } = useActor();
+  return useMutation({
+    mutationFn: async ({
+      phone,
+      passwordHash,
+    }: { phone: string; passwordHash: string }) => {
+      if (!actor) throw new Error("No actor");
+      return (actor as any).salonOwnerSetPassword(
+        phone,
+        passwordHash,
+      ) as Promise<boolean>;
+    },
+  });
+}
