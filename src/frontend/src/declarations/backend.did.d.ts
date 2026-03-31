@@ -78,6 +78,7 @@ export interface _SERVICE {
   'adminGetSubscriptionPrice' : ActorMethod<[], number>,
   'adminLogin' : ActorMethod<[string, string], boolean>,
   'adminPasswordIsSet' : ActorMethod<[], boolean>,
+  'adminResetOwnerPassword' : ActorMethod<[string, string], boolean>,
   'adminProcessTrialExpirations' : ActorMethod<[], bigint>,
   'adminRejectSalon' : ActorMethod<[bigint], undefined>,
   'adminSetDefaultTrialDays' : ActorMethod<[bigint], undefined>,

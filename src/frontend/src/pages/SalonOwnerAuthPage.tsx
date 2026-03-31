@@ -474,6 +474,28 @@ export default function SalonOwnerAuthPage({ onBack, onLoginSuccess }: Props) {
               ocid="salon_auth.input"
             />
 
+            {/* Forgot password contact */}
+            <div
+              className="rounded-xl px-4 py-3 text-center"
+              style={{
+                background: "oklch(0.20 0.05 155)",
+                border: "1px solid oklch(0.30 0.05 155)",
+              }}
+            >
+              <p className="text-xs" style={{ color: "oklch(0.65 0.08 145)" }}>
+                Password bhul gaye?
+              </p>
+              <p
+                className="text-sm font-semibold mt-0.5"
+                style={{ color: "oklch(0.78 0.12 145)" }}
+              >
+                Admin se sampark kare:{" "}
+                <span style={{ color: "oklch(0.85 0.16 145)" }}>
+                  6206761169
+                </span>
+              </p>
+            </div>
+
             <ActionButton
               loading={loading}
               label="लॉगिन करें"

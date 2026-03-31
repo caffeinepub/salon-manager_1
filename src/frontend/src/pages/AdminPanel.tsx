@@ -21,6 +21,7 @@ import {
   useAdminGetSubscriptionPrice,
   useAdminProcessTrialExpirations,
   useAdminRejectSalon,
+  useAdminResetOwnerPassword,
   useAdminRestore,
   useAdminSetDefaultTrialDays,
   useAdminSetSalonActive,
@@ -691,6 +692,14 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
   );
 }
 
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(`${password}salon360_salt`);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function SalonManageCard({
   salon,
   idx,
@@ -707,6 +716,8 @@ function SalonManageCard({
   const [subEnd, setSubEnd] = useState("");
   const [trialDays, setTrialDays] = useState("");
   const [expanded, setExpanded] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const resetPasswordMutation = useAdminResetOwnerPassword();
 
   return (
     <Card data-ocid={`salons.item.${idx + 1}`}>
@@ -850,6 +861,56 @@ function SalonManageCard({
                   अवधि: {Number(salon.trialDays)} दिन
                 </p>
               )}
+            </div>
+
+            {/* Password Reset */}
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-1">
+                पासवर्ड Reset करें
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  placeholder="नया पासवर्ड (कम से कम 6 अक्षर)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="flex-1 h-8 text-sm"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                  disabled={
+                    resetPasswordMutation.isPending || newPassword.length < 6
+                  }
+                  onClick={async () => {
+                    if (newPassword.length < 6) {
+                      toast.error("पासवर्ड कम से कम 6 अक्षर का होना चाहिए");
+                      return;
+                    }
+                    try {
+                      const hash = await hashPassword(newPassword);
+                      const ok = await resetPasswordMutation.mutateAsync({
+                        ownerPhone: salon.ownerPhone,
+                        newPasswordHash: hash,
+                      });
+                      if (ok) {
+                        toast.success(`${salon.name} का पासवर्ड reset हो गया!`);
+                        setNewPassword("");
+                      } else {
+                        toast.error("Owner नहीं मिला — पासवर्ड reset नहीं हुआ");
+                      }
+                    } catch {
+                      toast.error("पासवर्ड reset नहीं हो पाया");
+                    }
+                  }}
+                >
+                  {resetPasswordMutation.isPending ? "..." : "Reset"}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                Owner: {salon.ownerPhone}
+              </p>
             </div>
           </div>
         )}

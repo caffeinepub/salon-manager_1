@@ -572,6 +572,19 @@ actor {
     };
   };
 
+  // Admin reset owner password — forcefully overwrites existing password
+  public func adminResetOwnerPassword(ownerPhone : Text, newPasswordHash : Text) : async Bool {
+    switch (ownerPhoneSalonMap.get(ownerPhone)) {
+      case (null) { return false };
+      case (?_) {
+        ownerPasswordMap.add(ownerPhone, newPasswordHash);
+        true
+      };
+    };
+  };
+
+
+
   // ================================================================
   // SALON OWNER APIs (phone-based — legacy, kept for compat)
   // ================================================================

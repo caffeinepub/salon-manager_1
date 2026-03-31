@@ -123,6 +123,19 @@ export function useAdminRejectSalon() {
   });
 }
 
+export function useAdminResetOwnerPassword() {
+  const { actor } = useActor();
+  return useMutation({
+    mutationFn: async ({
+      ownerPhone,
+      newPasswordHash,
+    }: { ownerPhone: string; newPasswordHash: string }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.adminResetOwnerPassword(ownerPhone, newPasswordHash);
+    },
+  });
+}
+
 export function useAdminSetSalonSubscription() {
   const { actor } = useActor();
   const qc = useQueryClient();

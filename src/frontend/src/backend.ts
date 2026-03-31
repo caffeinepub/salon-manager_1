@@ -161,6 +161,7 @@ export interface backendInterface {
     adminPasswordIsSet(): Promise<boolean>;
     adminProcessTrialExpirations(): Promise<bigint>;
     adminRejectSalon(salonId: bigint): Promise<void>;
+    adminResetOwnerPassword(ownerPhone: string, newPasswordHash: string): Promise<boolean>;
     adminSetDefaultTrialDays(days: bigint): Promise<void>;
     adminSetPassword(email: string, passwordHash: string): Promise<boolean>;
     adminSetSalonActive(salonId: bigint, active: boolean): Promise<void>;
@@ -371,6 +372,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.adminRejectSalon(arg0);
+            return result;
+        }
+    }
+    async adminResetOwnerPassword(arg0: string, arg1: string): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminResetOwnerPassword(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminResetOwnerPassword(arg0, arg1);
             return result;
         }
     }

@@ -85,6 +85,7 @@ export interface backendInterface {
     adminPasswordIsSet(): Promise<boolean>;
     adminProcessTrialExpirations(): Promise<bigint>;
     adminRejectSalon(salonId: bigint): Promise<void>;
+    adminResetOwnerPassword(ownerPhone: string, newPasswordHash: string): Promise<boolean>;
     adminSetDefaultTrialDays(days: bigint): Promise<void>;
     adminSetPassword(email: string, passwordHash: string): Promise<boolean>;
     adminSetSalonActive(salonId: bigint, active: boolean): Promise<void>;
