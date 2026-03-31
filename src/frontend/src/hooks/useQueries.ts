@@ -290,13 +290,9 @@ export function useGetMySalon(phone: string) {
     queryFn: async () => {
       if (!actor || !phone) return null;
       const result = await (actor as any).getOwnerSalonByPhone(phone);
-      return result.length > 0 ? result[0] : null;
+      return result ?? null;
     },
     enabled: !!actor && !isFetching && !!phone,
-    // ICP cold-start fix: 5 retries keep isLoading=true so cartoon screen stays visible
-    retry: 5,
-    retryDelay: (attempt) => Math.min(5000 * (attempt + 1), 25000),
-    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -586,12 +582,9 @@ export function useGetMyCustomerProfile(phone: string) {
     queryFn: async () => {
       if (!actor || !phone) return null;
       const result = await (actor as any).getMyCustomerProfileByPhone(phone);
-      return result.length > 0 ? result[0] : null;
+      return result ?? null;
     },
     enabled: !!actor && !isFetching && !!phone,
-    staleTime: 5 * 60 * 1000,
-    retry: 5,
-    retryDelay: (attempt) => Math.min(5000 * (attempt + 1), 25000),
   });
 }
 

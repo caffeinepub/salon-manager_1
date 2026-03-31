@@ -108,6 +108,7 @@ interface Props {
 }
 
 export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
+  const { actor, isFetching: actorFetching } = useActor();
   const { data: profile, isLoading: profileLoading } =
     useGetMyCustomerProfile(phone);
   const [profileSaved, setProfileSaved] = useState(false);
@@ -119,8 +120,11 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
     }
   }, []);
 
-  // Profile confirmed missing (not loading) — show setup form
-  if (!profileLoading && !profile && !profileSaved) {
+  // Wait for actor before deciding if profile exists — prevent false "profile missing" flash
+  const actorReady = !!actor && !actorFetching;
+
+  // Profile confirmed missing (not loading, actor ready) — show setup form
+  if (actorReady && !profileLoading && !profile && !profileSaved) {
     return (
       <ProfileSetupForm
         phone={phone}

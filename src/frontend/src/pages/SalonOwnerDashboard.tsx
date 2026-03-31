@@ -18,7 +18,6 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import SalonLoadingScreen from "../components/SalonLoadingScreen";
-import { useActor } from "../hooks/useActor";
 import type { SalonWithId } from "../hooks/useQueries";
 import {
   useAddSalonService,
@@ -88,6 +87,7 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   const today = getTodayString();
   const { data: earnings } = useGetOwnerRevenueSummary(phone);
   const [nullRetryCount, setNullRetryCount] = useState(0);
+  // 12 retries x 10s = 2 minutes total wait for ICP cold start
   const MAX_NULL_RETRIES = 12;
 
   // Auto-retry when backend returns null (cold start returns null, not error)
