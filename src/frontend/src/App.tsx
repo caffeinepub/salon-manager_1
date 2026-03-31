@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from "react";
+import { Toaster } from "sonner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import MobileLoginPage from "./components/MobileLoginPage";
 import RoleSelect from "./components/RoleSelect";
@@ -68,7 +69,8 @@ function isAdminRoute(): boolean {
   );
 }
 
-export default function App() {
+// Separate component so <Toaster /> is always mounted at the root
+function AppContent() {
   const [session, setSession] = useState<Session | null>(() => getSession());
   const [pendingRole, setPendingRole] = useState<AppRole | null>(null);
   const [adminSession, setAdminSession] = useState<boolean>(() =>
@@ -192,5 +194,15 @@ export default function App() {
         setSession(getSession());
       }}
     />
+  );
+}
+
+export default function App() {
+  return (
+    <>
+      {/* Toaster is here in App.tsx so it NEVER disappears after rebuilds */}
+      <Toaster richColors position="top-center" duration={3000} />
+      <AppContent />
+    </>
   );
 }
