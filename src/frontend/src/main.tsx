@@ -29,7 +29,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
     <InternetIdentityProvider>
       <App />
-      <Toaster richColors position="top-center" />
+      <Toaster richColors position="top-center" duration={3000} />
     </InternetIdentityProvider>
   </QueryClientProvider>,
 );
