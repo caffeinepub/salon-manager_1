@@ -4,7 +4,9 @@ import type {
   AppointmentWithId,
   CustomerProfile,
   DashboardStats,
+  QueueScheduleEntry,
   SalonWithId,
+  ServiceSession,
   ServiceWithId,
 } from "../backend";
 import { useActor } from "./useActor";
@@ -18,7 +20,9 @@ export type AppointmentStatus =
 
 export type {
   DashboardStats,
+  QueueScheduleEntry,
   SalonWithId,
+  ServiceSession,
   ServiceWithId,
   AppointmentWithId,
   CustomerProfile,
@@ -344,8 +348,6 @@ export function useRegisterSalon(phone: string) {
         salonPhone,
         city,
       );
-      // ICP backend returns {ok: ...} or {err: "..."}
-      // If err variant is returned, it is NOT a thrown exception — we must check manually
       if (result && typeof result === "object" && "err" in result) {
         throw new Error(String(result.err));
       }
@@ -498,6 +500,122 @@ export function useGetOwnerRevenueSummary(phone: string) {
     },
     enabled: !!actor && !isFetching && !!phone,
     refetchInterval: 60000,
+  });
+}
+
+// ============================================================
+// Timer / Notification System hooks
+// ============================================================
+
+export function useStartServiceSession(ownerPhone: string) {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      appointmentId,
+      durationMinutes,
+    }: { appointmentId: bigint; durationMinutes: number }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.startServiceSession(
+        ownerPhone,
+        appointmentId,
+        BigInt(durationMinutes),
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["serviceSession"] });
+    },
+  });
+}
+
+export function useGetCurrentServiceSession(
+  salonId: bigint | null | undefined,
+) {
+  const { actor, isFetching } = useActor();
+  return useQuery<ServiceSession | null>({
+    queryKey: ["serviceSession", salonId?.toString()],
+    queryFn: async () => {
+      if (!actor || !salonId) return null;
+      const result = await actor.getCurrentServiceSession(salonId);
+      return result ?? null;
+    },
+    enabled: !!actor && !isFetching && !!salonId,
+    refetchInterval: 30000,
+  });
+}
+
+export function useGetQueueScheduleForSalon(
+  salonId: bigint | null | undefined,
+  date: string,
+) {
+  const { actor, isFetching } = useActor();
+  return useQuery<QueueScheduleEntry[]>({
+    queryKey: ["queueSchedule", salonId?.toString(), date],
+    queryFn: async () => {
+      if (!actor || !salonId) return [];
+      return actor.getQueueScheduleForSalon(salonId, date);
+    },
+    enabled: !!actor && !isFetching && !!salonId,
+    refetchInterval: 30000,
+  });
+}
+
+export function useGetPendingNotifications(
+  salonId: bigint | null | undefined,
+  date: string,
+) {
+  const { actor, isFetching } = useActor();
+  return useQuery<bigint[]>({
+    queryKey: ["pendingNotifications", salonId?.toString(), date],
+    queryFn: async () => {
+      if (!actor || !salonId) return [];
+      return actor.getPendingNotifications(salonId, date);
+    },
+    enabled: !!actor && !isFetching && !!salonId,
+    refetchInterval: 30000,
+  });
+}
+
+export function useMarkNotificationSent(ownerPhone: string) {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (appointmentId: bigint) => {
+      if (!actor) throw new Error("No actor");
+      return actor.markNotificationSent(ownerPhone, appointmentId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pendingNotifications"] });
+    },
+  });
+}
+
+export function useSavePushSubscription() {
+  const { actor } = useActor();
+  return useMutation({
+    mutationFn: async ({
+      phone,
+      endpoint,
+      p256dh,
+      auth,
+    }: { phone: string; endpoint: string; p256dh: string; auth: string }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.savePushSubscription(phone, endpoint, p256dh, auth);
+    },
+  });
+}
+
+export function useClearServiceSession(ownerPhone: string) {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!actor) throw new Error("No actor");
+      return actor.clearServiceSession(ownerPhone);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["serviceSession"] });
+    },
   });
 }
 

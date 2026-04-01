@@ -39,6 +39,7 @@ import {
   useGetQueueInfo,
   useGetSalonServices,
   useSaveCustomerProfile,
+  useSavePushSubscription,
 } from "../hooks/useQueries";
 
 // ─── Rating localStorage helpers ───────────────────────────────────────────
@@ -114,11 +115,82 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
   const [profileSaved, setProfileSaved] = useState(false);
   const [savedProfileName, setSavedProfileName] = useState<string>("");
 
+  const { mutate: savePushSub } = useSavePushSubscription();
+
   useEffect(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission().catch(() => {});
-    }
-  }, []);
+    if (!("Notification" in window)) return;
+    const doSubscribe = async () => {
+      if (Notification.permission === "default") {
+        await Notification.requestPermission().catch(() => {});
+      }
+      if (Notification.permission !== "granted") return;
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const existing = await reg.pushManager.getSubscription();
+        const sub =
+          existing ??
+          (await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey:
+              "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBkYIAgAJALeV3pcuogE",
+          }));
+        if (!sub) return;
+        const p256dhKey = sub.getKey("p256dh");
+        const authKey = sub.getKey("auth");
+        if (!p256dhKey || !authKey) return;
+        const toBase64 = (buf: ArrayBuffer) => {
+          const bytes = new Uint8Array(buf);
+          let bin = "";
+          for (let i = 0; i < bytes.byteLength; i++)
+            bin += String.fromCharCode(bytes[i]);
+          return btoa(bin);
+        };
+        savePushSub({
+          phone,
+          endpoint: sub.endpoint,
+          p256dh: toBase64(p256dhKey),
+          auth: toBase64(authKey),
+        });
+      } catch {
+        // Push not supported or denied — silently skip
+      }
+    };
+    doSubscribe();
+  }, [phone, savePushSub]);
+
+  // Polling: check if any appointment is within 20 minutes (queue wait <= 20 min)
+  const { actor: actorForPoll } = useActor();
+  useEffect(() => {
+    if (!actorForPoll) return;
+    const checkQueue = async () => {
+      try {
+        const appts = (await (actorForPoll as any).getMyAppointmentsByPhone(
+          phone,
+        )) as Array<any>;
+        const active = appts.filter(
+          (a: any) => a.status === "confirmed" || a.status === "inprogress",
+        );
+        for (const appt of active) {
+          const info = (await actorForPoll.getQueueInfo(appt.id)) as [
+            bigint,
+            bigint,
+          ];
+          const waitMinutes = Number(info[1]);
+          if (waitMinutes <= 20 && waitMinutes > 0) {
+            toast.info(
+              "⏰ आपकी बारी 20 मिनट में है! सैलून के लिए निकलने की तैयारी करें",
+              { id: `queue-reminder-${appt.id.toString()}`, duration: 8000 },
+            );
+          }
+        }
+      } catch {
+        // silently ignore polling errors
+      }
+    };
+    const id = setInterval(checkQueue, 60000);
+    return () => clearInterval(id);
+  }, [phone, actorForPoll]);
 
   // Wait for actor before deciding if profile exists — prevent false "profile missing" flash
   const actorReady = !!actor && !actorFetching;

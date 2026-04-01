@@ -8,6 +8,22 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const AppointmentWithId = IDL.Record({
+  'id' : IDL.Nat,
+  'customerName' : IDL.Text,
+  'status' : IDL.Text,
+  'serviceName' : IDL.Text,
+  'customerPhone' : IDL.Text,
+  'date' : IDL.Text,
+  'createdAt' : IDL.Int,
+  'queueNumber' : IDL.Nat,
+  'servicePrice' : IDL.Float64,
+  'salonId' : IDL.Nat,
+});
+export const CustomerProfile = IDL.Record({
+  'name' : IDL.Text,
+  'phone' : IDL.Text,
+});
 export const SalonWithId = IDL.Record({
   'id' : IDL.Nat,
   'trialDays' : IDL.Nat,
@@ -20,6 +36,13 @@ export const SalonWithId = IDL.Record({
   'address' : IDL.Text,
   'phone' : IDL.Text,
   'trialStartDate' : IDL.Int,
+});
+export const ServiceWithId = IDL.Record({
+  'id' : IDL.Nat,
+  'name' : IDL.Text,
+  'durationMinutes' : IDL.Nat,
+  'price' : IDL.Float64,
+  'salonId' : IDL.Nat,
 });
 export const DashboardStats = IDL.Record({
   'total' : IDL.Nat,
@@ -37,21 +60,10 @@ export const UserRole = IDL.Variant({
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
-export const AppointmentWithId = IDL.Record({
-  'id' : IDL.Nat,
-  'customerName' : IDL.Text,
-  'status' : IDL.Text,
-  'serviceName' : IDL.Text,
-  'customerPhone' : IDL.Text,
-  'date' : IDL.Text,
-  'createdAt' : IDL.Int,
-  'queueNumber' : IDL.Nat,
-  'servicePrice' : IDL.Float64,
-  'salonId' : IDL.Nat,
-});
-export const CustomerProfile = IDL.Record({
-  'name' : IDL.Text,
-  'phone' : IDL.Text,
+export const ServiceSession = IDL.Record({
+  'startTime' : IDL.Int,
+  'durationMinutes' : IDL.Nat,
+  'appointmentId' : IDL.Nat,
 });
 export const OwnerRevenueSummary = IDL.Record({
   'monthlyEarnings' : IDL.Float64,
@@ -59,12 +71,17 @@ export const OwnerRevenueSummary = IDL.Record({
   'totalEarnings' : IDL.Float64,
   'totalAppointments' : IDL.Nat,
 });
-export const ServiceWithId = IDL.Record({
-  'id' : IDL.Nat,
-  'name' : IDL.Text,
-  'durationMinutes' : IDL.Nat,
-  'price' : IDL.Float64,
-  'salonId' : IDL.Nat,
+export const PushSubscription = IDL.Record({
+  'endpoint' : IDL.Text,
+  'auth' : IDL.Text,
+  'p256dh' : IDL.Text,
+});
+export const QueueScheduleEntry = IDL.Record({
+  'customerName' : IDL.Text,
+  'serviceName' : IDL.Text,
+  'estimatedStartTime' : IDL.Int,
+  'queueNumber' : IDL.Nat,
+  'appointmentId' : IDL.Nat,
 });
 
 export const idlService = IDL.Service({
@@ -75,9 +92,39 @@ export const idlService = IDL.Service({
       [],
     ),
   'adminApproveSalon' : IDL.Func([IDL.Nat], [], []),
+  'adminGetAllAppointmentsForBackup' : IDL.Func(
+      [],
+      [IDL.Vec(AppointmentWithId)],
+      ['query'],
+    ),
+  'adminGetAllCustomersForBackup' : IDL.Func(
+      [],
+      [IDL.Vec(CustomerProfile)],
+      ['query'],
+    ),
   'adminGetAllSalons' : IDL.Func([], [IDL.Vec(SalonWithId)], ['query']),
+  'adminGetAllSalonsForBackup' : IDL.Func(
+      [],
+      [IDL.Vec(SalonWithId)],
+      ['query'],
+    ),
+  'adminGetAllServicesForBackup' : IDL.Func(
+      [],
+      [IDL.Vec(ServiceWithId)],
+      ['query'],
+    ),
   'adminGetDashboardStats' : IDL.Func([], [DashboardStats], ['query']),
   'adminGetDefaultTrialDays' : IDL.Func([], [IDL.Nat], ['query']),
+  'adminGetNextIdsForBackup' : IDL.Func(
+      [],
+      [IDL.Nat, IDL.Nat, IDL.Nat],
+      ['query'],
+    ),
+  'adminGetOwnerPhoneMapForBackup' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Nat))],
+      ['query'],
+    ),
   'adminGetPendingSalons' : IDL.Func([], [IDL.Vec(SalonWithId)], ['query']),
   'adminGetRevenueStats' : IDL.Func([], [RevenueStats], ['query']),
   'adminGetSubscriptionPrice' : IDL.Func([], [IDL.Float64], ['query']),
@@ -85,8 +132,22 @@ export const idlService = IDL.Service({
   'adminPasswordIsSet' : IDL.Func([], [IDL.Bool], ['query']),
   'adminProcessTrialExpirations' : IDL.Func([], [IDL.Nat], []),
   'adminRejectSalon' : IDL.Func([IDL.Nat], [], []),
-  'adminSetDefaultTrialDays' : IDL.Func([IDL.Nat], [], []),
   'adminResetOwnerPassword' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+  'adminRestoreAllData' : IDL.Func(
+      [
+        IDL.Vec(SalonWithId),
+        IDL.Vec(ServiceWithId),
+        IDL.Vec(AppointmentWithId),
+        IDL.Vec(CustomerProfile),
+        IDL.Vec(IDL.Tuple(IDL.Text, IDL.Nat)),
+        IDL.Nat,
+        IDL.Nat,
+        IDL.Nat,
+      ],
+      [],
+      [],
+    ),
+  'adminSetDefaultTrialDays' : IDL.Func([IDL.Nat], [], []),
   'adminSetPassword' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
   'adminSetSalonActive' : IDL.Func([IDL.Nat, IDL.Bool], [], []),
   'adminSetSalonSubscription' : IDL.Func([IDL.Nat, IDL.Bool], [], []),
@@ -98,9 +159,15 @@ export const idlService = IDL.Service({
       [IDL.Nat],
       [],
     ),
+  'clearServiceSession' : IDL.Func([IDL.Text], [], []),
   'deleteSalonServiceByPhone' : IDL.Func([IDL.Text, IDL.Nat, IDL.Nat], [], []),
   'getAllActiveSalons' : IDL.Func([], [IDL.Vec(SalonWithId)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+  'getCurrentServiceSession' : IDL.Func(
+      [IDL.Nat],
+      [IDL.Opt(ServiceSession)],
+      ['query'],
+    ),
   'getMyAppointmentsByPhone' : IDL.Func(
       [IDL.Text],
       [IDL.Vec(AppointmentWithId)],
@@ -121,7 +188,22 @@ export const idlService = IDL.Service({
       [IDL.Opt(SalonWithId)],
       ['query'],
     ),
+  'getPendingNotifications' : IDL.Func(
+      [IDL.Nat, IDL.Text],
+      [IDL.Vec(IDL.Nat)],
+      [],
+    ),
+  'getPushSubscription' : IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Opt(PushSubscription)],
+      ['query'],
+    ),
   'getQueueInfo' : IDL.Func([IDL.Nat], [IDL.Nat, IDL.Nat], ['query']),
+  'getQueueScheduleForSalon' : IDL.Func(
+      [IDL.Nat, IDL.Text],
+      [IDL.Vec(QueueScheduleEntry)],
+      ['query'],
+    ),
   'getSalonAppointmentsForDateByPhone' : IDL.Func(
       [IDL.Text, IDL.Nat, IDL.Text],
       [IDL.Vec(AppointmentWithId)],
@@ -130,6 +212,7 @@ export const idlService = IDL.Service({
   'getSalonById' : IDL.Func([IDL.Nat], [IDL.Opt(SalonWithId)], ['query']),
   'getSalonServices' : IDL.Func([IDL.Nat], [IDL.Vec(ServiceWithId)], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'markNotificationSent' : IDL.Func([IDL.Text, IDL.Nat], [], []),
   'registerSalonByPhone' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Nat],
@@ -147,6 +230,12 @@ export const idlService = IDL.Service({
     ),
   'salonOwnerSetPassword' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
   'saveCustomerProfileByPhone' : IDL.Func([IDL.Text, IDL.Text], [], []),
+  'savePushSubscription' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
+  'startServiceSession' : IDL.Func([IDL.Text, IDL.Nat, IDL.Nat], [], []),
   'updateAppointmentStatusByPhone' : IDL.Func(
       [IDL.Text, IDL.Nat, IDL.Text],
       [],
@@ -162,6 +251,19 @@ export const idlService = IDL.Service({
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const AppointmentWithId = IDL.Record({
+    'id' : IDL.Nat,
+    'customerName' : IDL.Text,
+    'status' : IDL.Text,
+    'serviceName' : IDL.Text,
+    'customerPhone' : IDL.Text,
+    'date' : IDL.Text,
+    'createdAt' : IDL.Int,
+    'queueNumber' : IDL.Nat,
+    'servicePrice' : IDL.Float64,
+    'salonId' : IDL.Nat,
+  });
+  const CustomerProfile = IDL.Record({ 'name' : IDL.Text, 'phone' : IDL.Text });
   const SalonWithId = IDL.Record({
     'id' : IDL.Nat,
     'trialDays' : IDL.Nat,
@@ -174,6 +276,13 @@ export const idlFactory = ({ IDL }) => {
     'address' : IDL.Text,
     'phone' : IDL.Text,
     'trialStartDate' : IDL.Int,
+  });
+  const ServiceWithId = IDL.Record({
+    'id' : IDL.Nat,
+    'name' : IDL.Text,
+    'durationMinutes' : IDL.Nat,
+    'price' : IDL.Float64,
+    'salonId' : IDL.Nat,
   });
   const DashboardStats = IDL.Record({
     'total' : IDL.Nat,
@@ -191,31 +300,28 @@ export const idlFactory = ({ IDL }) => {
     'user' : IDL.Null,
     'guest' : IDL.Null,
   });
-  const AppointmentWithId = IDL.Record({
-    'id' : IDL.Nat,
-    'customerName' : IDL.Text,
-    'status' : IDL.Text,
-    'serviceName' : IDL.Text,
-    'customerPhone' : IDL.Text,
-    'date' : IDL.Text,
-    'createdAt' : IDL.Int,
-    'queueNumber' : IDL.Nat,
-    'servicePrice' : IDL.Float64,
-    'salonId' : IDL.Nat,
+  const ServiceSession = IDL.Record({
+    'startTime' : IDL.Int,
+    'durationMinutes' : IDL.Nat,
+    'appointmentId' : IDL.Nat,
   });
-  const CustomerProfile = IDL.Record({ 'name' : IDL.Text, 'phone' : IDL.Text });
   const OwnerRevenueSummary = IDL.Record({
     'monthlyEarnings' : IDL.Float64,
     'completedAppointments' : IDL.Nat,
     'totalEarnings' : IDL.Float64,
     'totalAppointments' : IDL.Nat,
   });
-  const ServiceWithId = IDL.Record({
-    'id' : IDL.Nat,
-    'name' : IDL.Text,
-    'durationMinutes' : IDL.Nat,
-    'price' : IDL.Float64,
-    'salonId' : IDL.Nat,
+  const PushSubscription = IDL.Record({
+    'endpoint' : IDL.Text,
+    'auth' : IDL.Text,
+    'p256dh' : IDL.Text,
+  });
+  const QueueScheduleEntry = IDL.Record({
+    'customerName' : IDL.Text,
+    'serviceName' : IDL.Text,
+    'estimatedStartTime' : IDL.Int,
+    'queueNumber' : IDL.Nat,
+    'appointmentId' : IDL.Nat,
   });
   
   return IDL.Service({
@@ -226,9 +332,39 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'adminApproveSalon' : IDL.Func([IDL.Nat], [], []),
+    'adminGetAllAppointmentsForBackup' : IDL.Func(
+        [],
+        [IDL.Vec(AppointmentWithId)],
+        ['query'],
+      ),
+    'adminGetAllCustomersForBackup' : IDL.Func(
+        [],
+        [IDL.Vec(CustomerProfile)],
+        ['query'],
+      ),
     'adminGetAllSalons' : IDL.Func([], [IDL.Vec(SalonWithId)], ['query']),
+    'adminGetAllSalonsForBackup' : IDL.Func(
+        [],
+        [IDL.Vec(SalonWithId)],
+        ['query'],
+      ),
+    'adminGetAllServicesForBackup' : IDL.Func(
+        [],
+        [IDL.Vec(ServiceWithId)],
+        ['query'],
+      ),
     'adminGetDashboardStats' : IDL.Func([], [DashboardStats], ['query']),
     'adminGetDefaultTrialDays' : IDL.Func([], [IDL.Nat], ['query']),
+    'adminGetNextIdsForBackup' : IDL.Func(
+        [],
+        [IDL.Nat, IDL.Nat, IDL.Nat],
+        ['query'],
+      ),
+    'adminGetOwnerPhoneMapForBackup' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Nat))],
+        ['query'],
+      ),
     'adminGetPendingSalons' : IDL.Func([], [IDL.Vec(SalonWithId)], ['query']),
     'adminGetRevenueStats' : IDL.Func([], [RevenueStats], ['query']),
     'adminGetSubscriptionPrice' : IDL.Func([], [IDL.Float64], ['query']),
@@ -236,8 +372,22 @@ export const idlFactory = ({ IDL }) => {
     'adminPasswordIsSet' : IDL.Func([], [IDL.Bool], ['query']),
     'adminProcessTrialExpirations' : IDL.Func([], [IDL.Nat], []),
     'adminRejectSalon' : IDL.Func([IDL.Nat], [], []),
-    'adminSetDefaultTrialDays' : IDL.Func([IDL.Nat], [], []),
     'adminResetOwnerPassword' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+    'adminRestoreAllData' : IDL.Func(
+        [
+          IDL.Vec(SalonWithId),
+          IDL.Vec(ServiceWithId),
+          IDL.Vec(AppointmentWithId),
+          IDL.Vec(CustomerProfile),
+          IDL.Vec(IDL.Tuple(IDL.Text, IDL.Nat)),
+          IDL.Nat,
+          IDL.Nat,
+          IDL.Nat,
+        ],
+        [],
+        [],
+      ),
+    'adminSetDefaultTrialDays' : IDL.Func([IDL.Nat], [], []),
     'adminSetPassword' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
     'adminSetSalonActive' : IDL.Func([IDL.Nat, IDL.Bool], [], []),
     'adminSetSalonSubscription' : IDL.Func([IDL.Nat, IDL.Bool], [], []),
@@ -249,6 +399,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Nat],
         [],
       ),
+    'clearServiceSession' : IDL.Func([IDL.Text], [], []),
     'deleteSalonServiceByPhone' : IDL.Func(
         [IDL.Text, IDL.Nat, IDL.Nat],
         [],
@@ -256,6 +407,11 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getAllActiveSalons' : IDL.Func([], [IDL.Vec(SalonWithId)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+    'getCurrentServiceSession' : IDL.Func(
+        [IDL.Nat],
+        [IDL.Opt(ServiceSession)],
+        ['query'],
+      ),
     'getMyAppointmentsByPhone' : IDL.Func(
         [IDL.Text],
         [IDL.Vec(AppointmentWithId)],
@@ -276,7 +432,22 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Opt(SalonWithId)],
         ['query'],
       ),
+    'getPendingNotifications' : IDL.Func(
+        [IDL.Nat, IDL.Text],
+        [IDL.Vec(IDL.Nat)],
+        [],
+      ),
+    'getPushSubscription' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Opt(PushSubscription)],
+        ['query'],
+      ),
     'getQueueInfo' : IDL.Func([IDL.Nat], [IDL.Nat, IDL.Nat], ['query']),
+    'getQueueScheduleForSalon' : IDL.Func(
+        [IDL.Nat, IDL.Text],
+        [IDL.Vec(QueueScheduleEntry)],
+        ['query'],
+      ),
     'getSalonAppointmentsForDateByPhone' : IDL.Func(
         [IDL.Text, IDL.Nat, IDL.Text],
         [IDL.Vec(AppointmentWithId)],
@@ -289,6 +460,7 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+    'markNotificationSent' : IDL.Func([IDL.Text, IDL.Nat], [], []),
     'registerSalonByPhone' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Nat],
@@ -306,6 +478,12 @@ export const idlFactory = ({ IDL }) => {
       ),
     'salonOwnerSetPassword' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
     'saveCustomerProfileByPhone' : IDL.Func([IDL.Text, IDL.Text], [], []),
+    'savePushSubscription' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
+    'startServiceSession' : IDL.Func([IDL.Text, IDL.Nat, IDL.Nat], [], []),
     'updateAppointmentStatusByPhone' : IDL.Func(
         [IDL.Text, IDL.Nat, IDL.Text],
         [],

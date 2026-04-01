@@ -35,6 +35,18 @@ export interface OwnerRevenueSummary {
   'totalEarnings' : number,
   'totalAppointments' : bigint,
 }
+export interface PushSubscription {
+  'endpoint' : string,
+  'auth' : string,
+  'p256dh' : string,
+}
+export interface QueueScheduleEntry {
+  'customerName' : string,
+  'serviceName' : string,
+  'estimatedStartTime' : bigint,
+  'queueNumber' : bigint,
+  'appointmentId' : bigint,
+}
 export interface RevenueStats {
   'perSalon' : Array<[bigint, string, number]>,
   'totalRevenue' : number,
@@ -53,6 +65,11 @@ export interface SalonWithId {
   'phone' : string,
   'trialStartDate' : bigint,
 }
+export interface ServiceSession {
+  'startTime' : bigint,
+  'durationMinutes' : bigint,
+  'appointmentId' : bigint,
+}
 export interface ServiceWithId {
   'id' : bigint,
   'name' : string,
@@ -70,17 +87,39 @@ export interface _SERVICE {
     bigint
   >,
   'adminApproveSalon' : ActorMethod<[bigint], undefined>,
+  'adminGetAllAppointmentsForBackup' : ActorMethod<
+    [],
+    Array<AppointmentWithId>
+  >,
+  'adminGetAllCustomersForBackup' : ActorMethod<[], Array<CustomerProfile>>,
   'adminGetAllSalons' : ActorMethod<[], Array<SalonWithId>>,
+  'adminGetAllSalonsForBackup' : ActorMethod<[], Array<SalonWithId>>,
+  'adminGetAllServicesForBackup' : ActorMethod<[], Array<ServiceWithId>>,
   'adminGetDashboardStats' : ActorMethod<[], DashboardStats>,
   'adminGetDefaultTrialDays' : ActorMethod<[], bigint>,
+  'adminGetNextIdsForBackup' : ActorMethod<[], [bigint, bigint, bigint]>,
+  'adminGetOwnerPhoneMapForBackup' : ActorMethod<[], Array<[string, bigint]>>,
   'adminGetPendingSalons' : ActorMethod<[], Array<SalonWithId>>,
   'adminGetRevenueStats' : ActorMethod<[], RevenueStats>,
   'adminGetSubscriptionPrice' : ActorMethod<[], number>,
   'adminLogin' : ActorMethod<[string, string], boolean>,
   'adminPasswordIsSet' : ActorMethod<[], boolean>,
-  'adminResetOwnerPassword' : ActorMethod<[string, string], boolean>,
   'adminProcessTrialExpirations' : ActorMethod<[], bigint>,
   'adminRejectSalon' : ActorMethod<[bigint], undefined>,
+  'adminResetOwnerPassword' : ActorMethod<[string, string], boolean>,
+  'adminRestoreAllData' : ActorMethod<
+    [
+      Array<SalonWithId>,
+      Array<ServiceWithId>,
+      Array<AppointmentWithId>,
+      Array<CustomerProfile>,
+      Array<[string, bigint]>,
+      bigint,
+      bigint,
+      bigint,
+    ],
+    undefined
+  >,
   'adminSetDefaultTrialDays' : ActorMethod<[bigint], undefined>,
   'adminSetPassword' : ActorMethod<[string, string], boolean>,
   'adminSetSalonActive' : ActorMethod<[bigint, boolean], undefined>,
@@ -92,17 +131,28 @@ export interface _SERVICE {
     [string, bigint, string, string, string],
     bigint
   >,
+  'clearServiceSession' : ActorMethod<[string], undefined>,
   'deleteSalonServiceByPhone' : ActorMethod<
     [string, bigint, bigint],
     undefined
   >,
   'getAllActiveSalons' : ActorMethod<[], Array<SalonWithId>>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
+  'getCurrentServiceSession' : ActorMethod<[bigint], [] | [ServiceSession]>,
   'getMyAppointmentsByPhone' : ActorMethod<[string], Array<AppointmentWithId>>,
   'getMyCustomerProfileByPhone' : ActorMethod<[string], [] | [CustomerProfile]>,
   'getOwnerRevenueSummaryByPhone' : ActorMethod<[string], OwnerRevenueSummary>,
   'getOwnerSalonByPhone' : ActorMethod<[string], [] | [SalonWithId]>,
+  'getPendingNotifications' : ActorMethod<[bigint, string], Array<bigint>>,
+  'getPushSubscription' : ActorMethod<
+    [string, string],
+    [] | [PushSubscription]
+  >,
   'getQueueInfo' : ActorMethod<[bigint], [bigint, bigint]>,
+  'getQueueScheduleForSalon' : ActorMethod<
+    [bigint, string],
+    Array<QueueScheduleEntry>
+  >,
   'getSalonAppointmentsForDateByPhone' : ActorMethod<
     [string, bigint, string],
     Array<AppointmentWithId>
@@ -110,14 +160,26 @@ export interface _SERVICE {
   'getSalonById' : ActorMethod<[bigint], [] | [SalonWithId]>,
   'getSalonServices' : ActorMethod<[bigint], Array<ServiceWithId>>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
+  'markNotificationSent' : ActorMethod<[string, bigint], undefined>,
   'registerSalonByPhone' : ActorMethod<
     [string, string, string, string, string],
     bigint
   >,
-  'salonOwnerLogin' : ActorMethod<[string, string], [string, [] | [SalonWithId]]>,
-  'salonOwnerRegisterV2' : ActorMethod<[string, string, Array<string>, string], string>,
+  'salonOwnerLogin' : ActorMethod<
+    [string, string],
+    [string, [] | [SalonWithId]]
+  >,
+  'salonOwnerRegisterV2' : ActorMethod<
+    [string, string, Array<string>, string],
+    string
+  >,
   'salonOwnerSetPassword' : ActorMethod<[string, string], boolean>,
   'saveCustomerProfileByPhone' : ActorMethod<[string, string], undefined>,
+  'savePushSubscription' : ActorMethod<
+    [string, string, string, string],
+    undefined
+  >,
+  'startServiceSession' : ActorMethod<[string, bigint, bigint], undefined>,
   'updateAppointmentStatusByPhone' : ActorMethod<
     [string, bigint, string],
     undefined

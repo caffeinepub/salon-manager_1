@@ -17,15 +17,22 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import OwnerEarningsGraph, {
+  storeTodayEarnings,
+} from "../components/OwnerEarningsGraph";
 import SalonLoadingScreen from "../components/SalonLoadingScreen";
-import type { SalonWithId } from "../hooks/useQueries";
+import SalonTimerWidget from "../components/SalonTimerWidget";
+import StaffManager from "../components/StaffManager";
+import type { AppointmentWithId, SalonWithId } from "../hooks/useQueries";
 import {
   useAddSalonService,
+  useClearServiceSession,
   useDeleteSalonService,
   useGetMySalon,
   useGetOwnerRevenueSummary,
   useGetSalonAppointmentsForDate,
   useGetSalonServices,
+  useStartServiceSession,
   useUpdateAppointmentStatus,
   useUpdateMySalon,
 } from "../hooks/useQueries";
@@ -85,6 +92,11 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
     refetch: refetchSalon,
   } = useGetMySalon(phone);
   const today = getTodayString();
+  const { data: todayAppts = [] } = useGetSalonAppointmentsForDate(
+    phone,
+    salon?.id ?? null,
+    today,
+  );
   const { data: earnings } = useGetOwnerRevenueSummary(phone);
   const [nullRetryCount, setNullRetryCount] = useState(0);
   // 12 retries x 10s = 2 minutes total wait for ICP cold start
@@ -387,7 +399,7 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
       </header>
 
       <main className="max-w-2xl mx-auto p-4">
-        {/* Earnings Cards */}
+        {/* Quick earnings summary - moved to Earnings tab */}
         {earnings && (
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div
@@ -421,7 +433,7 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
                 className="text-xs mb-1"
                 style={{ color: "oklch(0.6 0.05 145)" }}
               >
-                इस माह आमदनी
+                इस माह
               </p>
               <p
                 className="text-lg font-bold"
@@ -430,68 +442,59 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
                 ₹{earnings.monthlyEarnings.toFixed(0)}
               </p>
             </div>
-            <div
-              className="rounded-xl p-3"
-              style={{
-                background: "oklch(0.18 0.05 155)",
-                border: "1px solid oklch(0.25 0.05 155)",
-              }}
-            >
-              <p
-                className="text-xs mb-1"
-                style={{ color: "oklch(0.6 0.05 145)" }}
-              >
-                कुल अपॉइंटमेंट
-              </p>
-              <p
-                className="text-lg font-bold"
-                style={{ color: "oklch(0.95 0.02 145)" }}
-              >
-                {String(earnings.totalAppointments)}
-              </p>
-            </div>
-            <div
-              className="rounded-xl p-3"
-              style={{
-                background: "oklch(0.18 0.05 155)",
-                border: "1px solid oklch(0.25 0.05 155)",
-              }}
-            >
-              <p
-                className="text-xs mb-1"
-                style={{ color: "oklch(0.6 0.05 145)" }}
-              >
-                पूरे हुए
-              </p>
-              <p
-                className="text-lg font-bold"
-                style={{ color: "oklch(0.95 0.02 145)" }}
-              >
-                {String(earnings.completedAppointments)}
-              </p>
-            </div>
           </div>
         )}
 
+        <SalonTimerWidget
+          ownerPhone={phone}
+          salonId={salon.id}
+          todayAppointments={todayAppts}
+          today={today}
+        />
+
         <Tabs defaultValue="queue">
-          <TabsList
-            className="w-full mb-4"
-            style={{ background: "oklch(0.18 0.05 155)" }}
-          >
-            <TabsTrigger value="queue" className="flex-1" data-ocid="salon.tab">
-              आज की Queue
-            </TabsTrigger>
-            <TabsTrigger
-              value="services"
-              className="flex-1"
-              data-ocid="salon.tab"
+          <div className="overflow-x-auto">
+            <TabsList
+              className="w-full mb-4 flex min-w-max"
+              style={{ background: "oklch(0.18 0.05 155)" }}
             >
-              सेवाएं
-            </TabsTrigger>
-            <TabsTrigger value="info" className="flex-1" data-ocid="salon.tab">
-              जानकारी
-            </TabsTrigger>
-          </TabsList>
+              <TabsTrigger
+                value="queue"
+                className="flex-1 text-xs"
+                data-ocid="salon.tab"
+              >
+                Queue
+              </TabsTrigger>
+              <TabsTrigger
+                value="services"
+                className="flex-1 text-xs"
+                data-ocid="salon.tab"
+              >
+                सेवाएं
+              </TabsTrigger>
+              <TabsTrigger
+                value="earnings"
+                className="flex-1 text-xs"
+                data-ocid="salon.tab"
+              >
+                कमाई
+              </TabsTrigger>
+              <TabsTrigger
+                value="staff"
+                className="flex-1 text-xs"
+                data-ocid="salon.tab"
+              >
+                स्टाफ
+              </TabsTrigger>
+              <TabsTrigger
+                value="info"
+                className="flex-1 text-xs"
+                data-ocid="salon.tab"
+              >
+                जानकारी
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="queue">
             <QueueTab phone={phone} salonId={salon.id} today={today} />
@@ -499,6 +502,19 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
 
           <TabsContent value="services">
             <ServicesTab phone={phone} salonId={salon.id} />
+          </TabsContent>
+
+          <TabsContent value="earnings">
+            <EarningsTab
+              phone={phone}
+              salonId={salon.id}
+              todayAppts={todayAppts}
+              earnings={earnings}
+            />
+          </TabsContent>
+
+          <TabsContent value="staff">
+            <StaffManager salonId={salon.id} />
           </TabsContent>
 
           <TabsContent value="info">
@@ -525,6 +541,58 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   );
 }
 
+function EarningsTab({
+  phone: _phone,
+  salonId,
+  todayAppts,
+  earnings,
+}: {
+  phone: string;
+  salonId: bigint;
+  todayAppts: AppointmentWithId[];
+  earnings:
+    | {
+        totalEarnings: number;
+        monthlyEarnings: number;
+        totalAppointments: bigint;
+        completedAppointments: bigint;
+      }
+    | undefined;
+}) {
+  const { data: services = [] } = useGetSalonServices(salonId);
+
+  // Store today's earnings in localStorage whenever appointments or services are loaded
+  if (todayAppts.length > 0 && services.length > 0) {
+    storeTodayEarnings(
+      salonId,
+      todayAppts,
+      services.map((s) => ({ name: s.name, price: s.price })),
+    );
+  }
+
+  if (!earnings) {
+    return (
+      <div
+        className="text-center py-10"
+        style={{ color: "oklch(0.6 0.05 145)" }}
+      >
+        लोड हो रहा है...
+      </div>
+    );
+  }
+
+  return (
+    <OwnerEarningsGraph
+      salonId={salonId}
+      totalEarnings={earnings.totalEarnings}
+      monthlyEarnings={earnings.monthlyEarnings}
+      totalAppointments={Number(earnings.totalAppointments)}
+      completedAppointments={Number(earnings.completedAppointments)}
+      todayAppts={todayAppts}
+    />
+  );
+}
+
 function QueueTab({
   phone,
   salonId,
@@ -536,6 +604,8 @@ function QueueTab({
     refetch,
   } = useGetSalonAppointmentsForDate(phone, salonId, today);
   const { mutate: updateStatus, isPending } = useUpdateAppointmentStatus(phone);
+  const { mutate: startSession } = useStartServiceSession(phone);
+  const { mutate: clearSession } = useClearServiceSession(phone);
 
   const sorted = [...appointments].sort(
     (a, b) => Number(a.queueNumber) - Number(b.queueNumber),
@@ -624,20 +694,31 @@ function QueueTab({
                   className="flex-1 text-xs"
                   disabled={isPending}
                   data-ocid="queue.primary_button"
-                  onClick={() =>
+                  onClick={() => {
+                    const nextStatus = STATUS_NEXT[appt.status];
                     updateStatus(
                       {
                         appointmentId: appt.id,
-                        newStatus: STATUS_NEXT[appt.status],
+                        newStatus: nextStatus,
                         salonId,
                         date: today,
                       },
                       {
-                        onSuccess: () => toast.success("स्टेटस बदल गया"),
+                        onSuccess: () => {
+                          toast.success("स्टेटस बदल गया");
+                          if (nextStatus === "inprogress") {
+                            startSession(
+                              { appointmentId: appt.id, durationMinutes: 30 },
+                              { onError: () => {} },
+                            );
+                          } else if (nextStatus === "completed") {
+                            clearSession(undefined, { onError: () => {} });
+                          }
+                        },
                         onError: () => toast.error("कुछ गलत हुआ"),
                       },
-                    )
-                  }
+                    );
+                  }}
                   style={{ background: "oklch(0.52 0.18 145)", color: "white" }}
                 >
                   {STATUS_NEXT_LABEL[appt.status]}

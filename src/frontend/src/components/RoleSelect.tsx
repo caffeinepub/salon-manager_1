@@ -1,15 +1,58 @@
-import { Scissors, User } from "lucide-react";
-import { motion } from "motion/react";
+import { Download, Scissors, User, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useState } from "react";
 import type { AppRole } from "../App";
 
 interface Props {
   onSelect: (role: AppRole) => void;
 }
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
 export default function RoleSelect({ onSelect }: Props) {
+  const [installPrompt, setInstallPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setIsInstalled(true);
+      return;
+    }
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (installPrompt) {
+      setInstalling(true);
+      try {
+        await installPrompt.prompt();
+        const { outcome } = await installPrompt.userChoice;
+        if (outcome === "accepted") {
+          setIsInstalled(true);
+          setInstallPrompt(null);
+        }
+      } finally {
+        setInstalling(false);
+      }
+    } else {
+      setShowGuide(true);
+    }
+  };
+
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center p-6"
+      className="min-h-screen flex flex-col items-center justify-center p-6 pb-28"
       style={{
         background:
           "linear-gradient(135deg, oklch(0.22 0.05 155) 0%, oklch(0.35 0.12 155) 100%)",
@@ -27,7 +70,9 @@ export default function RoleSelect({ onSelect }: Props) {
         >
           <Scissors className="w-8 h-8 text-white" />
         </div>
-        <h1 className="font-display text-4xl font-bold text-white">Salon360</h1>
+        <h1 className="font-display text-4xl font-bold text-white">
+          Salon360Pro
+        </h1>
         <p className="mt-2 text-white/70 text-base">
           भारत का #1 सैलून मैनेजमेंट प्लेटफ़ॉर्म
         </p>
@@ -116,6 +161,106 @@ export default function RoleSelect({ onSelect }: Props) {
           caffeine.ai
         </a>
       </motion.p>
+
+      {/* Permanent Install Button — only on this first page, hides after install */}
+      {!isInstalled && (
+        <div
+          className="fixed bottom-0 left-0 right-0 p-4 z-50"
+          style={{
+            background:
+              "linear-gradient(to top, oklch(0.18 0.05 155) 60%, transparent)",
+          }}
+        >
+          <motion.button
+            type="button"
+            data-ocid="role_select.install.button"
+            onClick={handleInstall}
+            disabled={installing}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.8 }}
+            className="w-full max-w-md mx-auto flex items-center justify-center gap-3 text-white font-semibold text-base py-4 rounded-2xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
+            style={{
+              background: "oklch(0.52 0.18 145)",
+              boxShadow: "0 4px 24px oklch(0.52 0.18 145 / 0.5)",
+              display: "flex",
+            }}
+          >
+            {installing ? (
+              <span className="w-5 h-5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+            ) : (
+              <Download className="w-5 h-5" />
+            )}
+            <span>{installing ? "इंस्टॉल हो रहा है..." : "📲 ऐप इंस्टॉल करें"}</span>
+          </motion.button>
+        </div>
+      )}
+
+      {/* Install Guide Modal */}
+      <AnimatePresence>
+        {showGuide && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.6)" }}
+            onClick={() => setShowGuide(false)}
+          >
+            <motion.div
+              initial={{ y: 100 }}
+              animate={{ y: 0 }}
+              exit={{ y: 100 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-2xl p-5 space-y-4"
+              style={{ background: "oklch(0.18 0.05 155)" }}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-bold text-lg">📲 ऐप इंस्टॉल करें</h3>
+                <button type="button" onClick={() => setShowGuide(false)}>
+                  <X className="w-5 h-5 text-white/60" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                <div
+                  className="rounded-xl p-3"
+                  style={{ background: "oklch(0.24 0.05 155)" }}
+                >
+                  <p className="text-white font-semibold text-sm mb-1">
+                    Android (Chrome)
+                  </p>
+                  <ol className="text-white/70 text-xs space-y-1 list-decimal list-inside">
+                    <li>Chrome में ऊपर 3 dots (⋮) दबाएं</li>
+                    <li>"Add to Home Screen" दबाएं</li>
+                    <li>"Add" / "Install" confirm करें</li>
+                  </ol>
+                </div>
+                <div
+                  className="rounded-xl p-3"
+                  style={{ background: "oklch(0.24 0.05 155)" }}
+                >
+                  <p className="text-white font-semibold text-sm mb-1">
+                    iPhone (Safari)
+                  </p>
+                  <ol className="text-white/70 text-xs space-y-1 list-decimal list-inside">
+                    <li>Safari में नीचे Share button दबाएं</li>
+                    <li>"Add to Home Screen" दबाएं</li>
+                    <li>"Add" दबाएं</li>
+                  </ol>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGuide(false)}
+                className="w-full py-3 rounded-xl text-white font-semibold"
+                style={{ background: "oklch(0.52 0.18 145)" }}
+              >
+                ठीक है
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

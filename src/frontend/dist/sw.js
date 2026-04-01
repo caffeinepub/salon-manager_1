@@ -1,4 +1,4 @@
-const CACHE_NAME = 'salon360-v2';
+const CACHE_NAME = 'salon360pro-v1';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -54,5 +54,34 @@ self.addEventListener('fetch', (event) => {
         return res;
       })
       .catch(() => caches.match(event.request).then((c) => c || caches.match('/')))
+  );
+});
+
+// ── Push Notification Handler ────────────────────────────────────────────────
+self.addEventListener('push', (event) => {
+  const data = event.data ? event.data.json() : {};
+  const title = data.title || 'salon360Pro';
+  const body = data.body || 'आपकी बारी आने वाली है!';
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: '/assets/generated/icon-192.dim_192x192.png',
+      badge: '/assets/generated/icon-192.dim_192x192.png',
+      tag: data.tag || 'salon-notification',
+      requireInteraction: true,
+      data: data
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url && 'focus' in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow('/');
+    })
   );
 });

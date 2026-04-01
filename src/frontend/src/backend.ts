@@ -89,6 +89,18 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface AppointmentWithId {
+    id: bigint;
+    customerName: string;
+    status: string;
+    serviceName: string;
+    customerPhone: string;
+    date: string;
+    createdAt: bigint;
+    queueNumber: bigint;
+    servicePrice: number;
+    salonId: bigint;
+}
 export interface SalonWithId {
     id: bigint;
     trialDays: bigint;
@@ -102,11 +114,17 @@ export interface SalonWithId {
     phone: string;
     trialStartDate: bigint;
 }
-export interface OwnerRevenueSummary {
-    monthlyEarnings: number;
-    completedAppointments: bigint;
-    totalEarnings: number;
-    totalAppointments: bigint;
+export interface PushSubscription {
+    endpoint: string;
+    auth: string;
+    p256dh: string;
+}
+export interface QueueScheduleEntry {
+    customerName: string;
+    serviceName: string;
+    estimatedStartTime: bigint;
+    queueNumber: bigint;
+    appointmentId: bigint;
 }
 export interface ServiceWithId {
     id: bigint;
@@ -115,9 +133,11 @@ export interface ServiceWithId {
     price: number;
     salonId: bigint;
 }
-export interface CustomerProfile {
-    name: string;
-    phone: string;
+export interface OwnerRevenueSummary {
+    monthlyEarnings: number;
+    completedAppointments: bigint;
+    totalEarnings: number;
+    totalAppointments: bigint;
 }
 export interface RevenueStats {
     perSalon: Array<[bigint, string, number]>;
@@ -130,17 +150,14 @@ export interface DashboardStats {
     expired: bigint;
     pending: bigint;
 }
-export interface AppointmentWithId {
-    id: bigint;
-    customerName: string;
-    status: string;
-    serviceName: string;
-    customerPhone: string;
-    date: string;
-    createdAt: bigint;
-    queueNumber: bigint;
-    servicePrice: number;
-    salonId: bigint;
+export interface ServiceSession {
+    startTime: bigint;
+    durationMinutes: bigint;
+    appointmentId: bigint;
+}
+export interface CustomerProfile {
+    name: string;
+    phone: string;
 }
 export enum UserRole {
     admin = "admin",
@@ -151,9 +168,15 @@ export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     addSalonServiceByPhone(ownerPhone: string, salonId: bigint, name: string, price: number, durationMinutes: bigint): Promise<bigint>;
     adminApproveSalon(salonId: bigint): Promise<void>;
+    adminGetAllAppointmentsForBackup(): Promise<Array<AppointmentWithId>>;
+    adminGetAllCustomersForBackup(): Promise<Array<CustomerProfile>>;
     adminGetAllSalons(): Promise<Array<SalonWithId>>;
+    adminGetAllSalonsForBackup(): Promise<Array<SalonWithId>>;
+    adminGetAllServicesForBackup(): Promise<Array<ServiceWithId>>;
     adminGetDashboardStats(): Promise<DashboardStats>;
     adminGetDefaultTrialDays(): Promise<bigint>;
+    adminGetNextIdsForBackup(): Promise<[bigint, bigint, bigint]>;
+    adminGetOwnerPhoneMapForBackup(): Promise<Array<[string, bigint]>>;
     adminGetPendingSalons(): Promise<Array<SalonWithId>>;
     adminGetRevenueStats(): Promise<RevenueStats>;
     adminGetSubscriptionPrice(): Promise<number>;
@@ -162,6 +185,7 @@ export interface backendInterface {
     adminProcessTrialExpirations(): Promise<bigint>;
     adminRejectSalon(salonId: bigint): Promise<void>;
     adminResetOwnerPassword(ownerPhone: string, newPasswordHash: string): Promise<boolean>;
+    adminRestoreAllData(salons: Array<SalonWithId>, svcs: Array<ServiceWithId>, appts: Array<AppointmentWithId>, custs: Array<CustomerProfile>, ownerPhoneMap: Array<[string, bigint]>, nSalonId: bigint, nServiceId: bigint, nAppointmentId: bigint): Promise<void>;
     adminSetDefaultTrialDays(days: bigint): Promise<void>;
     adminSetPassword(email: string, passwordHash: string): Promise<boolean>;
     adminSetSalonActive(salonId: bigint, active: boolean): Promise<void>;
@@ -170,27 +194,35 @@ export interface backendInterface {
     adminSetSubscriptionPrice(price: number): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     bookAppointmentByPhone(customerPhone: string, salonId: bigint, customerName: string, serviceName: string, date: string): Promise<bigint>;
+    clearServiceSession(ownerPhone: string): Promise<void>;
     deleteSalonServiceByPhone(ownerPhone: string, salonId: bigint, serviceId: bigint): Promise<void>;
     getAllActiveSalons(): Promise<Array<SalonWithId>>;
     getCallerUserRole(): Promise<UserRole>;
+    getCurrentServiceSession(salonId: bigint): Promise<ServiceSession | null>;
     getMyAppointmentsByPhone(customerPhone: string): Promise<Array<AppointmentWithId>>;
     getMyCustomerProfileByPhone(phone: string): Promise<CustomerProfile | null>;
     getOwnerRevenueSummaryByPhone(ownerPhone: string): Promise<OwnerRevenueSummary>;
     getOwnerSalonByPhone(ownerPhone: string): Promise<SalonWithId | null>;
+    getPendingNotifications(salonId: bigint, date: string): Promise<Array<bigint>>;
+    getPushSubscription(requestorPhone: string, customerPhone: string): Promise<PushSubscription | null>;
     getQueueInfo(appointmentId: bigint): Promise<[bigint, bigint]>;
+    getQueueScheduleForSalon(salonId: bigint, date: string): Promise<Array<QueueScheduleEntry>>;
     getSalonAppointmentsForDateByPhone(ownerPhone: string, salonId: bigint, date: string): Promise<Array<AppointmentWithId>>;
     getSalonById(id: bigint): Promise<SalonWithId | null>;
     getSalonServices(salonId: bigint): Promise<Array<ServiceWithId>>;
     isCallerAdmin(): Promise<boolean>;
+    markNotificationSent(ownerPhone: string, appointmentId: bigint): Promise<void>;
     registerSalonByPhone(ownerPhone: string, name: string, address: string, phone: string, city: string): Promise<bigint>;
     salonOwnerLogin(ownerPhone: string, passwordHash: string): Promise<[string, SalonWithId | null]>;
     salonOwnerRegisterV2(ownerPhone: string, salonName: string, services: Array<string>, passwordHash: string): Promise<string>;
     salonOwnerSetPassword(ownerPhone: string, passwordHash: string): Promise<boolean>;
     saveCustomerProfileByPhone(phone: string, name: string): Promise<void>;
+    savePushSubscription(customerPhone: string, endpoint: string, p256dh: string, auth: string): Promise<void>;
+    startServiceSession(ownerPhone: string, appointmentId: bigint, durationMinutes: bigint): Promise<void>;
     updateAppointmentStatusByPhone(ownerPhone: string, appointmentId: bigint, newStatus: string): Promise<void>;
     updateOwnerSalonByPhone(ownerPhone: string, name: string, address: string, phone: string, city: string): Promise<void>;
 }
-import type { CustomerProfile as _CustomerProfile, SalonWithId as _SalonWithId, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
+import type { CustomerProfile as _CustomerProfile, PushSubscription as _PushSubscription, SalonWithId as _SalonWithId, ServiceSession as _ServiceSession, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async _initializeAccessControlWithSecret(arg0: string): Promise<void> {
@@ -235,6 +267,34 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async adminGetAllAppointmentsForBackup(): Promise<Array<AppointmentWithId>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminGetAllAppointmentsForBackup();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminGetAllAppointmentsForBackup();
+            return result;
+        }
+    }
+    async adminGetAllCustomersForBackup(): Promise<Array<CustomerProfile>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminGetAllCustomersForBackup();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminGetAllCustomersForBackup();
+            return result;
+        }
+    }
     async adminGetAllSalons(): Promise<Array<SalonWithId>> {
         if (this.processError) {
             try {
@@ -246,6 +306,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.adminGetAllSalons();
+            return result;
+        }
+    }
+    async adminGetAllSalonsForBackup(): Promise<Array<SalonWithId>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminGetAllSalonsForBackup();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminGetAllSalonsForBackup();
+            return result;
+        }
+    }
+    async adminGetAllServicesForBackup(): Promise<Array<ServiceWithId>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminGetAllServicesForBackup();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminGetAllServicesForBackup();
             return result;
         }
     }
@@ -274,6 +362,42 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.adminGetDefaultTrialDays();
+            return result;
+        }
+    }
+    async adminGetNextIdsForBackup(): Promise<[bigint, bigint, bigint]> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminGetNextIdsForBackup();
+                return [
+                    result[0],
+                    result[1],
+                    result[2]
+                ];
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminGetNextIdsForBackup();
+            return [
+                result[0],
+                result[1],
+                result[2]
+            ];
+        }
+    }
+    async adminGetOwnerPhoneMapForBackup(): Promise<Array<[string, bigint]>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminGetOwnerPhoneMapForBackup();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminGetOwnerPhoneMapForBackup();
             return result;
         }
     }
@@ -389,6 +513,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async adminRestoreAllData(arg0: Array<SalonWithId>, arg1: Array<ServiceWithId>, arg2: Array<AppointmentWithId>, arg3: Array<CustomerProfile>, arg4: Array<[string, bigint]>, arg5: bigint, arg6: bigint, arg7: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminRestoreAllData(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminRestoreAllData(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+            return result;
+        }
+    }
     async adminSetDefaultTrialDays(arg0: bigint): Promise<void> {
         if (this.processError) {
             try {
@@ -501,6 +639,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async clearServiceSession(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.clearServiceSession(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.clearServiceSession(arg0);
+            return result;
+        }
+    }
     async deleteSalonServiceByPhone(arg0: string, arg1: bigint, arg2: bigint): Promise<void> {
         if (this.processError) {
             try {
@@ -543,6 +695,20 @@ export class Backend implements backendInterface {
             return from_candid_UserRole_n3(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getCurrentServiceSession(arg0: bigint): Promise<ServiceSession | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getCurrentServiceSession(arg0);
+                return from_candid_opt_n5(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getCurrentServiceSession(arg0);
+            return from_candid_opt_n5(this._uploadFile, this._downloadFile, result);
+        }
+    }
     async getMyAppointmentsByPhone(arg0: string): Promise<Array<AppointmentWithId>> {
         if (this.processError) {
             try {
@@ -561,14 +727,14 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getMyCustomerProfileByPhone(arg0);
-                return from_candid_opt_n5(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getMyCustomerProfileByPhone(arg0);
-            return from_candid_opt_n5(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
         }
     }
     async getOwnerRevenueSummaryByPhone(arg0: string): Promise<OwnerRevenueSummary> {
@@ -589,14 +755,42 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getOwnerSalonByPhone(arg0);
-                return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n7(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getOwnerSalonByPhone(arg0);
-            return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n7(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getPendingNotifications(arg0: bigint, arg1: string): Promise<Array<bigint>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getPendingNotifications(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getPendingNotifications(arg0, arg1);
+            return result;
+        }
+    }
+    async getPushSubscription(arg0: string, arg1: string): Promise<PushSubscription | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getPushSubscription(arg0, arg1);
+                return from_candid_opt_n8(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getPushSubscription(arg0, arg1);
+            return from_candid_opt_n8(this._uploadFile, this._downloadFile, result);
         }
     }
     async getQueueInfo(arg0: bigint): Promise<[bigint, bigint]> {
@@ -619,6 +813,20 @@ export class Backend implements backendInterface {
             ];
         }
     }
+    async getQueueScheduleForSalon(arg0: bigint, arg1: string): Promise<Array<QueueScheduleEntry>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getQueueScheduleForSalon(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getQueueScheduleForSalon(arg0, arg1);
+            return result;
+        }
+    }
     async getSalonAppointmentsForDateByPhone(arg0: string, arg1: bigint, arg2: string): Promise<Array<AppointmentWithId>> {
         if (this.processError) {
             try {
@@ -637,14 +845,14 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getSalonById(arg0);
-                return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n7(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getSalonById(arg0);
-            return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n7(this._uploadFile, this._downloadFile, result);
         }
     }
     async getSalonServices(arg0: bigint): Promise<Array<ServiceWithId>> {
@@ -675,6 +883,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async markNotificationSent(arg0: string, arg1: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.markNotificationSent(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.markNotificationSent(arg0, arg1);
+            return result;
+        }
+    }
     async registerSalonByPhone(arg0: string, arg1: string, arg2: string, arg3: string, arg4: string): Promise<bigint> {
         if (this.processError) {
             try {
@@ -693,14 +915,20 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.salonOwnerLogin(arg0, arg1);
-                return [result[0], result[1].length === 0 ? null : result[1][0]];
+                return [
+                    result[0],
+                    from_candid_opt_n7(this._uploadFile, this._downloadFile, result[1])
+                ];
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.salonOwnerLogin(arg0, arg1);
-            return [result[0], result[1].length === 0 ? null : result[1][0]];
+            return [
+                result[0],
+                from_candid_opt_n7(this._uploadFile, this._downloadFile, result[1])
+            ];
         }
     }
     async salonOwnerRegisterV2(arg0: string, arg1: string, arg2: Array<string>, arg3: string): Promise<string> {
@@ -745,6 +973,34 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async savePushSubscription(arg0: string, arg1: string, arg2: string, arg3: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.savePushSubscription(arg0, arg1, arg2, arg3);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.savePushSubscription(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async startServiceSession(arg0: string, arg1: bigint, arg2: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.startServiceSession(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.startServiceSession(arg0, arg1, arg2);
+            return result;
+        }
+    }
     async updateAppointmentStatusByPhone(arg0: string, arg1: bigint, arg2: string): Promise<void> {
         if (this.processError) {
             try {
@@ -777,10 +1033,16 @@ export class Backend implements backendInterface {
 function from_candid_UserRole_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
     return from_candid_variant_n4(_uploadFile, _downloadFile, value);
 }
-function from_candid_opt_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_CustomerProfile]): CustomerProfile | null {
+function from_candid_opt_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_ServiceSession]): ServiceSession | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_SalonWithId]): SalonWithId | null {
+function from_candid_opt_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_CustomerProfile]): CustomerProfile | null {
+    return value.length === 0 ? null : value[0];
+}
+function from_candid_opt_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_SalonWithId]): SalonWithId | null {
+    return value.length === 0 ? null : value[0];
+}
+function from_candid_opt_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_PushSubscription]): PushSubscription | null {
     return value.length === 0 ? null : value[0];
 }
 function from_candid_variant_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {

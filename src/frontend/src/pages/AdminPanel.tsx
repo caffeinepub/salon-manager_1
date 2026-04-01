@@ -1,4 +1,13 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { toast } from "sonner";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -40,6 +49,7 @@ type Tab =
   | "salons"
   | "settings"
   | "revenue"
+  | "subscription"
   | "reviews"
   | "backup";
 
@@ -126,6 +136,150 @@ function ReviewsTab() {
           </CardContent>
         </Card>
       ))}
+    </div>
+  );
+}
+
+const MONTHS_HI = [
+  "जन",
+  "फ़र",
+  "मार्च",
+  "अप्रैल",
+  "मई",
+  "जून",
+  "जुल",
+  "अग",
+  "सित",
+  "अक्ट",
+  "नव",
+  "दिस",
+];
+
+function SubscriptionIncomeTab({
+  allSalons,
+  subscriptionPrice,
+}: { allSalons: SalonWithId[]; subscriptionPrice: number }) {
+  const activeSubs = allSalons.filter(
+    (s) => s.subscriptionActive && !s.pendingApproval,
+  );
+  const totalIncome = activeSubs.length * subscriptionPrice;
+
+  // Monthly estimate: count active subscriptions per month based on approval dates
+  const now = new Date();
+  const currentYear = now.getFullYear();
+
+  // Monthly subscription income estimate for current year (based on active subs)
+  const currentMonth = now.getMonth();
+  const monthlyData = useMemo(() => {
+    return MONTHS_HI.map((month, idx) => ({
+      month,
+      income: idx === currentMonth ? activeSubs.length * subscriptionPrice : 0,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSubs.length, subscriptionPrice, currentMonth]);
+
+  const yearlyIncome = activeSubs.length * subscriptionPrice * 12; // estimated yearly
+
+  const cardBase = "rounded-xl p-4 bg-white border border-gray-100 shadow-sm";
+
+  return (
+    <div className="space-y-4">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className={cardBase}>
+          <p className="text-xs text-gray-500 mb-1">कुल सक्रिय सदस्यताएं</p>
+          <p className="text-2xl font-bold text-blue-600">
+            {activeSubs.length}
+          </p>
+        </div>
+        <div className={cardBase}>
+          <p className="text-xs text-gray-500 mb-1">सदस्यता मूल्य</p>
+          <p className="text-2xl font-bold text-green-600">
+            ₹{subscriptionPrice}/माह
+          </p>
+        </div>
+        <div className={cardBase}>
+          <p className="text-xs text-gray-500 mb-1">इस माह आय (अनुमानित)</p>
+          <p className="text-2xl font-bold text-green-700">
+            ₹{totalIncome.toLocaleString("hi-IN")}
+          </p>
+        </div>
+        <div className={cardBase}>
+          <p className="text-xs text-gray-500 mb-1">वार्षिक आय (अनुमानित)</p>
+          <p className="text-2xl font-bold text-purple-600">
+            ₹{yearlyIncome.toLocaleString("hi-IN")}
+          </p>
+        </div>
+      </div>
+
+      {/* Simple bar chart */}
+      <div className={cardBase}>
+        <p className="text-sm font-semibold text-gray-800 mb-3">
+          मासिक सब्स्क्रिप्शन आय ({currentYear})
+        </p>
+        {activeSubs.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-4">
+            अभी कोई सक्रिय सदस्यता नहीं
+          </p>
+        ) : (
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart
+              data={monthlyData}
+              margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 10, fill: "#6b7280" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: "#6b7280" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) =>
+                  v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)
+                }
+              />
+              <Tooltip formatter={(v: number) => [`₹${v}`, "आय"]} />
+              <Bar dataKey="income" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+        <p className="text-xs text-gray-400 mt-2 text-center">
+          * अनुमानित आय — वर्तमान सक्रिय सदस्यताओं पर आधारित
+        </p>
+      </div>
+
+      {/* Active subscriptions list */}
+      <div className={cardBase}>
+        <p className="text-sm font-semibold text-gray-800 mb-3">
+          सक्रिय सदस्यताएं ({activeSubs.length})
+        </p>
+        {activeSubs.length === 0 ? (
+          <p className="text-sm text-gray-400">कोई सक्रिय सदस्यता नहीं</p>
+        ) : (
+          <div className="divide-y">
+            {activeSubs.map((s) => (
+              <div
+                key={s.id.toString()}
+                className="flex items-center justify-between py-2"
+              >
+                <div>
+                  <p className="text-sm font-medium text-gray-800">{s.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {s.city} • {s.phone}
+                  </p>
+                </div>
+                <span className="text-sm font-semibold text-green-600">
+                  ₹{subscriptionPrice}/माह
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -318,6 +472,7 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
     { id: "settings", label: "सेटिंग" },
     { id: "revenue", label: "रेवेन्यू" },
     { id: "reviews", label: "समीक्षाएं" },
+    { id: "subscription", label: "सब्स्क्रिप्शन आय" },
     { id: "backup", label: "बैकअप" },
   ];
 
@@ -675,6 +830,19 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
               ग्राहक समीक्षाएं
             </h2>
             <ReviewsTab />
+          </>
+        )}
+
+        {/* Subscription Income Tab */}
+        {tab === "subscription" && (
+          <>
+            <h2 className="text-base font-semibold text-gray-800">
+              सब्स्क्रिप्शन आय
+            </h2>
+            <SubscriptionIncomeTab
+              allSalons={allSalons}
+              subscriptionPrice={subscriptionPrice ?? 149}
+            />
           </>
         )}
 
