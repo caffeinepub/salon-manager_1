@@ -15,7 +15,7 @@ import {
   Scissors,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import OwnerEarningsGraph, {
   storeTodayEarnings,
@@ -101,6 +101,99 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   const [nullRetryCount, setNullRetryCount] = useState(0);
   // 12 retries x 10s = 2 minutes total wait for ICP cold start
   const MAX_NULL_RETRIES = 12;
+
+  // Notification: track seen pending appointment IDs
+  const seenPendingRef = useRef<Set<string>>(new Set());
+  // Mutation for handling notification actions (confirm/reject from notification)
+  const { mutate: updateStatusMutation } = useUpdateAppointmentStatus(phone);
+
+  // Request notification permission + register owner context with SW
+  useEffect(() => {
+    if (!salon) return;
+
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+
+    if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: "OWNER_LOGIN",
+        salonId: salon.id.toString(),
+        phone,
+      });
+    }
+
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === "NOTIFICATION_ACTION") {
+        const { action, appointmentId } = event.data;
+        if (!appointmentId) return;
+        try {
+          const apptIdBig = BigInt(appointmentId);
+          if (action === "confirm") {
+            updateStatusMutation({
+              appointmentId: apptIdBig,
+              newStatus: "confirmed",
+              salonId: salon.id,
+              date: today,
+            });
+          } else if (action === "reject") {
+            updateStatusMutation({
+              appointmentId: apptIdBig,
+              newStatus: "cancelled",
+              salonId: salon.id,
+              date: today,
+            });
+          }
+        } catch (e) {
+          console.error("SW message handler error", e);
+        }
+      }
+    };
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", handleSwMessage);
+    }
+
+    return () => {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", handleSwMessage);
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({
+            type: "OWNER_LOGOUT",
+          });
+        }
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [salon, phone, today, updateStatusMutation]);
+
+  // Show browser notification for new pending appointments
+  useEffect(() => {
+    if (!todayAppts || !salon) return;
+    if (
+      typeof Notification === "undefined" ||
+      Notification.permission !== "granted"
+    )
+      return;
+
+    for (const appt of todayAppts) {
+      const status = appt.status;
+      if (status !== "pending") continue;
+      const idStr = appt.id.toString();
+      if (seenPendingRef.current.has(idStr)) continue;
+      seenPendingRef.current.add(idStr);
+
+      if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: "NEW_BOOKING_NOTIFY",
+          appointmentId: idStr,
+          customerName: appt.customerName || "ग्राहक",
+          serviceName: appt.serviceName || "सेवा",
+          date: appt.date || new Date().toLocaleDateString("hi-IN"),
+        });
+      }
+    }
+  }, [todayAppts, salon]);
 
   // Auto-retry when backend returns null (cold start returns null, not error)
   useEffect(() => {

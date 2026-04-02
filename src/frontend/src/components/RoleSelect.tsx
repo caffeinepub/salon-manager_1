@@ -1,5 +1,5 @@
-import { Download, Scissors, User, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { Download, Scissors, User } from "lucide-react";
+import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import type { AppRole } from "../App";
 
@@ -17,7 +17,7 @@ export default function RoleSelect({ onSelect }: Props) {
     useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [installing, setInstalling] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
+  const [showHint, setShowHint] = useState(false);
 
   useEffect(() => {
     if (window.matchMedia("(display-mode: standalone)").matches) {
@@ -46,7 +46,8 @@ export default function RoleSelect({ onSelect }: Props) {
         setInstalling(false);
       }
     } else {
-      setShowGuide(true);
+      setShowHint(true);
+      setTimeout(() => setShowHint(false), 5000);
     }
   };
 
@@ -171,6 +172,14 @@ export default function RoleSelect({ onSelect }: Props) {
               "linear-gradient(to top, oklch(0.18 0.05 155) 60%, transparent)",
           }}
         >
+          {showHint && (
+            <div
+              className="text-center text-white/80 text-sm py-2 px-4 rounded-xl mb-2 max-w-md mx-auto"
+              style={{ background: "oklch(0.35 0.1 155)" }}
+            >
+              Chrome में <strong>⋮ menu</strong> → "Add to Home Screen" दबाएं
+            </div>
+          )}
           <motion.button
             type="button"
             data-ocid="role_select.install.button"
@@ -195,72 +204,6 @@ export default function RoleSelect({ onSelect }: Props) {
           </motion.button>
         </div>
       )}
-
-      {/* Install Guide Modal */}
-      <AnimatePresence>
-        {showGuide && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center p-4"
-            style={{ background: "rgba(0,0,0,0.6)" }}
-            onClick={() => setShowGuide(false)}
-          >
-            <motion.div
-              initial={{ y: 100 }}
-              animate={{ y: 0 }}
-              exit={{ y: 100 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-2xl p-5 space-y-4"
-              style={{ background: "oklch(0.18 0.05 155)" }}
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="text-white font-bold text-lg">📲 ऐप इंस्टॉल करें</h3>
-                <button type="button" onClick={() => setShowGuide(false)}>
-                  <X className="w-5 h-5 text-white/60" />
-                </button>
-              </div>
-              <div className="space-y-3">
-                <div
-                  className="rounded-xl p-3"
-                  style={{ background: "oklch(0.24 0.05 155)" }}
-                >
-                  <p className="text-white font-semibold text-sm mb-1">
-                    Android (Chrome)
-                  </p>
-                  <ol className="text-white/70 text-xs space-y-1 list-decimal list-inside">
-                    <li>Chrome में ऊपर 3 dots (⋮) दबाएं</li>
-                    <li>"Add to Home Screen" दबाएं</li>
-                    <li>"Add" / "Install" confirm करें</li>
-                  </ol>
-                </div>
-                <div
-                  className="rounded-xl p-3"
-                  style={{ background: "oklch(0.24 0.05 155)" }}
-                >
-                  <p className="text-white font-semibold text-sm mb-1">
-                    iPhone (Safari)
-                  </p>
-                  <ol className="text-white/70 text-xs space-y-1 list-decimal list-inside">
-                    <li>Safari में नीचे Share button दबाएं</li>
-                    <li>"Add to Home Screen" दबाएं</li>
-                    <li>"Add" दबाएं</li>
-                  </ol>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowGuide(false)}
-                className="w-full py-3 rounded-xl text-white font-semibold"
-                style={{ background: "oklch(0.52 0.18 145)" }}
-              >
-                ठीक है
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
