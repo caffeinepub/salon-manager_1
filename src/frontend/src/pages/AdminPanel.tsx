@@ -51,7 +51,126 @@ type Tab =
   | "revenue"
   | "subscription"
   | "reviews"
-  | "backup";
+  | "backup"
+  | "sub_requests";
+
+interface SubRequest {
+  id: string;
+  ownerPhone: string;
+  salonName: string;
+  planName: string;
+  planDays: number;
+  status: "pending" | "approved" | "rejected";
+  requestTime: number;
+  screenshotBase64?: string;
+}
+
+function SubscriptionRequestsTab({
+  onApprove,
+}: {
+  onApprove: (phone: string) => void;
+}) {
+  const [requests, setRequests] = useState<SubRequest[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("salon360_sub_requests") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  const handleApprove = (req: SubRequest) => {
+    const updated = requests.map((r) =>
+      r.id === req.id ? { ...r, status: "approved" as const } : r,
+    );
+    localStorage.setItem("salon360_sub_requests", JSON.stringify(updated));
+    setRequests(updated);
+    onApprove(req.ownerPhone);
+    toast.success(`${req.salonName} की सदस्यता स्वीकृत की गई`);
+  };
+
+  const handleReject = (req: SubRequest) => {
+    const updated = requests.map((r) =>
+      r.id === req.id ? { ...r, status: "rejected" as const } : r,
+    );
+    localStorage.setItem("salon360_sub_requests", JSON.stringify(updated));
+    setRequests(updated);
+    toast.success(`${req.salonName} का अनुरोध अस्वीकृत किया गया`);
+  };
+
+  const pending = requests.filter((r) => r.status === "pending");
+
+  if (pending.length === 0) {
+    return (
+      <p
+        className="text-gray-500 text-sm py-4"
+        data-ocid="sub_requests.empty_state"
+      >
+        कोई लंबित अनुरोध नहीं है।
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4" data-ocid="sub_requests.list">
+      {pending.map((req, idx) => (
+        <Card
+          key={req.id}
+          className="border"
+          data-ocid={`sub_requests.item.${idx + 1}`}
+        >
+          <CardContent className="pt-4 space-y-2">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="font-semibold">{req.salonName}</p>
+                <p className="text-sm text-gray-600">फोन: {req.ownerPhone}</p>
+                <p className="text-sm text-gray-600">
+                  प्लान: {req.planName} ({req.planDays} दिन)
+                </p>
+                <p className="text-xs text-gray-400">
+                  अनुरोध: {new Date(req.requestTime).toLocaleString("hi-IN")}
+                </p>
+              </div>
+              <Badge
+                variant="outline"
+                className="text-amber-600 border-amber-400"
+              >
+                प्रतीक्षारत
+              </Badge>
+            </div>
+            {req.screenshotBase64 && (
+              <div>
+                <p className="text-xs text-gray-500 mb-1">भुगतान स्क्रीनशॉट:</p>
+                <img
+                  src={req.screenshotBase64}
+                  alt="screenshot"
+                  className="max-h-40 rounded border object-contain"
+                />
+              </div>
+            )}
+            <div className="flex gap-2 pt-2">
+              <Button
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => handleApprove(req)}
+                data-ocid={`sub_requests.confirm_button.${idx + 1}`}
+              >
+                ✅ स्वीकृत करें
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => handleReject(req)}
+                data-ocid={`sub_requests.delete_button.${idx + 1}`}
+              >
+                ❌ अस्वीकृत
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 function getTrialStatus(salon: SalonWithId) {
   if (salon.pendingApproval)
@@ -468,6 +587,7 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
   const tabs: { id: Tab; label: string }[] = [
     { id: "dashboard", label: "डैशबोर्ड" },
     { id: "pending", label: `अनुमोदन (${pendingSalons.length})` },
+    { id: "sub_requests", label: "सदस्यता अनुरोध" },
     { id: "salons", label: "सभी दुकानें" },
     { id: "settings", label: "सेटिंग" },
     { id: "revenue", label: "रेवेन्यू" },
@@ -853,6 +973,26 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
               डेटा बैकअप और रिस्टोर
             </h2>
             <BackupTab />
+          </>
+        )}
+
+        {/* Subscription Requests Tab */}
+        {tab === "sub_requests" && (
+          <>
+            <h2 className="text-base font-semibold text-gray-800">
+              सदस्यता अनुरोध
+            </h2>
+            <SubscriptionRequestsTab
+              onApprove={(phone) => {
+                const salon = allSalons.find((s) => s.ownerPhone === phone);
+                if (salon) {
+                  setSubMutation.mutate({
+                    salonId: BigInt(salon.id),
+                    active: true,
+                  });
+                }
+              }}
+            />
           </>
         )}
       </div>

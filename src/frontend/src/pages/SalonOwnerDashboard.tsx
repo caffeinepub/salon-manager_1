@@ -36,6 +36,7 @@ import {
   useUpdateAppointmentStatus,
   useUpdateMySalon,
 } from "../hooks/useQueries";
+import SubscriptionPage from "./SubscriptionPage";
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "प्रतीक्षा",
@@ -99,6 +100,7 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   );
   const { data: earnings } = useGetOwnerRevenueSummary(phone);
   const [nullRetryCount, setNullRetryCount] = useState(0);
+  const [showSubscription, setShowSubscription] = useState(false);
   // 12 retries x 10s = 2 minutes total wait for ICP cold start
   const MAX_NULL_RETRIES = 12;
 
@@ -448,6 +450,17 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
   }
 
   // Active salon — show full dashboard
+  if (showSubscription) {
+    return (
+      <SubscriptionPage
+        ownerPhone={phone}
+        salonName={salon.name}
+        onBack={() => setShowSubscription(false)}
+        onSuccess={() => setShowSubscription(false)}
+      />
+    );
+  }
+
   return (
     <div
       className="min-h-screen"
@@ -479,16 +492,30 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
             </p>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onSwitchRole}
-          data-ocid="salon.close_button"
-          style={{ color: "oklch(0.6 0.05 145)" }}
-        >
-          <LogOut className="w-4 h-4 mr-1" />
-          बाहर
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => setShowSubscription(true)}
+            data-ocid="subscription.open_modal_button"
+            style={{
+              background: "oklch(0.52 0.18 145)",
+              color: "white",
+              fontSize: "0.75rem",
+            }}
+          >
+            सदस्यता
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onSwitchRole}
+            data-ocid="salon.close_button"
+            style={{ color: "oklch(0.6 0.05 145)" }}
+          >
+            <LogOut className="w-4 h-4 mr-1" />
+            बाहर
+          </Button>
+        </div>
       </header>
 
       <main className="max-w-2xl mx-auto p-4">
