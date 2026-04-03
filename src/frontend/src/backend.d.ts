@@ -77,6 +77,27 @@ export interface CustomerProfile {
     name: string;
     phone: string;
 }
+export interface PlanPricing {
+    planName: string;
+    planDays: bigint;
+    originalPrice: number;
+    discountPercent: number;
+}
+export interface SubRequest {
+    id: bigint;
+    ownerPhone: string;
+    salonName: string;
+    planName: string;
+    planDays: bigint;
+    originalPrice: number;
+    discountPercent: number;
+    finalPrice: number;
+    savings: number;
+    requestTime: bigint;
+    screenshotBase64: string;
+    status: string;
+    approvedAt: bigint;
+}
 export enum UserRole {
     admin = "admin",
     user = "user",
@@ -119,7 +140,6 @@ export interface backendInterface {
     getMyAppointmentsByPhone(customerPhone: string): Promise<Array<AppointmentWithId>>;
     getMyCustomerProfileByPhone(phone: string): Promise<CustomerProfile | null>;
     getOwnerRevenueSummaryByPhone(ownerPhone: string): Promise<OwnerRevenueSummary>;
-    getOwnerSalonByPhone(ownerPhone: string): Promise<SalonWithId | null>;
     getPendingNotifications(salonId: bigint, date: string): Promise<Array<bigint>>;
     getPushSubscription(requestorPhone: string, customerPhone: string): Promise<PushSubscription | null>;
     getQueueInfo(appointmentId: bigint): Promise<[bigint, bigint]>;
@@ -138,4 +158,15 @@ export interface backendInterface {
     startServiceSession(ownerPhone: string, appointmentId: bigint, durationMinutes: bigint): Promise<void>;
     updateAppointmentStatusByPhone(ownerPhone: string, appointmentId: bigint, newStatus: string): Promise<void>;
     updateOwnerSalonByPhone(ownerPhone: string, name: string, address: string, phone: string, city: string): Promise<void>;
+    adminGetAllPlanPricings(): Promise<Array<PlanPricing>>;
+    adminSetPlanPricing(planName: string, originalPrice: number, discountPercent: number): Promise<void>;
+    getPlanPricings(): Promise<Array<PlanPricing>>;
+    submitSubscriptionRequest(ownerPhone: string, salonName: string, planName: string, planDays: bigint, originalPrice: number, discountPercent: number, finalPrice: number, savings: number, screenshotBase64: string): Promise<bigint>;
+    adminGetAllSubRequests(): Promise<Array<SubRequest>>;
+    adminGetPendingSubRequests(): Promise<Array<SubRequest>>;
+    getMySubRequests(ownerPhone: string): Promise<Array<SubRequest>>;
+    adminApproveSubRequest(requestId: bigint): Promise<boolean>;
+    adminRejectSubRequest(requestId: bigint): Promise<boolean>;
+    adminExpireOldSubRequests(): Promise<bigint>;
+    adminGetSubRequestEarnings(): Promise<[number, number, bigint]>;
 }

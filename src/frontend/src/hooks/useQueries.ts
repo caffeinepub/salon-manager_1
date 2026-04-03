@@ -9,6 +9,30 @@ import type {
   ServiceSession,
   ServiceWithId,
 } from "../backend";
+
+// Local types for new subscription system (not yet in auto-generated backend.ts)
+export interface PlanPricingType {
+  planName: string;
+  planDays: bigint;
+  originalPrice: number;
+  discountPercent: number;
+}
+
+export interface SubRequestType {
+  id: bigint;
+  ownerPhone: string;
+  salonName: string;
+  planName: string;
+  planDays: bigint;
+  originalPrice: number;
+  discountPercent: number;
+  finalPrice: number;
+  savings: number;
+  requestTime: bigint;
+  screenshotBase64: string;
+  status: string;
+  approvedAt: bigint;
+}
 import { useActor } from "./useActor";
 
 export type AppointmentStatus =
@@ -775,6 +799,219 @@ export function useSalonOwnerSetPassword() {
         phone,
         passwordHash,
       ) as Promise<boolean>;
+    },
+  });
+}
+
+// ============================================================
+// Plan Pricing hooks
+// ============================================================
+export function useGetPlanPricings() {
+  const { actor, isFetching } = useActor();
+  return useQuery<PlanPricingType[]>({
+    queryKey: ["planPricings"],
+    queryFn: async () => {
+      if (!actor) return [];
+      try {
+        return await (actor as any).getPlanPricings();
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAdminGetAllPlanPricings() {
+  const { actor, isFetching } = useActor();
+  return useQuery<PlanPricingType[]>({
+    queryKey: ["adminPlanPricings"],
+    queryFn: async () => {
+      if (!actor) return [];
+      try {
+        return await (actor as any).adminGetAllPlanPricings();
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAdminSetPlanPricing() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      planName,
+      originalPrice,
+      discountPercent,
+    }: {
+      planName: string;
+      originalPrice: number;
+      discountPercent: number;
+    }) => {
+      if (!actor) throw new Error("No actor");
+      return (actor as any).adminSetPlanPricing(
+        planName,
+        originalPrice,
+        discountPercent,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["adminPlanPricings"] });
+      qc.invalidateQueries({ queryKey: ["planPricings"] });
+    },
+  });
+}
+
+// ============================================================
+// Subscription Request hooks
+// ============================================================
+export function useSubmitSubscriptionRequest() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      ownerPhone: string;
+      salonName: string;
+      planName: string;
+      planDays: number;
+      originalPrice: number;
+      discountPercent: number;
+      finalPrice: number;
+      savings: number;
+      screenshotBase64: string;
+    }) => {
+      if (!actor) throw new Error("No actor");
+      return (actor as any).submitSubscriptionRequest(
+        params.ownerPhone,
+        params.salonName,
+        params.planName,
+        BigInt(params.planDays),
+        params.originalPrice,
+        params.discountPercent,
+        params.finalPrice,
+        params.savings,
+        params.screenshotBase64,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mySubRequests"] });
+      qc.invalidateQueries({ queryKey: ["adminPendingSubRequests"] });
+    },
+  });
+}
+
+export function useAdminGetPendingSubRequests() {
+  const { actor, isFetching } = useActor();
+  return useQuery<SubRequestType[]>({
+    queryKey: ["adminPendingSubRequests"],
+    queryFn: async () => {
+      if (!actor) return [];
+      try {
+        return await (actor as any).adminGetPendingSubRequests();
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
+  });
+}
+
+export function useAdminGetAllSubRequests() {
+  const { actor, isFetching } = useActor();
+  return useQuery<SubRequestType[]>({
+    queryKey: ["adminAllSubRequests"],
+    queryFn: async () => {
+      if (!actor) return [];
+      try {
+        return await (actor as any).adminGetAllSubRequests();
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
+  });
+}
+
+export function useGetMySubRequests(ownerPhone: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery<SubRequestType[]>({
+    queryKey: ["mySubRequests", ownerPhone],
+    queryFn: async () => {
+      if (!actor || !ownerPhone) return [];
+      try {
+        return await (actor as any).getMySubRequests(ownerPhone);
+      } catch {
+        return [];
+      }
+    },
+    enabled: !!actor && !isFetching && !!ownerPhone,
+  });
+}
+
+export function useAdminApproveSubRequest() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (requestId: bigint) => {
+      if (!actor) throw new Error("No actor");
+      return (actor as any).adminApproveSubRequest(requestId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["adminPendingSubRequests"] });
+      qc.invalidateQueries({ queryKey: ["adminAllSubRequests"] });
+      qc.invalidateQueries({ queryKey: ["adminAllSalons"] });
+      qc.invalidateQueries({ queryKey: ["adminSubEarnings"] });
+    },
+  });
+}
+
+export function useAdminRejectSubRequest() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (requestId: bigint) => {
+      if (!actor) throw new Error("No actor");
+      return (actor as any).adminRejectSubRequest(requestId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["adminPendingSubRequests"] });
+      qc.invalidateQueries({ queryKey: ["adminAllSubRequests"] });
+    },
+  });
+}
+
+export function useAdminGetSubRequestEarnings() {
+  const { actor, isFetching } = useActor();
+  return useQuery<[number, number, bigint]>({
+    queryKey: ["adminSubEarnings"],
+    queryFn: async () => {
+      if (!actor) return [0, 0, 0n] as [number, number, bigint];
+      try {
+        return await (actor as any).adminGetSubRequestEarnings();
+      } catch {
+        return [0, 0, 0n] as [number, number, bigint];
+      }
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAdminExpireOldSubRequests() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!actor) throw new Error("No actor");
+      return (actor as any).adminExpireOldSubRequests();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["adminPendingSubRequests"] });
+      qc.invalidateQueries({ queryKey: ["adminAllSubRequests"] });
     },
   });
 }

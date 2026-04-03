@@ -1,33 +1,44 @@
-# Salon360Pro — Subscription System
+# Salon360Pro — Enhanced Payment System
 
 ## Current State
-- App is a multi-tenant Hindi PWA for salon management
-- Salon owners have a dashboard with tabs (Appointments, Services, Staff, Timer, Earnings)
-- Admin panel has subscription management but it is fully manual (admin sets dates directly)
-- No self-service subscription flow for owners exists yet
-- A UPI QR code image is available at `/assets/accountqrcodeubin_-_6780_dark_theme-019d513e-82c5-728e-a000-827fcd0e447d.png`
+- SubscriptionPage.tsx: 4 plans (30/90/120/365 days), plan selection, UPI QR code (upi-qr.png), screenshot upload, "मैंने भुगतान कर दिया" button
+- Requests saved to localStorage only — NOT in backend
+- AdminPanel has SubscriptionRequestsTab reading from localStorage — not connected to backend
+- No pricing info shown on plans
+- No timer system
+- No automatic subscription activation on admin approval
+- No notification to admin on payment submission
 
 ## Requested Changes (Diff)
 
 ### Add
-- Subscription button on Owner Dashboard
-- Plan selection screen (30 / 90 / 120 / 365 days)
-- Payment page showing selected plan + UPI QR code + screenshot upload + "I Have Paid" button
-- When "I Have Paid" is clicked: save request with status=Pending, requestTime, plan details (stored in localStorage for now since no backend changes needed for v1)
-- Admin Panel: "सदस्यता अनुरोध" tab showing pending requests (owner name, plan, time, screenshot preview, Approve/Reject)
-- SubscriptionPage.tsx — new file for the 2-step flow
-- Subscription requests stored in localStorage (key: `salon360_sub_requests`) — simple approach, no backend changes needed
+- Backend: SubRequest type with fields: id, ownerPhone, salonName, planName, planDays, originalPrice, discountPercent, finalPrice, savings, requestTime, screenshotBase64, status (pending/approved/rejected/expired), approvedAt
+- Backend: PlanPricing type with originalPrice and discountPercent per plan
+- Backend functions: submitSubscriptionRequest, adminGetSubscriptionRequests, adminApproveSubscriptionRequest, adminRejectSubscriptionRequest, getMySubscriptionRequests, adminGetPlanPricings, adminSetPlanPricing
+- SubscriptionPage: Show originalPrice (strike-through), discountPercent badge, finalPrice, savings for each plan
+- SubscriptionPage: 2-hour expiry timer shown after submission ("सत्यापन लंबित — X घंटे X मिनट बचे")
+- SubscriptionPage: Replace old upi-qr.png with new uploaded QR image
+- AdminPanel sub_requests tab: Load from backend instead of localStorage
+- AdminPanel sub_requests tab: Show screenshot, plan details, original/discount/final price, timer remaining, Approve/Reject buttons
+- AdminPanel sub_requests tab: On Approve → call adminApproveSubscriptionRequest → auto-activates salon subscription with start+end dates
+- AdminPanel settings: Plan pricing editor — admin can set originalPrice and discountPercent per plan, final price auto-calculated
+- Salon owner dashboard: Show subscription expiry banner with days remaining
+- History tab for admin showing all requests (pending/approved/rejected/expired)
 
 ### Modify
-- SalonOwnerDashboard.tsx: add "सदस्यता" button in the header/top area
-- AdminPanel.tsx: add new tab `subscriptions` showing all pending requests
+- SubscriptionPage: Save request to backend instead of localStorage
+- SubscriptionPage: QR code image path updated to new Union Bank QR
+- AdminPanel: sub_requests tab reads from backend, not localStorage
+- useQueries.ts: Add new subscription-related hooks
 
 ### Remove
-- Nothing removed
+- localStorage-based subscription request storage (replace with backend)
 
 ## Implementation Plan
-1. Copy UPI QR code to `public/assets/upi-qr.png` (reference the uploaded file)
-2. Create `src/frontend/src/pages/SubscriptionPage.tsx` — Step 1: plan selection, Step 2: payment with QR + upload + "I Have Paid"
-3. Add subscription request storage logic using localStorage
-4. Modify `SalonOwnerDashboard.tsx` — add "सदस्यता" tab or button that opens SubscriptionPage
-5. Modify `AdminPanel.tsx` — add subscriptions tab reading from localStorage, with Approve (calls `adminSetSalonSubscription`) and Reject buttons
+1. Update main.mo: Add SubRequest and PlanPricing types, stable storage, CRUD functions for subscription requests and plan pricing
+2. Copy uploaded QR image as new upi-qr.png
+3. Update useQueries.ts: Add hooks for new backend functions
+4. Rewrite SubscriptionPage.tsx: Pricing display, new QR, backend save, 2-hour pending timer
+5. Update AdminPanel.tsx: sub_requests tab uses backend, plan pricing editor in settings, history view
+6. Update SalonOwnerDashboard.tsx: Show subscription expiry/status banner
+7. Validate and deploy

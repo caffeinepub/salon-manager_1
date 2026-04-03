@@ -122,7 +122,7 @@ actor {
   };
 
   // ================================================================
-  // NEW TYPES FOR NOTIFICATION SYSTEM
+  // TYPES FOR NOTIFICATION SYSTEM
   // ================================================================
   public type ServiceSession = {
     appointmentId : Nat;
@@ -142,6 +142,32 @@ actor {
     endpoint : Text;
     p256dh : Text;
     auth : Text;
+  };
+
+  // ================================================================
+  // TYPES FOR SUBSCRIPTION REQUEST SYSTEM
+  // ================================================================
+  public type PlanPricing = {
+    planName : Text;
+    planDays : Nat;
+    originalPrice : Float;
+    discountPercent : Float;
+  };
+
+  public type SubRequest = {
+    id : Nat;
+    ownerPhone : Text;
+    salonName : Text;
+    planName : Text;
+    planDays : Nat;
+    originalPrice : Float;
+    discountPercent : Float;
+    finalPrice : Float;
+    savings : Float;
+    requestTime : Int;
+    screenshotBase64 : Text;
+    status : Text;  // "pending" | "approved" | "rejected" | "expired"
+    approvedAt : Int;
   };
 
   // ================================================================
@@ -166,6 +192,10 @@ actor {
   var stableServiceSessions : [(Nat, ServiceSession)] = [];
   var stableNotifiedAppointments : [Nat] = [];
   var stablePushSubscriptions : [(Text, PushSubscription)] = [];
+  // NEW: Subscription request stable storage
+  var stableNextSubRequestId : Nat = 1;
+  var stableSubRequests : [(Nat, SubRequest)] = [];
+  var stablePlanPricings : [(Text, PlanPricing)] = [];
 
   // State vars — auto-restored from stable memory on upgrade
   var adminPasswordHash : ?Text = stableAdminPasswordHash;
@@ -174,6 +204,7 @@ actor {
   var nextAppointmentId  : Nat = stableNextAppointmentId;
   var defaultTrialDays   : Nat = stableDefaultTrialDays;
   var platformSubscriptionPrice : Float = stablePlatformPrice;
+  var nextSubRequestId   : Nat = stableNextSubRequestId;
   let MAX_SHOPS          : Nat = 100;
 
   // V3 maps (phone-keyed) — filled from stable in postupgrade
@@ -184,10 +215,14 @@ actor {
   let ownerPhoneSalonMap  = Map.empty<Text, Nat>();
   let ownerPasswordMap    = Map.empty<Text, Text>();
 
-  // NEW: Notification system state
+  // Notification system state
   let serviceSessionsBySalon = Map.empty<Nat, ServiceSession>();
   let notifiedAppointments = Map.empty<Nat, Bool>();
   let pushSubscriptionsByPhone = Map.empty<Text, PushSubscription>();
+
+  // Subscription request maps
+  let subRequestsMap = Map.empty<Nat, SubRequest>();
+  let planPricingsMap = Map.empty<Text, PlanPricing>();
 
   // ================================================================
   // HELPERS
@@ -231,6 +266,19 @@ actor {
   func isCurrentMonth(timestamp : Int) : Bool {
     let monthStart = getCurrentMonthStart();
     timestamp >= monthStart;
+  };
+
+  // Get default plan pricing (called when no custom pricing set)
+  func getDefaultPlanPricing(planName : Text) : PlanPricing {
+    if (planName == "30 दिन") {
+      { planName; planDays = 30; originalPrice = 149.0; discountPercent = 0.0 }
+    } else if (planName == "90 दिन") {
+      { planName; planDays = 90; originalPrice = 399.0; discountPercent = 0.0 }
+    } else if (planName == "120 दिन") {
+      { planName; planDays = 120; originalPrice = 499.0; discountPercent = 0.0 }
+    } else {
+      { planName; planDays = 365; originalPrice = 1299.0; discountPercent = 0.0 }
+    };
   };
 
   // ================================================================
@@ -517,8 +565,6 @@ actor {
   // ================================================================
   // SALON OWNER AUTH V2 — password-based
   // ================================================================
-
-  // Register new salon owner with password
   public func salonOwnerRegisterV2(
     ownerPhone : Text,
     salonName : Text,
@@ -553,7 +599,6 @@ actor {
     "ok"
   };
 
-  // Login with password — returns (status, optional salon)
   public query func salonOwnerLogin(
     ownerPhone : Text,
     passwordHash : Text
@@ -585,7 +630,6 @@ actor {
     };
   };
 
-  // Set password for existing/legacy owners who have no password yet
   public func salonOwnerSetPassword(ownerPhone : Text, passwordHash : Text) : async Bool {
     switch (ownerPhoneSalonMap.get(ownerPhone)) {
       case (null) { return false };
@@ -601,7 +645,6 @@ actor {
     };
   };
 
-  // Admin reset owner password — forcefully overwrites existing password
   public func adminResetOwnerPassword(ownerPhone : Text, newPasswordHash : Text) : async Bool {
     switch (ownerPhoneSalonMap.get(ownerPhone)) {
       case (null) { return false };
@@ -612,10 +655,8 @@ actor {
     };
   };
 
-
-
   // ================================================================
-  // SALON OWNER APIs (phone-based — legacy, kept for compat)
+  // SALON OWNER APIs (phone-based)
   // ================================================================
   public func registerSalonByPhone(ownerPhone : Text, name : Text, address : Text, phone : Text, city : Text) : async Nat {
     switch (ownerPhoneSalonMap.get(ownerPhone)) {
@@ -840,26 +881,18 @@ actor {
   };
 
   // ================================================================
-  // NEW: SERVICE SESSION TIMER
+  // SERVICE SESSION TIMER
   // ================================================================
-  // Start or restart service session for an appointment
   public func startServiceSession(ownerPhone : Text, appointmentId : Nat, durationMinutes : Nat) : async () {
-    // Verify appointment exists
     let appt = switch (salonAppointmentsV3.get(appointmentId)) {
       case (null) { Runtime.trap("Appointment not found") };
       case (?a) { a };
     };
-
-    // Verify caller owns the salon
     let callerOwns = switch (ownerPhoneSalonMap.get(ownerPhone)) {
       case (?id) { id == appt.salonId };
       case (null) { false };
     };
-    if (not callerOwns) {
-      Runtime.trap("Unauthorized: You can only start sessions for your own salon");
-    };
-
-    // Create/update session
+    if (not callerOwns) { Runtime.trap("Unauthorized") };
     serviceSessionsBySalon.add(appt.salonId, {
       appointmentId;
       startTime = Time.now();
@@ -867,58 +900,47 @@ actor {
     });
   };
 
-  // Get current active service session for a salon
   public query func getCurrentServiceSession(salonId : Nat) : async ?ServiceSession {
     serviceSessionsBySalon.get(salonId);
   };
 
-  // Clear service session when service completes
   public func clearServiceSession(ownerPhone : Text) : async () {
     let salonId = switch (ownerPhoneSalonMap.get(ownerPhone)) {
       case (null) { Runtime.trap("No salon found for this phone") };
       case (?id) { id };
     };
-
     serviceSessionsBySalon.remove(salonId);
   };
 
   // ================================================================
-  // NEW: QUEUE SCHEDULE CALCULATION
+  // QUEUE SCHEDULE
   // ================================================================
   public query func getQueueScheduleForSalon(salonId : Nat, date : Text) : async [QueueScheduleEntry] {
-    // Get current session if any
     let currentSession = serviceSessionsBySalon.get(salonId);
-
-    // Get all non-completed, non-cancelled appointments for this salon and date
-    let appointments = salonAppointmentsV3.entries().toArray().filterMap(func((id, a)) {
+    let appts = salonAppointmentsV3.entries().toArray().filterMap(func((id, a)) {
       if (a.salonId == salonId and a.date == date and
           a.status != "completed" and a.status != "cancelled") {
         ?{ id; appt = a }
       } else { null }
     }).sort(func(a, b) { Nat.compare(a.appt.queueNumber, b.appt.queueNumber) });
 
-    // Calculate estimated start times
     var currentTime = switch (currentSession) {
       case (null) { Time.now() };
       case (?session) {
-        // Current session ends at startTime + duration
         session.startTime + (session.durationMinutes * 60 * 1_000_000_000)
       };
     };
 
-    appointments.map(func(entry) {
-      // Find service duration
-      var serviceDuration : Nat = 30; // default
+    appts.map(func(entry) {
+      var serviceDuration : Nat = 30;
       label findDuration for ((_, svc) in salonServicesList.entries().toArray().vals()) {
         if (svc.salonId == salonId and svc.name == entry.appt.serviceName) {
           serviceDuration := svc.durationMinutes;
           break findDuration;
         };
       };
-
       let estimatedStart = currentTime;
       currentTime += serviceDuration * 60 * 1_000_000_000;
-
       {
         appointmentId = entry.id;
         estimatedStartTime = estimatedStart;
@@ -930,12 +952,11 @@ actor {
   };
 
   // ================================================================
-  // NEW: NOTIFICATION SYSTEM
+  // NOTIFICATION SYSTEM
   // ================================================================
   public shared ({ caller }) func getPendingNotifications(salonId : Nat, date : Text) : async [Nat] {
     let now = Time.now();
     let twentyMinutesInNanos : Int = 20 * 60 * 1_000_000_000;
-
     let schedule = await getQueueScheduleForSalon(salonId, date);
     schedule.filterMap(func(entry) {
       let timeUntilStart = entry.estimatedStartTime - now;
@@ -943,35 +964,27 @@ actor {
         case (?true) { true };
         case (_) { false };
       };
-
       if (timeUntilStart <= twentyMinutesInNanos and timeUntilStart > 0 and not alreadyNotified) {
         ?entry.appointmentId
-      } else {
-        null
-      }
+      } else { null }
     });
   };
 
-  // Mark appointment as notified to prevent duplicates
   public func markNotificationSent(ownerPhone : Text, appointmentId : Nat) : async () {
     let appt = switch (salonAppointmentsV3.get(appointmentId)) {
       case (null) { Runtime.trap("Appointment not found") };
       case (?a) { a };
     };
-
     let callerOwns = switch (ownerPhoneSalonMap.get(ownerPhone)) {
       case (?id) { id == appt.salonId };
       case (null) { false };
     };
-    if (not callerOwns) {
-      Runtime.trap("Unauthorized: You can only mark notifications for your own salon");
-    };
-
+    if (not callerOwns) { Runtime.trap("Unauthorized") };
     notifiedAppointments.add(appointmentId, true);
   };
 
   // ================================================================
-  // NEW: PUSH SUBSCRIPTIONS
+  // PUSH SUBSCRIPTIONS
   // ================================================================
   public func savePushSubscription(
     customerPhone : Text,
@@ -979,28 +992,218 @@ actor {
     p256dh : Text,
     auth : Text
   ) : async () {
-    pushSubscriptionsByPhone.add(customerPhone, {
-      endpoint;
-      p256dh;
-      auth;
-    });
+    pushSubscriptionsByPhone.add(customerPhone, { endpoint; p256dh; auth });
   };
 
   public query func getPushSubscription(requestorPhone : Text, customerPhone : Text) : async ?PushSubscription {
-    // Allow if requesting own subscription
     if (requestorPhone == customerPhone) {
       return pushSubscriptionsByPhone.get(customerPhone);
     };
-
-    // Allow if requestor owns a salon (for sending notifications to their customers)
     switch (ownerPhoneSalonMap.get(requestorPhone)) {
-      case (?_) {
-        return pushSubscriptionsByPhone.get(customerPhone);
-      };
+      case (?_) { return pushSubscriptionsByPhone.get(customerPhone) };
       case (null) {
-        Runtime.trap("Unauthorized: Can only retrieve your own subscription or your customers' subscriptions");
+        Runtime.trap("Unauthorized");
       };
     };
+  };
+
+  // ================================================================
+  // PLAN PRICING — Admin controlled
+  // ================================================================
+  public query func adminGetAllPlanPricings() : async [PlanPricing] {
+    let planNames = ["30 दिन", "90 दिन", "120 दिन", "365 दिन"];
+    planNames.map(func(name) {
+      switch (planPricingsMap.get(name)) {
+        case (?p) { p };
+        case (null) { getDefaultPlanPricing(name) };
+      };
+    });
+  };
+
+  public func adminSetPlanPricing(planName : Text, originalPrice : Float, discountPercent : Float) : async () {
+    if (originalPrice < 0.0) { Runtime.trap("Price must be non-negative") };
+    if (discountPercent < 0.0 or discountPercent > 100.0) { Runtime.trap("Discount must be 0-100") };
+    let planDays : Nat = if (planName == "30 दिन") { 30 }
+      else if (planName == "90 दिन") { 90 }
+      else if (planName == "120 दिन") { 120 }
+      else { 365 };
+    planPricingsMap.add(planName, { planName; planDays; originalPrice; discountPercent });
+  };
+
+  public query func getPlanPricings() : async [PlanPricing] {
+    let planNames = ["30 दिन", "90 दिन", "120 दिन", "365 दिन"];
+    planNames.map(func(name) {
+      switch (planPricingsMap.get(name)) {
+        case (?p) { p };
+        case (null) { getDefaultPlanPricing(name) };
+      };
+    });
+  };
+
+  // ================================================================
+  // SUBSCRIPTION REQUESTS — Full backend system
+  // ================================================================
+
+  // Owner submits a payment request
+  public func submitSubscriptionRequest(
+    ownerPhone : Text,
+    salonName : Text,
+    planName : Text,
+    planDays : Nat,
+    originalPrice : Float,
+    discountPercent : Float,
+    finalPrice : Float,
+    savings : Float,
+    screenshotBase64 : Text
+  ) : async Nat {
+    let id = nextSubRequestId;
+    nextSubRequestId += 1;
+    subRequestsMap.add(id, {
+      id;
+      ownerPhone;
+      salonName;
+      planName;
+      planDays;
+      originalPrice;
+      discountPercent;
+      finalPrice;
+      savings;
+      requestTime = Time.now();
+      screenshotBase64;
+      status = "pending";
+      approvedAt = 0;
+    });
+    id;
+  };
+
+  // Admin: get all requests (history)
+  public query func adminGetAllSubRequests() : async [SubRequest] {
+    subRequestsMap.values().toArray();
+  };
+
+  // Admin: get only pending requests
+  public query func adminGetPendingSubRequests() : async [SubRequest] {
+    subRequestsMap.values().toArray().filter(func(r) { r.status == "pending" });
+  };
+
+  // Owner: get their own requests
+  public query func getMySubRequests(ownerPhone : Text) : async [SubRequest] {
+    subRequestsMap.values().toArray().filter(func(r) { r.ownerPhone == ownerPhone });
+  };
+
+  // Admin: approve a request — activates salon subscription
+  public func adminApproveSubRequest(requestId : Nat) : async Bool {
+    switch (subRequestsMap.get(requestId)) {
+      case (null) { return false };
+      case (?req) {
+        if (req.status != "pending") { return false };
+        // Update request status
+        subRequestsMap.add(requestId, {
+          id = req.id;
+          ownerPhone = req.ownerPhone;
+          salonName = req.salonName;
+          planName = req.planName;
+          planDays = req.planDays;
+          originalPrice = req.originalPrice;
+          discountPercent = req.discountPercent;
+          finalPrice = req.finalPrice;
+          savings = req.savings;
+          requestTime = req.requestTime;
+          screenshotBase64 = req.screenshotBase64;
+          status = "approved";
+          approvedAt = Time.now();
+        });
+        // Activate salon subscription
+        switch (ownerPhoneSalonMap.get(req.ownerPhone)) {
+          case (null) {};
+          case (?salonId) {
+            switch (salonProfilesV3.get(salonId)) {
+              case (null) {};
+              case (?s) {
+                salonProfilesV3.add(salonId, {
+                  name = s.name; address = s.address; phone = s.phone; city = s.city;
+                  ownerPhone = s.ownerPhone; isActive = true;
+                  pendingApproval = false; trialStartDate = s.trialStartDate;
+                  subscriptionActive = true; trialDays = s.trialDays;
+                });
+              };
+            };
+          };
+        };
+        true
+      };
+    };
+  };
+
+  // Admin: reject a request
+  public func adminRejectSubRequest(requestId : Nat) : async Bool {
+    switch (subRequestsMap.get(requestId)) {
+      case (null) { return false };
+      case (?req) {
+        if (req.status != "pending") { return false };
+        subRequestsMap.add(requestId, {
+          id = req.id;
+          ownerPhone = req.ownerPhone;
+          salonName = req.salonName;
+          planName = req.planName;
+          planDays = req.planDays;
+          originalPrice = req.originalPrice;
+          discountPercent = req.discountPercent;
+          finalPrice = req.finalPrice;
+          savings = req.savings;
+          requestTime = req.requestTime;
+          screenshotBase64 = req.screenshotBase64;
+          status = "rejected";
+          approvedAt = 0;
+        });
+        true
+      };
+    };
+  };
+
+  // Admin: expire overdue pending requests (older than 2 hours)
+  public func adminExpireOldSubRequests() : async Nat {
+    let twoHoursNanos : Int = 2 * 60 * 60 * 1_000_000_000;
+    let now = Time.now();
+    var count : Nat = 0;
+    for ((id, req) in subRequestsMap.entries().toArray().vals()) {
+      if (req.status == "pending" and (now - req.requestTime) > twoHoursNanos) {
+        subRequestsMap.add(id, {
+          id = req.id;
+          ownerPhone = req.ownerPhone;
+          salonName = req.salonName;
+          planName = req.planName;
+          planDays = req.planDays;
+          originalPrice = req.originalPrice;
+          discountPercent = req.discountPercent;
+          finalPrice = req.finalPrice;
+          savings = req.savings;
+          requestTime = req.requestTime;
+          screenshotBase64 = req.screenshotBase64;
+          status = "expired";
+          approvedAt = 0;
+        });
+        count += 1;
+      };
+    };
+    count;
+  };
+
+  // Get total subscription earnings from approved requests
+  public query func adminGetSubRequestEarnings() : async (Float, Float, Nat) {
+    var total : Float = 0.0;
+    var monthly : Float = 0.0;
+    var approvedCount : Nat = 0;
+    for ((_, req) in subRequestsMap.entries().toArray().vals()) {
+      if (req.status == "approved") {
+        total += req.finalPrice;
+        approvedCount += 1;
+        if (isCurrentMonth(req.approvedAt)) {
+          monthly += req.finalPrice;
+        };
+      };
+    };
+    (total, monthly, approvedCount);
   };
 
   // ================================================================
@@ -1022,6 +1225,9 @@ actor {
     stableServiceSessions := serviceSessionsBySalon.entries().toArray();
     stableNotifiedAppointments := notifiedAppointments.keys().toArray();
     stablePushSubscriptions := pushSubscriptionsByPhone.entries().toArray();
+    stableNextSubRequestId := nextSubRequestId;
+    stableSubRequests := subRequestsMap.entries().toArray();
+    stablePlanPricings := planPricingsMap.entries().toArray();
   };
 
   system func postupgrade() {
@@ -1034,6 +1240,9 @@ actor {
     for ((k, v) in stableServiceSessions.vals()) { serviceSessionsBySalon.add(k, v) };
     for (k in stableNotifiedAppointments.vals()) { notifiedAppointments.add(k, true) };
     for ((k, v) in stablePushSubscriptions.vals()) { pushSubscriptionsByPhone.add(k, v) };
+    for ((k, v) in stableSubRequests.vals()) { subRequestsMap.add(k, v) };
+    for ((k, v) in stablePlanPricings.vals()) { planPricingsMap.add(k, v) };
+    nextSubRequestId := stableNextSubRequestId;
     stableSalons := [];
     stableServices := [];
     stableAppointments := [];
@@ -1043,6 +1252,7 @@ actor {
     stableServiceSessions := [];
     stableNotifiedAppointments := [];
     stablePushSubscriptions := [];
+    stableSubRequests := [];
+    stablePlanPricings := [];
   };
 };
-

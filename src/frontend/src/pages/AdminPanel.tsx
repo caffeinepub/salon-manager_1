@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -20,19 +20,28 @@ import {
 import { Input } from "../components/ui/input";
 import {
   type SalonWithId,
+  type SubRequestType,
   useAdminApproveSalon,
+  useAdminApproveSubRequest,
   useAdminBackup,
+  useAdminExpireOldSubRequests,
+  useAdminGetAllPlanPricings,
   useAdminGetAllSalons,
+  useAdminGetAllSubRequests,
   useAdminGetDashboardStats,
   useAdminGetDefaultTrialDays,
   useAdminGetPendingSalons,
+  useAdminGetPendingSubRequests,
   useAdminGetRevenueStats,
+  useAdminGetSubRequestEarnings,
   useAdminGetSubscriptionPrice,
   useAdminProcessTrialExpirations,
   useAdminRejectSalon,
+  useAdminRejectSubRequest,
   useAdminResetOwnerPassword,
   useAdminRestore,
   useAdminSetDefaultTrialDays,
+  useAdminSetPlanPricing,
   useAdminSetSalonActive,
   useAdminSetSalonSubscription,
   useAdminSetSubscriptionPrice,
@@ -54,124 +63,431 @@ type Tab =
   | "backup"
   | "sub_requests";
 
-interface SubRequest {
-  id: string;
-  ownerPhone: string;
-  salonName: string;
-  planName: string;
-  planDays: number;
-  status: "pending" | "approved" | "rejected";
-  requestTime: number;
-  screenshotBase64?: string;
+// ────────────────────────────────────────────────────────────────
+function formatRemainingTime(requestTimeNs: bigint): string {
+  const requestMs = Number(requestTimeNs) / 1_000_000;
+  const twoHours = 2 * 60 * 60 * 1000;
+  const elapsed = Date.now() - requestMs;
+  const remaining = Math.max(0, twoHours - elapsed);
+  if (remaining === 0) return "समय सीमा समाप्त";
+  const hrs = Math.floor(remaining / 3600000);
+  const mins = Math.floor((remaining % 3600000) / 60000);
+  return `${hrs} घंटे ${mins} मिनट बचे`;
 }
 
-function SubscriptionRequestsTab({
-  onApprove,
-}: {
-  onApprove: (phone: string) => void;
-}) {
-  const [requests, setRequests] = useState<SubRequest[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("salon360_sub_requests") || "[]");
-    } catch {
-      return [];
-    }
+function formatDate(ns: bigint): string {
+  const ms = Number(ns) / 1_000_000;
+  if (ms < 1000) return "—";
+  return new Date(ms).toLocaleString("hi-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
+}
 
-  const handleApprove = (req: SubRequest) => {
-    const updated = requests.map((r) =>
-      r.id === req.id ? { ...r, status: "approved" as const } : r,
-    );
-    localStorage.setItem("salon360_sub_requests", JSON.stringify(updated));
-    setRequests(updated);
-    onApprove(req.ownerPhone);
-    toast.success(`${req.salonName} की सदस्यता स्वीकृत की गई`);
-  };
-
-  const handleReject = (req: SubRequest) => {
-    const updated = requests.map((r) =>
-      r.id === req.id ? { ...r, status: "rejected" as const } : r,
-    );
-    localStorage.setItem("salon360_sub_requests", JSON.stringify(updated));
-    setRequests(updated);
-    toast.success(`${req.salonName} का अनुरोध अस्वीकृत किया गया`);
-  };
-
-  const pending = requests.filter((r) => r.status === "pending");
-
-  if (pending.length === 0) {
+function StatusBadge({ status }: { status: string }) {
+  if (status === "pending")
     return (
-      <p
-        className="text-gray-500 text-sm py-4"
-        data-ocid="sub_requests.empty_state"
-      >
-        कोई लंबित अनुरोध नहीं है।
-      </p>
+      <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-xs">
+        ⏳ प्रतीक्षारत
+      </Badge>
     );
-  }
+  if (status === "approved")
+    return (
+      <Badge className="bg-green-100 text-green-800 border-green-300 text-xs">
+        ✅ स्वीकृत
+      </Badge>
+    );
+  if (status === "rejected")
+    return (
+      <Badge className="bg-red-100 text-red-800 border-red-300 text-xs">
+        ❌ अस्वीकृत
+      </Badge>
+    );
+  return (
+    <Badge className="bg-gray-100 text-gray-500 border-gray-200 text-xs">
+      ⏰ एक्सपायर्ड
+    </Badge>
+  );
+}
+
+function SubRequestCard({
+  req,
+  idx,
+  showActions,
+}: {
+  req: SubRequestType;
+  idx: number;
+  showActions: boolean;
+}) {
+  const approveMutation = useAdminApproveSubRequest();
+  const rejectMutation = useAdminRejectSubRequest();
 
   return (
-    <div className="space-y-4" data-ocid="sub_requests.list">
-      {pending.map((req, idx) => (
-        <Card
-          key={req.id}
-          className="border"
-          data-ocid={`sub_requests.item.${idx + 1}`}
+    <Card className="border" data-ocid={`sub_requests.item.${idx + 1}`}>
+      <CardContent className="pt-4 space-y-3">
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-gray-900">{req.salonName}</p>
+            <p className="text-xs text-gray-500">फ़ोन: {req.ownerPhone}</p>
+          </div>
+          <StatusBadge status={req.status} />
+        </div>
+
+        {/* Plan details */}
+        <div className="rounded-lg p-3 bg-gray-50 space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">प्लान</span>
+            <span className="text-sm font-semibold text-gray-800">
+              {req.planName} ({Number(req.planDays)} दिन)
+            </span>
+          </div>
+          {req.originalPrice > 0 && (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-500">मूल कीमत</span>
+                <span className="text-sm line-through text-gray-400">
+                  ₹{req.originalPrice}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-500">छूट</span>
+                <span className="text-sm text-orange-600 font-medium">
+                  -{req.discountPercent}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-t pt-1 mt-1">
+                <span className="text-sm font-semibold text-gray-700">
+                  देय राशि
+                </span>
+                <span className="text-base font-bold text-green-700">
+                  ₹{req.finalPrice}
+                </span>
+              </div>
+              {req.savings > 0 && (
+                <p className="text-xs text-amber-600">₹{req.savings} की बचत</p>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="text-xs text-gray-400 space-y-0.5">
+          <p>अनुरोध समय: {formatDate(req.requestTime)}</p>
+          {req.status === "pending" && (
+            <p className="text-amber-600 font-medium">
+              ≈ {formatRemainingTime(req.requestTime)}
+            </p>
+          )}
+          {req.status === "approved" && req.approvedAt > 0n && (
+            <p className="text-green-600">
+              स्वीकृत: {formatDate(req.approvedAt)}
+            </p>
+          )}
+        </div>
+
+        {req.screenshotBase64 && (
+          <div>
+            <p className="text-xs text-gray-500 mb-1">भुगतान स्क्रीनशॉट:</p>
+            <img
+              src={req.screenshotBase64}
+              alt="screenshot"
+              className="max-h-48 w-full rounded border object-contain bg-gray-50"
+            />
+          </div>
+        )}
+
+        {showActions && req.status === "pending" && (
+          <div className="flex gap-2 pt-1">
+            <Button
+              size="sm"
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              disabled={approveMutation.isPending || rejectMutation.isPending}
+              onClick={() =>
+                approveMutation.mutate(req.id, {
+                  onSuccess: (ok) => {
+                    if (ok)
+                      toast.success(`${req.salonName} की सदस्यता स्वीकृत की गई`);
+                    else toast.error("स्वीकृति नहीं हो पाई");
+                  },
+                  onError: () => toast.error("कोशिश करें"),
+                })
+              }
+              data-ocid={`sub_requests.confirm_button.${idx + 1}`}
+            >
+              {approveMutation.isPending ? "..." : "✅ स्वीकृत करें"}
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="flex-1"
+              disabled={approveMutation.isPending || rejectMutation.isPending}
+              onClick={() =>
+                rejectMutation.mutate(req.id, {
+                  onSuccess: () =>
+                    toast.success(`${req.salonName} का अनुरोध अस्वीकृत किया गया`),
+                  onError: () => toast.error("कोशिश करें"),
+                })
+              }
+              data-ocid={`sub_requests.delete_button.${idx + 1}`}
+            >
+              {rejectMutation.isPending ? "..." : "❌ अस्वीकृत"}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SubscriptionRequestsTab() {
+  const [subTab, setSubTab] = useState<"pending" | "history">("pending");
+  const { data: pendingReqs = [], isLoading: pendingLoading } =
+    useAdminGetPendingSubRequests();
+  const { data: allReqs = [], isLoading: allLoading } =
+    useAdminGetAllSubRequests();
+  const expireMutation = useAdminExpireOldSubRequests();
+
+  // Auto-expire on mount (run once)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally run once on mount
+  useEffect(() => {
+    expireMutation.mutate();
+  }, []);
+
+  const displayList = subTab === "pending" ? pendingReqs : allReqs;
+  const isLoading = subTab === "pending" ? pendingLoading : allLoading;
+
+  return (
+    <div className="space-y-4">
+      {/* Sub-tabs */}
+      <div className="flex rounded-lg overflow-hidden border border-gray-200">
+        <button
+          type="button"
+          onClick={() => setSubTab("pending")}
+          className={`flex-1 py-2 text-sm font-medium transition-colors ${
+            subTab === "pending"
+              ? "bg-blue-600 text-white"
+              : "bg-white text-gray-600 hover:bg-gray-50"
+          }`}
+          data-ocid="sub_requests.tab"
         >
-          <CardContent className="pt-4 space-y-2">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="font-semibold">{req.salonName}</p>
-                <p className="text-sm text-gray-600">फोन: {req.ownerPhone}</p>
-                <p className="text-sm text-gray-600">
-                  प्लान: {req.planName} ({req.planDays} दिन)
-                </p>
-                <p className="text-xs text-gray-400">
-                  अनुरोध: {new Date(req.requestTime).toLocaleString("hi-IN")}
-                </p>
-              </div>
-              <Badge
-                variant="outline"
-                className="text-amber-600 border-amber-400"
-              >
-                प्रतीक्षारत
-              </Badge>
-            </div>
-            {req.screenshotBase64 && (
-              <div>
-                <p className="text-xs text-gray-500 mb-1">भुगतान स्क्रीनशॉट:</p>
-                <img
-                  src={req.screenshotBase64}
-                  alt="screenshot"
-                  className="max-h-40 rounded border object-contain"
-                />
-              </div>
-            )}
-            <div className="flex gap-2 pt-2">
-              <Button
-                size="sm"
-                className="bg-green-600 hover:bg-green-700 text-white"
-                onClick={() => handleApprove(req)}
-                data-ocid={`sub_requests.confirm_button.${idx + 1}`}
-              >
-                ✅ स्वीकृत करें
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => handleReject(req)}
-                data-ocid={`sub_requests.delete_button.${idx + 1}`}
-              >
-                ❌ अस्वीकृत
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+          ⏳ लंबित ({pendingReqs.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab("history")}
+          className={`flex-1 py-2 text-sm font-medium transition-colors border-l ${
+            subTab === "history"
+              ? "bg-blue-600 text-white"
+              : "bg-white text-gray-600 hover:bg-gray-50"
+          }`}
+          data-ocid="sub_requests.tab"
+        >
+          📜 इतिहास ({allReqs.length})
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div
+          className="py-8 text-center"
+          data-ocid="sub_requests.loading_state"
+        >
+          <div className="inline-block w-5 h-5 rounded-full border-2 border-t-transparent border-blue-500 animate-spin" />
+          <p className="text-sm text-gray-500 mt-2">लोड हो रहा है...</p>
+        </div>
+      ) : displayList.length === 0 ? (
+        <div
+          className="text-center py-12 text-gray-400"
+          data-ocid="sub_requests.empty_state"
+        >
+          {subTab === "pending" ? "कोई लंबित अनुरोध नहीं है" : "कोई इतिहास नहीं है"}
+        </div>
+      ) : (
+        <div className="space-y-3" data-ocid="sub_requests.list">
+          {displayList.map((req, idx) => (
+            <SubRequestCard
+              key={req.id.toString()}
+              req={req}
+              idx={idx}
+              showActions={subTab === "pending"}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
+// ────────────────────────────────────────────────────────────────
+function PlanPricingEditor() {
+  const { data: pricings = [], isLoading } = useAdminGetAllPlanPricings();
+  const setPricingMutation = useAdminSetPlanPricing();
+
+  const DEFAULT_PLAN_NAMES = ["30 दिन", "90 दिन", "120 दिन", "365 दिन"];
+  const DEFAULT_DAYS = [30, 90, 120, 365];
+  const DEFAULT_PRICES = [399, 999, 1299, 3999];
+
+  // Local state for each plan's inputs
+  const [inputs, setInputs] = useState<
+    Record<string, { original: string; discount: string }>
+  >(() => {
+    const init: Record<string, { original: string; discount: string }> = {};
+    for (const name of DEFAULT_PLAN_NAMES) {
+      init[name] = { original: "", discount: "" };
+    }
+    return init;
+  });
+
+  const plans = DEFAULT_PLAN_NAMES.map((name, i) => {
+    const found = pricings.find((p) => p.planName === name);
+    return {
+      planName: name,
+      planDays: DEFAULT_DAYS[i],
+      originalPrice: found ? found.originalPrice : DEFAULT_PRICES[i],
+      discountPercent: found ? found.discountPercent : 75,
+    };
+  });
+
+  const handleSave = async (planName: string) => {
+    const inp = inputs[planName];
+    const orig = Number(inp.original);
+    const disc = Number(inp.discount);
+    if (!orig || orig < 1) {
+      toast.error("सही मूल कीमत डालें");
+      return;
+    }
+    if (disc < 0 || disc > 100) {
+      toast.error("छूट 0-100 के बीच होनी चाहिए");
+      return;
+    }
+    try {
+      await setPricingMutation.mutateAsync({
+        planName,
+        originalPrice: orig,
+        discountPercent: disc,
+      });
+      toast.success(`${planName} की कीमत सेव हो गई`);
+      setInputs((prev) => ({
+        ...prev,
+        [planName]: { original: "", discount: "" },
+      }));
+    } catch {
+      toast.error("सेव नहीं हो पाया");
+    }
+  };
+
+  if (isLoading)
+    return <p className="text-sm text-gray-500">लोड हो रहा है...</p>;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">प्लान कीमत सेट करें</CardTitle>
+      </CardHeader>
+      <CardContent className="pb-4 space-y-4">
+        <p className="text-xs text-gray-500">
+          प्रत्येक प्लान की मूल कीमत और छूट % सेट करें
+        </p>
+        {plans.map((plan) => {
+          const inp = inputs[plan.planName];
+          const previewOriginal = inp.original
+            ? Number(inp.original)
+            : plan.originalPrice;
+          const previewDisc = inp.discount
+            ? Number(inp.discount)
+            : plan.discountPercent;
+          const previewFinal = Math.round(
+            previewOriginal * (1 - previewDisc / 100),
+          );
+          return (
+            <div
+              key={plan.planName}
+              className="border rounded-lg p-3 space-y-2"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-sm text-gray-800">
+                  {plan.planName}
+                </span>
+                <div className="text-right">
+                  <span className="text-xs text-gray-400 line-through">
+                    ₹{previewOriginal}
+                  </span>
+                  <span className="text-sm font-bold text-green-700 ml-2">
+                    ₹{previewFinal}
+                  </span>
+                  <span className="text-xs text-orange-500 ml-1">
+                    ({previewDisc}% OFF)
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-xs text-gray-500 block mb-1">
+                    मूल कीमत (₹)
+                  </p>
+                  <Input
+                    type="number"
+                    placeholder={String(plan.originalPrice)}
+                    value={inp.original}
+                    onChange={(e) =>
+                      setInputs((prev) => ({
+                        ...prev,
+                        [plan.planName]: {
+                          ...prev[plan.planName],
+                          original: e.target.value,
+                        },
+                      }))
+                    }
+                    className="h-8 text-sm"
+                    data-ocid="settings.input"
+                  />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 block mb-1">
+                    छूट % (0-100)
+                  </p>
+                  <Input
+                    type="number"
+                    placeholder={String(plan.discountPercent)}
+                    value={inp.discount}
+                    onChange={(e) =>
+                      setInputs((prev) => ({
+                        ...prev,
+                        [plan.planName]: {
+                          ...prev[plan.planName],
+                          discount: e.target.value,
+                        },
+                      }))
+                    }
+                    className="h-8 text-sm"
+                    data-ocid="settings.input"
+                  />
+                </div>
+              </div>
+              <Button
+                size="sm"
+                className="w-full"
+                disabled={
+                  setPricingMutation.isPending ||
+                  (!inp.original && !inp.discount)
+                }
+                onClick={() => handleSave(plan.planName)}
+                data-ocid="settings.save_button"
+              >
+                {setPricingMutation.isPending
+                  ? "सेव..."
+                  : `${plan.planName} सेव करें`}
+              </Button>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────
 function getTrialStatus(salon: SalonWithId) {
   if (salon.pendingApproval)
     return { label: "अनुमोदन हेतु", variant: "secondary" as const };
@@ -278,17 +594,16 @@ function SubscriptionIncomeTab({
   allSalons,
   subscriptionPrice,
 }: { allSalons: SalonWithId[]; subscriptionPrice: number }) {
+  const { data: earnings } = useAdminGetSubRequestEarnings();
   const activeSubs = allSalons.filter(
     (s) => s.subscriptionActive && !s.pendingApproval,
   );
   const totalIncome = activeSubs.length * subscriptionPrice;
 
-  // Monthly estimate: count active subscriptions per month based on approval dates
   const now = new Date();
   const currentYear = now.getFullYear();
-
-  // Monthly subscription income estimate for current year (based on active subs)
   const currentMonth = now.getMonth();
+
   const monthlyData = useMemo(() => {
     return MONTHS_HI.map((month, idx) => ({
       month,
@@ -297,12 +612,44 @@ function SubscriptionIncomeTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSubs.length, subscriptionPrice, currentMonth]);
 
-  const yearlyIncome = activeSubs.length * subscriptionPrice * 12; // estimated yearly
+  const yearlyIncome = activeSubs.length * subscriptionPrice * 12;
 
   const cardBase = "rounded-xl p-4 bg-white border border-gray-100 shadow-sm";
 
+  // Backend earnings from approved subscription requests
+  const backendTotal = earnings ? earnings[0] : 0;
+  const backendMonthly = earnings ? earnings[1] : 0;
+  const backendCount = earnings ? Number(earnings[2]) : 0;
+
   return (
     <div className="space-y-4">
+      {/* Backend earnings from sub requests */}
+      {(backendTotal > 0 || backendCount > 0) && (
+        <div className="rounded-xl p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
+          <p className="text-sm font-semibold text-green-800 mb-3">
+            💰 सदस्यता अनुरोधों से आय
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="text-center">
+              <p className="text-xs text-green-600">कुल आय</p>
+              <p className="text-lg font-bold text-green-800">
+                ₹{backendTotal.toLocaleString("hi-IN")}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-green-600">इस माह</p>
+              <p className="text-lg font-bold text-green-800">
+                ₹{backendMonthly.toLocaleString("hi-IN")}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-green-600">स्वीकृत</p>
+              <p className="text-lg font-bold text-green-800">{backendCount}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3">
         <div className={cardBase}>
@@ -331,7 +678,7 @@ function SubscriptionIncomeTab({
         </div>
       </div>
 
-      {/* Simple bar chart */}
+      {/* Bar chart */}
       <div className={cardBase}>
         <p className="text-sm font-semibold text-gray-800 mb-3">
           मासिक सब्स्क्रिप्शन आय ({currentYear})
@@ -500,11 +847,7 @@ function BackupTab() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-red-600 font-medium">
-            ⚠️ सावधान: रिस्टोर करने पर मौजूदा सारा डेटा हट जाएगा और बैकअप फ़ाइल का डेटा
-            आ जाएगा।
-          </p>
-          <p className="text-sm text-gray-600">
-            पहले से डाउनलोड की गई JSON बैकअप फ़ाइल चुनें।
+            ⚠️ सावधान: रिस्टोर करने पर मौजूदा सारा डेटा हट जाएगा।
           </p>
           <input
             ref={fileInputRef}
@@ -524,20 +867,13 @@ function BackupTab() {
               ? "रिस्टोर हो रहा है..."
               : "⬆️ Restore Data (JSON अपलोड करें)"}
           </Button>
-          {restoreMutation.isPending && (
-            <p
-              className="text-xs text-gray-500 text-center"
-              data-ocid="backup.loading_state"
-            >
-              डेटा रिस्टोर हो रहा है...
-            </p>
-          )}
         </CardContent>
       </Card>
     </div>
   );
 }
 
+// ────────────────────────────────────────────────────────────────
 export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
   const [tab, setTab] = useState<Tab>("dashboard");
   const [trialDaysInput, setTrialDaysInput] = useState("");
@@ -550,6 +886,7 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
     useAdminGetAllSalons();
   const { data: defaultTrialDays } = useAdminGetDefaultTrialDays();
   const { data: subscriptionPrice } = useAdminGetSubscriptionPrice();
+  const { data: pendingSubReqs = [] } = useAdminGetPendingSubRequests();
 
   const approveMutation = useAdminApproveSalon();
   const rejectMutation = useAdminRejectSalon();
@@ -587,7 +924,10 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
   const tabs: { id: Tab; label: string }[] = [
     { id: "dashboard", label: "डैशबोर्ड" },
     { id: "pending", label: `अनुमोदन (${pendingSalons.length})` },
-    { id: "sub_requests", label: "सदस्यता अनुरोध" },
+    {
+      id: "sub_requests",
+      label: `सदस्यता${pendingSubReqs.length > 0 ? ` (${pendingSubReqs.length})` : ""}`,
+    },
     { id: "salons", label: "सभी दुकानें" },
     { id: "settings", label: "सेटिंग" },
     { id: "revenue", label: "रेवेन्यू" },
@@ -601,7 +941,7 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
       {/* Header */}
       <div className="bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-10">
         <div>
-          <h1 className="text-lg font-bold text-gray-900">Salon360 Admin</h1>
+          <h1 className="text-lg font-bold text-gray-900">Salon360Pro Admin</h1>
           <p className="text-xs text-gray-500">सुपर एडमिन पैनल</p>
         </div>
         {onLogout && (
@@ -623,6 +963,7 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
                 ? "border-blue-600 text-blue-600"
                 : "border-transparent text-gray-600 hover:text-gray-900"
             }`}
+            data-ocid={"admin.tab"}
           >
             {t.label}
           </button>
@@ -645,6 +986,28 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
                 </Card>
               ))}
             </div>
+
+            {/* Pending sub requests notification */}
+            {pendingSubReqs.length > 0 && (
+              <Card className="border-amber-200 bg-amber-50">
+                <CardContent className="pt-4 pb-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-amber-800">
+                      ⏳{" "}
+                      <span className="font-bold">{pendingSubReqs.length}</span>{" "}
+                      सदस्यता अनुरोध लंबित हैं
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setTab("sub_requests")}
+                      className="text-xs text-amber-700 underline font-medium"
+                    >
+                      देखें
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Subscription price summary on dashboard */}
             <Card className="border-blue-100 bg-blue-50">
@@ -836,6 +1199,9 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
               </CardContent>
             </Card>
 
+            {/* Plan Pricing Editor */}
+            <PlanPricingEditor />
+
             {/* Default Trial Days */}
             <Card>
               <CardHeader className="pb-2">
@@ -865,7 +1231,7 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
                       }
                       setTrialDaysMutation.mutate(d, {
                         onSuccess: () => {
-                          alert(`डिफ़ॉल्ट ट्रायल ${d} दिन हो गया`);
+                          alert(`डिय़ॉल्ट ट्रायल ${d} दिन हो गया`);
                           setTrialDaysInput("");
                         },
                       });
@@ -982,17 +1348,7 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
             <h2 className="text-base font-semibold text-gray-800">
               सदस्यता अनुरोध
             </h2>
-            <SubscriptionRequestsTab
-              onApprove={(phone) => {
-                const salon = allSalons.find((s) => s.ownerPhone === phone);
-                if (salon) {
-                  setSubMutation.mutate({
-                    salonId: BigInt(salon.id),
-                    active: true,
-                  });
-                }
-              }}
-            />
+            <SubscriptionRequestsTab />
           </>
         )}
       </div>
@@ -1151,9 +1507,7 @@ function SalonManageCard({
                       alert("सही दिन डालें");
                       return;
                     }
-                    alert(
-                      `${salon.name} के लिए ट्रायल ${d} दिन सेट करें (backend hook जोड़ें)`,
-                    );
+                    alert(`${salon.name} के लिए ट्रायल ${d} दिन सेट करें`);
                   }}
                 >
                   सेव
