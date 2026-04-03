@@ -32,7 +32,7 @@ export default function MobileLoginPage({
 
   const info = role
     ? roleLabels[role]
-    : { title: "Salon360 लॉगिन", subtitle: "मोबाइल नंबर से लॉगिन करें" };
+    : { title: "Salon360Pro लॉगिन", subtitle: "मोबाइल नंबर से लॉगिन करें" };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,49 +42,56 @@ export default function MobileLoginPage({
       return;
     }
     setIsLoading(true);
-    // Small delay for UX feedback
     setTimeout(() => {
       setIsLoading(false);
       onLoginSuccess(clean);
     }, 500);
   };
 
+  const GOLD = "oklch(0.78 0.12 80)";
+  const BG = "oklch(0.09 0.005 60)";
+  const TEXT = "oklch(0.97 0.015 80)";
+  const MUTED = "oklch(0.55 0.04 80)";
+
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex" style={{ background: BG }}>
       {/* Left panel — desktop only */}
       <div
         className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12"
-        style={{ background: "oklch(0.22 0.05 155)" }}
+        style={{
+          background: "oklch(0.11 0.01 70)",
+          borderRight: "1px solid oklch(0.28 0.04 75 / 0.4)",
+        }}
       >
         <div className="flex items-center gap-3">
           <div
-            className="w-10 h-10 rounded-full flex items-center justify-center"
-            style={{ background: "oklch(0.52 0.18 145)" }}
+            className="w-10 h-10 rounded-full flex items-center justify-center gold-glow"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.88 0.12 82) 0%, oklch(0.68 0.13 74) 100%)",
+            }}
           >
-            <Scissors className="w-5 h-5 text-white" />
+            <Scissors
+              className="w-5 h-5"
+              style={{ color: "oklch(0.1 0.01 60)" }}
+            />
           </div>
-          <span
-            className="font-display text-xl font-semibold"
-            style={{ color: "oklch(0.95 0.01 145)" }}
-          >
-            Salon360
+          <span className="font-display text-xl font-semibold gold-gradient-text">
+            Salon360Pro
           </span>
         </div>
         <div className="space-y-6">
           <h1
             className="font-display text-5xl font-bold leading-tight"
-            style={{ color: "oklch(0.95 0.01 145)" }}
+            style={{ color: TEXT }}
           >
             भारत का
             <br />
-            <span style={{ color: "oklch(0.52 0.18 145)" }}>स्मार्ट सैलून</span>
+            <span className="gold-gradient-text">स्मार्ट सैलून</span>
             <br />
             प्लेटफ़ॉर्म
           </h1>
-          <p
-            className="text-lg leading-relaxed"
-            style={{ color: "oklch(0.7 0.02 155)" }}
-          >
+          <p className="text-lg leading-relaxed" style={{ color: MUTED }}>
             50+ सैलून, हजारों ग्राहक — सब एक जगह। अपॉइंटमेंट, Queue, सेवाएं — सब आसान।
           </p>
         </div>
@@ -94,16 +101,17 @@ export default function MobileLoginPage({
               <div
                 key={l}
                 className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                style={{ background: "oklch(0.52 0.18 145)", color: "white" }}
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.88 0.12 82) 0%, oklch(0.68 0.13 74) 100%)",
+                  color: "oklch(0.1 0.01 60)",
+                }}
               >
                 {l}
               </div>
             ))}
           </div>
-          <span
-            className="ml-2 text-sm"
-            style={{ color: "oklch(0.7 0.02 155)" }}
-          >
+          <span className="ml-2 text-sm" style={{ color: MUTED }}>
             1000+ सैलून मालिकों का भरोसा
           </span>
         </div>
@@ -115,19 +123,28 @@ export default function MobileLoginPage({
           {/* Mobile branding */}
           <div className="lg:hidden flex items-center gap-3 mb-4">
             <div
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ background: "oklch(0.52 0.18 145)" }}
+              className="w-10 h-10 rounded-full flex items-center justify-center gold-glow"
+              style={{
+                background:
+                  "linear-gradient(135deg, oklch(0.88 0.12 82) 0%, oklch(0.68 0.13 74) 100%)",
+              }}
             >
-              <Scissors className="w-5 h-5 text-white" />
+              <Scissors
+                className="w-5 h-5"
+                style={{ color: "oklch(0.1 0.01 60)" }}
+              />
             </div>
-            <span className="font-display text-xl font-semibold">Salon360</span>
+            <span className="font-display text-xl font-semibold gold-gradient-text">
+              Salon360Pro
+            </span>
           </div>
 
           {onChangeRole && (
             <button
               type="button"
               onClick={onChangeRole}
-              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1 text-sm transition-colors"
+              style={{ color: MUTED }}
               data-ocid="auth.link"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -136,28 +153,30 @@ export default function MobileLoginPage({
           )}
 
           <div>
-            <h2 className="font-display text-3xl font-bold text-foreground">
+            <h2
+              className="font-display text-3xl font-bold"
+              style={{ color: TEXT }}
+            >
               {info.title}
             </h2>
-            <p className="mt-2 text-muted-foreground">{info.subtitle}</p>
+            <p className="mt-2" style={{ color: MUTED }}>
+              {info.subtitle}
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div
-              className="p-6 rounded-2xl border space-y-5"
-              style={{
-                background: "oklch(0.97 0.008 145)",
-                borderColor: "oklch(0.9 0.02 145)",
-              }}
-            >
+            <div className="p-6 rounded-2xl space-y-5 card-dark">
               <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">
+                <p
+                  className="text-sm font-medium"
+                  style={{ color: "oklch(0.75 0.08 80)" }}
+                >
                   मोबाइल नंबर
                 </p>
                 <div className="relative">
                   <div
                     className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-sm font-medium"
-                    style={{ color: "oklch(0.4 0.06 145)" }}
+                    style={{ color: GOLD }}
                   >
                     <Phone className="w-4 h-4" />
                     <span>+91</span>
@@ -177,12 +196,13 @@ export default function MobileLoginPage({
                     data-ocid="auth.input"
                     className="pl-16 h-12 text-base rounded-xl"
                     style={{
-                      borderColor: "oklch(0.85 0.04 145)",
-                      background: "white",
+                      background: "oklch(0.17 0.012 60)",
+                      border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                      color: TEXT,
                     }}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs" style={{ color: MUTED }}>
                   जैसे: 9876543210 — बिना 0 या +91 के
                 </p>
               </div>
@@ -191,8 +211,13 @@ export default function MobileLoginPage({
                 type="submit"
                 disabled={isLoading || phone.replace(/\D/g, "").length !== 10}
                 data-ocid="auth.primary_button"
-                className="w-full h-12 text-base rounded-full font-semibold"
-                style={{ background: "oklch(0.52 0.18 145)", color: "white" }}
+                className="w-full h-12 text-base rounded-full font-semibold gold-glow"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.88 0.12 82) 0%, oklch(0.68 0.13 74) 100%)",
+                  color: "oklch(0.09 0.005 60)",
+                  border: "none",
+                }}
               >
                 {isLoading ? (
                   <>
@@ -206,7 +231,10 @@ export default function MobileLoginPage({
             </div>
           </form>
 
-          <p className="text-xs text-center text-muted-foreground">
+          <p
+            className="text-xs text-center"
+            style={{ color: "oklch(0.4 0.03 70)" }}
+          >
             लॉगिन करके आप हमारी सेवा की शर्तों से सहमत होते हैं।
           </p>
         </div>

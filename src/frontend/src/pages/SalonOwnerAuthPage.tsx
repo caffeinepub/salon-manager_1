@@ -25,14 +25,17 @@ async function hashPassword(password: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-const BG = "oklch(0.12 0.04 155)";
-const CARD = "oklch(0.18 0.05 155)";
-const BORDER = "1px solid oklch(0.28 0.05 155)";
-const ACCENT = "oklch(0.52 0.18 145)";
-const TEXT = "oklch(0.95 0.02 145)";
-const MUTED = "oklch(0.6 0.05 145)";
-const INPUT_BG = "oklch(0.22 0.05 155)";
-const INPUT_BORDER = "1px solid oklch(0.32 0.05 155)";
+// ── Design tokens: Deep Black + Luxury Gold ──────────────────────────────
+const BG = "oklch(0.09 0.005 60)";
+const CARD = "oklch(0.13 0.008 60)";
+const CARD_BORDER = "1px solid oklch(0.28 0.04 75 / 0.6)";
+const GOLD =
+  "linear-gradient(135deg, oklch(0.88 0.12 82) 0%, oklch(0.68 0.13 74) 100%)";
+const GOLD_SOLID = "oklch(0.78 0.12 80)";
+const TEXT = "oklch(0.97 0.015 80)";
+const MUTED = "oklch(0.55 0.04 80)";
+const INPUT_BG = "oklch(0.17 0.012 60)";
+const INPUT_BORDER = "1px solid oklch(0.32 0.06 78 / 0.5)";
 
 function FieldLabel({
   htmlFor,
@@ -42,7 +45,7 @@ function FieldLabel({
     <label
       htmlFor={htmlFor}
       className="block text-sm font-medium"
-      style={{ color: MUTED }}
+      style={{ color: "oklch(0.65 0.07 80)" }}
     >
       {children}
     </label>
@@ -77,7 +80,7 @@ function TextInput({
       data-ocid={ocid}
       className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all"
       style={{
-        background: readOnly ? "oklch(0.20 0.05 155)" : INPUT_BG,
+        background: readOnly ? "oklch(0.15 0.01 60)" : INPUT_BG,
         border: INPUT_BORDER,
         color: TEXT,
       }}
@@ -148,7 +151,7 @@ function PhoneField({
       >
         <span
           className="px-3 py-3 text-sm flex items-center flex-shrink-0"
-          style={{ background: "oklch(0.20 0.05 155)", color: MUTED }}
+          style={{ background: "oklch(0.15 0.01 60)", color: GOLD_SOLID }}
         >
           +91
         </span>
@@ -175,7 +178,7 @@ function Card({ children }: { children: React.ReactNode }) {
   return (
     <div
       className="w-full max-w-md mx-auto rounded-2xl p-6 space-y-5"
-      style={{ background: CARD, border: BORDER }}
+      style={{ background: CARD, border: CARD_BORDER }}
     >
       {children}
     </div>
@@ -203,8 +206,12 @@ function ActionButton({
       disabled={loading}
       data-ocid={ocid}
       onClick={onClick}
-      className="w-full py-3.5 rounded-xl font-semibold text-white text-sm transition-opacity disabled:opacity-70 flex items-center justify-center gap-2"
-      style={{ background: ACCENT }}
+      className="w-full py-3.5 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-70 flex items-center justify-center gap-2 gold-glow"
+      style={{
+        background: GOLD,
+        color: "oklch(0.09 0.005 60)",
+        border: "none",
+      }}
     >
       {loading && <Loader2 className="w-4 h-4 animate-spin" />}
       {loading ? (loadingLabel ?? label) : label}
@@ -224,7 +231,7 @@ function LinkBtn({
       type="button"
       onClick={onClick}
       className="text-sm underline-offset-2 hover:underline"
-      style={{ color: ACCENT }}
+      style={{ color: GOLD_SOLID }}
     >
       {children}
     </button>
@@ -378,7 +385,7 @@ export default function SalonOwnerAuthPage({ onBack, onLoginSuccess }: Props) {
           setLoginPhone(phone);
           break;
         case "limit_reached":
-          toast.error("अभी नया सैलून नहीं जुड़ सकता। Admin से संपर्क करें।");
+          toast.error("अभी नया सैलून नहीं जुड़ सकता। Admin से संपर्क करें।");
           break;
         default:
           toast.error("रजिस्ट्रेशन नहीं हो पाया, दोबारा कोशिश करें");
@@ -432,337 +439,368 @@ export default function SalonOwnerAuthPage({ onBack, onLoginSuccess }: Props) {
       className="min-h-screen flex flex-col items-center justify-start py-8 px-4"
       style={{ background: BG }}
     >
-      {/* Brand header */}
-      <div className="flex items-center gap-2 mb-8">
+      {/* Subtle watermark salon icon */}
+      <div
+        className="fixed inset-0 pointer-events-none overflow-hidden"
+        aria-hidden="true"
+      >
         <div
-          className="w-10 h-10 rounded-full flex items-center justify-center"
-          style={{ background: ACCENT }}
+          className="absolute bottom-8 right-8 text-[12rem] select-none"
+          style={{ color: "oklch(0.78 0.12 80 / 0.04)", userSelect: "none" }}
         >
-          <Scissors className="w-5 h-5 text-white" />
+          ✂
         </div>
-        <span className="text-xl font-bold" style={{ color: TEXT }}>
-          Salon360
+        <div
+          className="absolute top-16 left-8 text-[8rem] select-none rotate-45"
+          style={{ color: "oklch(0.78 0.12 80 / 0.03)", userSelect: "none" }}
+        >
+          ✂
+        </div>
+      </div>
+
+      {/* Brand header */}
+      <div className="flex items-center gap-2 mb-8 relative z-10">
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center gold-glow"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.88 0.12 82) 0%, oklch(0.68 0.13 74) 100%)",
+          }}
+        >
+          <Scissors
+            className="w-5 h-5"
+            style={{ color: "oklch(0.09 0.005 60)" }}
+          />
+        </div>
+        <span className="text-xl font-bold font-display gold-gradient-text">
+          Salon360Pro
         </span>
       </div>
 
-      {/* LOGIN MODE */}
-      {mode === "login" && (
-        <Card>
-          <div className="text-center space-y-1">
-            <h1 className="text-xl font-bold" style={{ color: TEXT }}>
-              सैलून मालिक लॉगिन
-            </h1>
-            <p className="text-sm" style={{ color: MUTED }}>
-              अपना रजिस्टर्ड नंबर और पासवर्ड डालें
-            </p>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <PhoneField
-              id="login-phone"
-              value={loginPhone}
-              onChange={setLoginPhone}
-              placeholder="10 अंकों का नंबर"
-            />
-
-            <PasswordField
-              id="login-password"
-              label="पासवर्ड"
-              value={loginPassword}
-              onChange={setLoginPassword}
-              placeholder="कम से कम 6 अक्षर"
-              ocid="salon_auth.input"
-            />
-
-            {/* Forgot password contact */}
-            <div
-              className="rounded-xl px-4 py-3 text-center"
-              style={{
-                background: "oklch(0.20 0.05 155)",
-                border: "1px solid oklch(0.30 0.05 155)",
-              }}
-            >
-              <p className="text-xs" style={{ color: "oklch(0.65 0.08 145)" }}>
-                Password bhul gaye?
-              </p>
-              <p
-                className="text-sm font-semibold mt-0.5"
-                style={{ color: "oklch(0.78 0.12 145)" }}
-              >
-                Admin se sampark kare:{" "}
-                <span style={{ color: "oklch(0.85 0.16 145)" }}>
-                  6206761169
-                </span>
+      <div className="relative z-10 w-full">
+        {/* LOGIN MODE */}
+        {mode === "login" && (
+          <Card>
+            <div className="text-center space-y-1">
+              <h1 className="text-xl font-bold" style={{ color: TEXT }}>
+                सैलून मालिक लॉगिन
+              </h1>
+              <p className="text-sm" style={{ color: MUTED }}>
+                अपना रजिस्टर्ड नंबर और पासवर्ड डालें
               </p>
             </div>
 
-            <ActionButton
-              loading={loading}
-              label="लॉगिन करें"
-              loadingLabel="लॉगिन हो रहा है..."
-              ocid="salon_auth.submit_button"
-            />
-          </form>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <PhoneField
+                id="login-phone"
+                value={loginPhone}
+                onChange={setLoginPhone}
+                placeholder="10 अंकों का नंबर"
+              />
 
-          <div className="text-center space-y-2 pt-1">
-            <p className="text-sm" style={{ color: MUTED }}>
-              नया सैलून?{" "}
-              <LinkBtn onClick={() => setMode("register")}>
-                यहाँ रजिस्टर करें
-              </LinkBtn>
-            </p>
-            <button
-              type="button"
-              onClick={onBack}
-              data-ocid="salon_auth.cancel_button"
-              className="text-sm"
-              style={{ color: MUTED }}
-            >
-              ← वापस जाएं
-            </button>
-          </div>
-        </Card>
-      )}
-
-      {/* REGISTER MODE */}
-      {mode === "register" && (
-        <Card>
-          <div className="text-center space-y-1">
-            <h1 className="text-xl font-bold" style={{ color: TEXT }}>
-              नया सैलून रजिस्टर करें
-            </h1>
-            <p className="text-sm" style={{ color: MUTED }}>
-              Admin की मंजूरी के बाद लॉगिन कर पाएंगे
-            </p>
-          </div>
-
-          <form onSubmit={handleRegister} className="space-y-4">
-            <PhoneField
-              id="reg-phone"
-              value={regPhone}
-              onChange={setRegPhone}
-              placeholder="10 अंकों का अनोखा नंबर"
-            />
-
-            <div className="space-y-1.5">
-              <FieldLabel htmlFor="reg-name">सैलून का नाम</FieldLabel>
-              <TextInput
-                id="reg-name"
-                value={regName}
-                onChange={setRegName}
-                placeholder="जैसे: राज हेयर सैलून"
+              <PasswordField
+                id="login-password"
+                label="पासवर्ड"
+                value={loginPassword}
+                onChange={setLoginPassword}
+                placeholder="कम से कम 6 अक्षर"
                 ocid="salon_auth.input"
               />
-            </div>
 
-            <div className="space-y-1.5">
-              <FieldLabel htmlFor="reg-services">सेवाएं</FieldLabel>
-              <textarea
-                id="reg-services"
-                value={regServices}
-                onChange={(e) => setRegServices(e.target.value)}
-                placeholder="अल्पविराम से अलग करें, जैसे: बाल काटना, शेव, फेशियल"
-                rows={2}
-                data-ocid="salon_auth.textarea"
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
+              {/* Forgot password contact */}
+              <div
+                className="rounded-xl px-4 py-3 text-center"
                 style={{
-                  background: INPUT_BG,
-                  border: INPUT_BORDER,
-                  color: TEXT,
+                  background: "oklch(0.78 0.12 80 / 0.07)",
+                  border: "1px solid oklch(0.78 0.12 80 / 0.25)",
                 }}
+              >
+                <p className="text-xs" style={{ color: MUTED }}>
+                  Password bhul gaye?
+                </p>
+                <p
+                  className="text-sm font-semibold mt-0.5"
+                  style={{ color: "oklch(0.75 0.1 80)" }}
+                >
+                  Admin se sampark kare:{" "}
+                  <span className="gold-gradient-text font-bold">
+                    6206761169
+                  </span>
+                </p>
+              </div>
+
+              <ActionButton
+                loading={loading}
+                label="लॉगिन करें"
+                loadingLabel="लॉगिन हो रहा है..."
+                ocid="salon_auth.submit_button"
               />
-              <p className="text-xs" style={{ color: "oklch(0.5 0.04 155)" }}>
-                comma (,) से अलग करें
+            </form>
+
+            <div className="text-center space-y-2 pt-1">
+              <p className="text-sm" style={{ color: MUTED }}>
+                नया सैलून?{" "}
+                <LinkBtn onClick={() => setMode("register")}>
+                  यहाँ रजिस्टर करें
+                </LinkBtn>
+              </p>
+              <button
+                type="button"
+                onClick={onBack}
+                data-ocid="salon_auth.cancel_button"
+                className="text-sm"
+                style={{ color: MUTED }}
+              >
+                ← वापस जाएं
+              </button>
+            </div>
+          </Card>
+        )}
+
+        {/* REGISTER MODE */}
+        {mode === "register" && (
+          <Card>
+            <div className="text-center space-y-1">
+              <h1 className="text-xl font-bold" style={{ color: TEXT }}>
+                नया सैलून रजिस्टर करें
+              </h1>
+              <p className="text-sm" style={{ color: MUTED }}>
+                Admin की मंजूरी के बाद लॉगिन कर पाएंगे
               </p>
             </div>
 
-            <PasswordField
-              id="reg-password"
-              label="पासवर्ड"
-              value={regPassword}
-              onChange={setRegPassword}
-              placeholder="कम से कम 6 अक्षर"
-              ocid="salon_auth.input"
-            />
-
-            <PasswordField
-              id="reg-confirm"
-              label="पासवर्ड दोबारा"
-              value={regConfirm}
-              onChange={setRegConfirm}
-              placeholder="पासवर्ड दोबारा डालें"
-              ocid="salon_auth.input"
-            />
-
-            <ActionButton
-              loading={loading}
-              label="रजिस्टर करें"
-              loadingLabel="रजिस्टर हो रहा है..."
-              ocid="salon_auth.submit_button"
-            />
-          </form>
-
-          <div className="text-center space-y-2 pt-1">
-            <p className="text-sm" style={{ color: MUTED }}>
-              पहले से account है?{" "}
-              <LinkBtn onClick={() => setMode("login")}>लॉगिन करें</LinkBtn>
-            </p>
-            <button
-              type="button"
-              onClick={onBack}
-              data-ocid="salon_auth.cancel_button"
-              className="text-sm"
-              style={{ color: MUTED }}
-            >
-              ← वापस जाएं
-            </button>
-          </div>
-        </Card>
-      )}
-
-      {/* SET PASSWORD MODE */}
-      {mode === "set_password" && (
-        <Card>
-          <div className="text-center space-y-1">
-            <h1 className="text-xl font-bold" style={{ color: TEXT }}>
-              पासवर्ड सेट करें
-            </h1>
-            <p className="text-sm" style={{ color: MUTED }}>
-              आपका सैलून पहले से रजिस्टर है। एक बार पासवर्ड सेट करें।
-            </p>
-          </div>
-
-          <form onSubmit={handleSetPassword} className="space-y-4">
-            <div className="space-y-1.5">
-              <FieldLabel htmlFor="sp-phone">मोबाइल नंबर</FieldLabel>
-              <TextInput id="sp-phone" value={spPhone} readOnly />
-            </div>
-
-            <PasswordField
-              id="sp-password"
-              label="नया पासवर्ड"
-              value={spPassword}
-              onChange={setSpPassword}
-              placeholder="कम से कम 6 अक्षर"
-              ocid="salon_auth.input"
-            />
-
-            <PasswordField
-              id="sp-confirm"
-              label="पासवर्ड दोबारा"
-              value={spConfirm}
-              onChange={setSpConfirm}
-              placeholder="पासवर्ड दोबारा डालें"
-              ocid="salon_auth.input"
-            />
-
-            <ActionButton
-              loading={loading}
-              label="पासवर्ड सेट करें"
-              loadingLabel="सेट हो रहा है..."
-              ocid="salon_auth.submit_button"
-            />
-          </form>
-
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => setMode("login")}
-              className="text-sm"
-              style={{ color: MUTED }}
-            >
-              ← वापस जाएं
-            </button>
-          </div>
-        </Card>
-      )}
-
-      {/* PENDING MODE */}
-      {mode === "pending" && (
-        <Card>
-          <div className="text-center space-y-4">
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
-              style={{ background: "oklch(0.75 0.18 85 / 0.15)" }}
-            >
-              <Clock
-                className="w-8 h-8"
-                style={{ color: "oklch(0.75 0.18 85)" }}
+            <form onSubmit={handleRegister} className="space-y-4">
+              <PhoneField
+                id="reg-phone"
+                value={regPhone}
+                onChange={setRegPhone}
+                placeholder="10 अंकों का अनोखा नंबर"
               />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold" style={{ color: TEXT }}>
-                अनुमोदन प्रतीक्षा में
-              </h2>
-              <p className="text-sm mt-2" style={{ color: MUTED }}>
-                आपकी दुकान{" "}
-                <strong style={{ color: "oklch(0.85 0.08 145)" }}>
-                  {pendingSalonName}
-                </strong>{" "}
-                का रजिस्ट्रेशन हो गया है। Admin की मंजूरी का इंतज़ार है।
-              </p>
-            </div>
-            <div
-              className="rounded-xl p-3 text-sm"
-              style={{
-                background: "oklch(0.75 0.18 85 / 0.1)",
-                border: "1px solid oklch(0.75 0.18 85 / 0.3)",
-                color: "oklch(0.78 0.14 85)",
-              }}
-            >
-              आमतौर पर 24 घंटे में मंजूरी मिलती है
-            </div>
-            <button
-              type="button"
-              onClick={() => setMode("login")}
-              data-ocid="salon_auth.cancel_button"
-              className="w-full py-3 rounded-xl text-sm font-semibold"
-              style={{
-                background: "oklch(0.22 0.05 155)",
-                color: MUTED,
-                border: BORDER,
-              }}
-            >
-              ← वापस जाएं
-            </button>
-          </div>
-        </Card>
-      )}
 
-      {/* SUCCESS MODE (after registration) */}
-      {mode === "success" && (
-        <Card>
-          <div className="text-center space-y-4">
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
-              style={{ background: "oklch(0.52 0.18 145 / 0.15)" }}
-            >
-              <CheckCircle className="w-8 h-8" style={{ color: ACCENT }} />
+              <div className="space-y-1.5">
+                <FieldLabel htmlFor="reg-name">सैलून का नाम</FieldLabel>
+                <TextInput
+                  id="reg-name"
+                  value={regName}
+                  onChange={setRegName}
+                  placeholder="जैसे: राज हेयर सैलून"
+                  ocid="salon_auth.input"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <FieldLabel htmlFor="reg-services">सेवाएं</FieldLabel>
+                <textarea
+                  id="reg-services"
+                  value={regServices}
+                  onChange={(e) => setRegServices(e.target.value)}
+                  placeholder="अल्पविराम से अलग करें, जैसे: बाल काटना, शेव, फेशियल"
+                  rows={2}
+                  data-ocid="salon_auth.textarea"
+                  className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
+                  style={{
+                    background: INPUT_BG,
+                    border: INPUT_BORDER,
+                    color: TEXT,
+                  }}
+                />
+                <p className="text-xs" style={{ color: "oklch(0.45 0.03 70)" }}>
+                  comma (,) से अलग करें
+                </p>
+              </div>
+
+              <PasswordField
+                id="reg-password"
+                label="पासवर्ड"
+                value={regPassword}
+                onChange={setRegPassword}
+                placeholder="कम से कम 6 अक्षर"
+                ocid="salon_auth.input"
+              />
+
+              <PasswordField
+                id="reg-confirm"
+                label="पासवर्ड दोबारा"
+                value={regConfirm}
+                onChange={setRegConfirm}
+                placeholder="पासवर्ड दोबारा डालें"
+                ocid="salon_auth.input"
+              />
+
+              <ActionButton
+                loading={loading}
+                label="रजिस्टर करें"
+                loadingLabel="रजिस्टर हो रहा है..."
+                ocid="salon_auth.submit_button"
+              />
+            </form>
+
+            <div className="text-center space-y-2 pt-1">
+              <p className="text-sm" style={{ color: MUTED }}>
+                पहले से account है?{" "}
+                <LinkBtn onClick={() => setMode("login")}>लॉगिन करें</LinkBtn>
+              </p>
+              <button
+                type="button"
+                onClick={onBack}
+                data-ocid="salon_auth.cancel_button"
+                className="text-sm"
+                style={{ color: MUTED }}
+              >
+                ← वापस जाएं
+              </button>
             </div>
-            <div>
-              <h2 className="text-xl font-bold" style={{ color: TEXT }}>
-                रजिस्ट्रेशन सफल!
-              </h2>
-              <p className="text-sm mt-2" style={{ color: MUTED }}>
-                आपकी दुकान{" "}
-                <strong style={{ color: "oklch(0.85 0.08 145)" }}>
-                  {pendingSalonName}
-                </strong>{" "}
-                रजिस्टर हो गई है। Admin की मंजूरी के बाद आप लॉगिन कर पाएंगे।
+          </Card>
+        )}
+
+        {/* SET PASSWORD MODE */}
+        {mode === "set_password" && (
+          <Card>
+            <div className="text-center space-y-1">
+              <h1 className="text-xl font-bold" style={{ color: TEXT }}>
+                पासवर्ड सेट करें
+              </h1>
+              <p className="text-sm" style={{ color: MUTED }}>
+                आपका सैलून पहले से रजिस्टर है। एक बार पासवर्ड सेट करें।
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setMode("login")}
-              data-ocid="salon_auth.primary_button"
-              className="w-full py-3.5 rounded-xl text-white text-sm font-semibold"
-              style={{ background: ACCENT }}
-            >
-              लॉगिन करें
-            </button>
-          </div>
-        </Card>
-      )}
+
+            <form onSubmit={handleSetPassword} className="space-y-4">
+              <div className="space-y-1.5">
+                <FieldLabel htmlFor="sp-phone">मोबाइल नंबर</FieldLabel>
+                <TextInput id="sp-phone" value={spPhone} readOnly />
+              </div>
+
+              <PasswordField
+                id="sp-password"
+                label="नया पासवर्ड"
+                value={spPassword}
+                onChange={setSpPassword}
+                placeholder="कम से कम 6 अक्षर"
+                ocid="salon_auth.input"
+              />
+
+              <PasswordField
+                id="sp-confirm"
+                label="पासवर्ड दोबारा"
+                value={spConfirm}
+                onChange={setSpConfirm}
+                placeholder="पासवर्ड दोबारा डालें"
+                ocid="salon_auth.input"
+              />
+
+              <ActionButton
+                loading={loading}
+                label="पासवर्ड सेट करें"
+                loadingLabel="सेट हो रहा है..."
+                ocid="salon_auth.submit_button"
+              />
+            </form>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setMode("login")}
+                className="text-sm"
+                style={{ color: MUTED }}
+              >
+                ← वापस जाएं
+              </button>
+            </div>
+          </Card>
+        )}
+
+        {/* PENDING MODE */}
+        {mode === "pending" && (
+          <Card>
+            <div className="text-center space-y-4">
+              <div
+                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
+                style={{ background: "oklch(0.78 0.12 80 / 0.12)" }}
+              >
+                <Clock className="w-8 h-8" style={{ color: GOLD_SOLID }} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold" style={{ color: TEXT }}>
+                  अनुमोदन प्रतीक्षा में
+                </h2>
+                <p className="text-sm mt-2" style={{ color: MUTED }}>
+                  आपकी दुकान{" "}
+                  <strong style={{ color: "oklch(0.85 0.1 80)" }}>
+                    {pendingSalonName}
+                  </strong>{" "}
+                  का रजिस्ट्रेशन हो गया है। Admin की मंजूरी का इंतज़ार है।
+                </p>
+              </div>
+              <div
+                className="rounded-xl p-3 text-sm"
+                style={{
+                  background: "oklch(0.78 0.12 80 / 0.08)",
+                  border: "1px solid oklch(0.78 0.12 80 / 0.25)",
+                  color: GOLD_SOLID,
+                }}
+              >
+                आमतौर पर 24 घंटे में मंजूरी मिलती है
+              </div>
+              <button
+                type="button"
+                onClick={() => setMode("login")}
+                data-ocid="salon_auth.cancel_button"
+                className="w-full py-3 rounded-xl text-sm font-semibold"
+                style={{
+                  background: "oklch(0.17 0.012 60)",
+                  color: MUTED,
+                  border: CARD_BORDER,
+                }}
+              >
+                ← वापस जाएं
+              </button>
+            </div>
+          </Card>
+        )}
+
+        {/* SUCCESS MODE (after registration) */}
+        {mode === "success" && (
+          <Card>
+            <div className="text-center space-y-4">
+              <div
+                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
+                style={{ background: "oklch(0.78 0.12 80 / 0.15)" }}
+              >
+                <CheckCircle
+                  className="w-8 h-8"
+                  style={{ color: GOLD_SOLID }}
+                />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold" style={{ color: TEXT }}>
+                  रजिस्ट्रेशन सफल!
+                </h2>
+                <p className="text-sm mt-2" style={{ color: MUTED }}>
+                  आपकी दुकान{" "}
+                  <strong style={{ color: "oklch(0.85 0.1 80)" }}>
+                    {pendingSalonName}
+                  </strong>{" "}
+                  रजिस्टर हो गई है। Admin की मंजूरी के बाद आप लॉगिन कर पाएंगे।
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMode("login")}
+                data-ocid="salon_auth.primary_button"
+                className="w-full py-3.5 rounded-xl text-sm font-semibold gold-glow"
+                style={{
+                  background: GOLD,
+                  color: "oklch(0.09 0.005 60)",
+                  border: "none",
+                }}
+              >
+                लॉगिन करें
+              </button>
+            </div>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

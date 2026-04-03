@@ -125,13 +125,12 @@ export default function SubscriptionPage({
       const now = Date.now();
       setPendingSince(now);
       setStep("success");
-    } catch (_err) {
-      // Fallback to localStorage for resilience
+    } catch {
+      // Fallback: save to localStorage
       const existing = JSON.parse(
         localStorage.getItem("salon360_sub_requests") || "[]",
       );
       existing.push({
-        id: Date.now().toString(),
         ownerPhone,
         salonName,
         planName: selectedPlan.planName,
@@ -154,35 +153,38 @@ export default function SubscriptionPage({
     }
   };
 
-  // ── Styles ──────────────────────────────────────────────
-  const bg = "oklch(0.13 0.04 155)";
-  const cardBg = "oklch(0.17 0.05 155)";
-  const border = "1px solid oklch(0.26 0.06 155)";
-  const selectedBorder = "2px solid oklch(0.52 0.18 145)";
-  const selectedBg = "oklch(0.20 0.08 145)";
-  const green = "oklch(0.52 0.18 145)";
-  const greenLight = "oklch(0.72 0.18 145)";
-  const amber = "oklch(0.72 0.18 85)";
-  const textPrimary = "oklch(0.95 0.02 145)";
-  const textSecondary = "oklch(0.65 0.05 145)";
+  // ── Design tokens: Deep Black + Luxury Gold ───────────────────────
+  const BG = "oklch(0.09 0.005 60)";
+  const CARD = "oklch(0.13 0.008 60)";
+  const CARD_RAISED = "oklch(0.17 0.012 60)";
+  const BORDER = "1px solid oklch(0.28 0.04 75 / 0.6)";
+  const SELECTED_BORDER = "2px solid oklch(0.78 0.12 80)";
+  const SELECTED_BG = "oklch(0.17 0.04 75)";
+  const GOLD_GRAD =
+    "linear-gradient(135deg, oklch(0.88 0.12 82) 0%, oklch(0.68 0.13 74) 100%)";
+  const GOLD = "oklch(0.78 0.12 80)";
+  const GOLD_LIGHT = "oklch(0.88 0.12 82)";
+  const AMBER = "oklch(0.82 0.14 78)";
+  const TEXT = "oklch(0.97 0.015 80)";
+  const MUTED = "oklch(0.55 0.04 80)";
 
-  // ── SUCCESS STATE ────────────────────────────────────────
+  // ── SUCCESS STATE ─────────────────────────────────────────────────
   if (step === "success") {
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-center p-6"
-        style={{ background: bg }}
+        style={{ background: BG }}
         data-ocid="subscription.success_state"
       >
         <div
           className="w-full max-w-sm rounded-3xl p-8 text-center"
-          style={{ background: cardBg, border }}
+          style={{ background: CARD, border: BORDER }}
         >
           <div className="text-5xl mb-4">✅</div>
-          <h2 className="text-xl font-bold mb-2" style={{ color: textPrimary }}>
+          <h2 className="text-xl font-bold mb-2" style={{ color: TEXT }}>
             भुगतान अनुरोध भेज दिया!
           </h2>
-          <p className="text-sm mb-6" style={{ color: textSecondary }}>
+          <p className="text-sm mb-6" style={{ color: MUTED }}>
             एडमिन 2 घंटे में सत्यापित करेंगे
           </p>
 
@@ -190,12 +192,12 @@ export default function SubscriptionPage({
           <div
             className="rounded-2xl p-4 mb-6 flex items-center justify-center gap-2"
             style={{
-              background: "oklch(0.20 0.08 145)",
-              border: selectedBorder,
+              background: "oklch(0.78 0.12 80 / 0.1)",
+              border: SELECTED_BORDER,
             }}
           >
-            <Clock className="w-4 h-4" style={{ color: greenLight }} />
-            <span className="text-sm font-medium" style={{ color: greenLight }}>
+            <Clock className="w-4 h-4" style={{ color: GOLD_LIGHT }} />
+            <span className="text-sm font-medium" style={{ color: GOLD_LIGHT }}>
               {countdown || "2 घंटे 0 मिनट बचे"}
             </span>
           </div>
@@ -209,45 +211,39 @@ export default function SubscriptionPage({
               return (
                 <div
                   className="rounded-xl p-3 mb-6 text-left space-y-1"
-                  style={{ background: "oklch(0.15 0.04 155)", border }}
+                  style={{ background: CARD_RAISED, border: BORDER }}
                 >
-                  <p
-                    className="text-xs font-semibold"
-                    style={{ color: greenLight }}
-                  >
+                  <p className="text-xs font-semibold" style={{ color: GOLD }}>
                     चुना गया प्लान
                   </p>
-                  <p
-                    className="font-bold text-base"
-                    style={{ color: textPrimary }}
-                  >
+                  <p className="font-bold text-base" style={{ color: TEXT }}>
                     {selectedPlan.planName}
                   </p>
                   <div className="flex items-center gap-2">
                     <span
                       className="text-sm line-through"
-                      style={{ color: textSecondary }}
+                      style={{ color: MUTED }}
                     >
                       ₹{selectedPlan.originalPrice}
                     </span>
                     <span
                       className="text-xs px-1.5 py-0.5 rounded font-bold"
                       style={{
-                        background: "oklch(0.20 0.12 145)",
-                        color: greenLight,
+                        background: "oklch(0.78 0.12 80 / 0.15)",
+                        color: GOLD_LIGHT,
                       }}
                     >
                       {selectedPlan.discountPercent}% OFF
                     </span>
                     <span
                       className="text-base font-bold"
-                      style={{ color: greenLight }}
+                      style={{ color: GOLD_LIGHT }}
                     >
                       ₹{final}
                     </span>
                   </div>
                   {savings > 0 && (
-                    <p className="text-xs" style={{ color: amber }}>
+                    <p className="text-xs" style={{ color: AMBER }}>
                       ₹{savings} बचाए!
                     </p>
                   )}
@@ -255,13 +251,17 @@ export default function SubscriptionPage({
               );
             })()}
 
-          <p className="text-xs mb-4" style={{ color: textSecondary }}>
+          <p className="text-xs mb-4" style={{ color: MUTED }}>
             भुगतान सत्यापित होते ही सदस्यता स्वचालित रूप से सक्रिय होगी
           </p>
           <Button
             onClick={onSuccess}
-            className="w-full h-11 rounded-xl font-semibold"
-            style={{ background: green, color: "white", border: "none" }}
+            className="w-full h-11 rounded-xl font-semibold gold-glow"
+            style={{
+              background: GOLD_GRAD,
+              color: "oklch(0.09 0.005 60)",
+              border: "none",
+            }}
             data-ocid="subscription.close_button"
           >
             ठीक है
@@ -271,37 +271,34 @@ export default function SubscriptionPage({
     );
   }
 
-  // ── STEP 1: PLAN SELECTION ───────────────────────────────
+  // ── STEP 1: PLAN SELECTION ────────────────────────────────────
   if (step === "plans") {
     return (
       <div
         className="min-h-screen flex flex-col"
-        style={{ background: bg }}
+        style={{ background: BG }}
         data-ocid="subscription.page"
       >
         <header
           className="sticky top-0 z-10 px-4 py-3 flex items-center gap-3"
-          style={{ background: "oklch(0.16 0.05 155)", borderBottom: border }}
+          style={{ background: CARD, borderBottom: BORDER }}
         >
           <button
             type="button"
             onClick={onBack}
             className="p-1 rounded-lg"
-            style={{ color: textSecondary }}
+            style={{ color: MUTED }}
             data-ocid="subscription.close_button"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-base font-bold" style={{ color: textPrimary }}>
+          <h1 className="text-base font-bold gold-gradient-text">
             सदस्यता प्लान चुनें
           </h1>
         </header>
 
         <main className="flex-1 p-4 max-w-lg mx-auto w-full">
-          <p
-            className="text-sm mb-5 text-center"
-            style={{ color: textSecondary }}
-          >
+          <p className="text-sm mb-5 text-center" style={{ color: MUTED }}>
             अपना प्लान चुनें — अधिक दिन, अधिक बचत
           </p>
 
@@ -313,7 +310,7 @@ export default function SubscriptionPage({
               <div
                 className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin"
                 style={{
-                  borderColor: greenLight,
+                  borderColor: GOLD,
                   borderTopColor: "transparent",
                 }}
               />
@@ -337,10 +334,10 @@ export default function SubscriptionPage({
                     data-ocid={`subscription.item.${i + 1}`}
                     className="rounded-2xl p-4 text-left transition-all duration-150 relative"
                     style={{
-                      background: isSelected ? selectedBg : cardBg,
-                      border: isSelected ? selectedBorder : border,
+                      background: isSelected ? SELECTED_BG : CARD,
+                      border: isSelected ? SELECTED_BORDER : BORDER,
                       boxShadow: isSelected
-                        ? "0 0 0 3px oklch(0.52 0.18 145 / 0.18)"
+                        ? "0 0 20px oklch(0.78 0.12 80 / 0.2), 0 4px 12px oklch(0.78 0.12 80 / 0.1)"
                         : "none",
                     }}
                   >
@@ -348,7 +345,10 @@ export default function SubscriptionPage({
                     {plan.discountPercent > 0 && (
                       <span
                         className="absolute top-2 right-2 text-xs font-bold px-2 py-0.5 rounded-full"
-                        style={{ background: green, color: "white" }}
+                        style={{
+                          background: GOLD_GRAD,
+                          color: "oklch(0.09 0.005 60)",
+                        }}
                       >
                         {plan.discountPercent}% OFF
                       </span>
@@ -357,7 +357,7 @@ export default function SubscriptionPage({
                     <div className="flex flex-col gap-0.5 mt-2">
                       <span
                         className="text-base font-bold"
-                        style={{ color: isSelected ? greenLight : textPrimary }}
+                        style={{ color: isSelected ? GOLD_LIGHT : TEXT }}
                       >
                         {plan.planName}
                       </span>
@@ -365,7 +365,7 @@ export default function SubscriptionPage({
                       {plan.discountPercent > 0 && (
                         <span
                           className="text-xs line-through"
-                          style={{ color: textSecondary }}
+                          style={{ color: MUTED }}
                         >
                           ₹{plan.originalPrice}
                         </span>
@@ -373,13 +373,13 @@ export default function SubscriptionPage({
                       {/* Final price */}
                       <span
                         className="text-xl font-bold"
-                        style={{ color: greenLight }}
+                        style={{ color: GOLD_LIGHT }}
                       >
                         ₹{final}
                       </span>
                       {/* Savings */}
                       {savings > 0 && (
-                        <span className="text-xs" style={{ color: amber }}>
+                        <span className="text-xs" style={{ color: AMBER }}>
                           ₹{savings} बचाएं
                         </span>
                       )}
@@ -389,11 +389,11 @@ export default function SubscriptionPage({
                       <div className="flex items-center gap-1 mt-2">
                         <CheckCircle
                           className="w-4 h-4"
-                          style={{ color: green }}
+                          style={{ color: GOLD }}
                         />
                         <span
                           className="text-xs font-medium"
-                          style={{ color: green }}
+                          style={{ color: GOLD }}
                         >
                           चुना गया
                         </span>
@@ -410,9 +410,14 @@ export default function SubscriptionPage({
             disabled={selectedIdx === null}
             className="w-full h-12 text-base font-semibold rounded-xl"
             style={{
-              background: selectedIdx !== null ? green : "oklch(0.26 0.04 155)",
-              color: selectedIdx !== null ? "white" : textSecondary,
+              background:
+                selectedIdx !== null ? GOLD_GRAD : "oklch(0.2 0.01 60)",
+              color: selectedIdx !== null ? "oklch(0.09 0.005 60)" : MUTED,
               border: "none",
+              ...(selectedIdx !== null && {
+                boxShadow:
+                  "0 0 20px oklch(0.78 0.12 80 / 0.3), 0 4px 12px oklch(0.78 0.12 80 / 0.15)",
+              }),
             }}
             data-ocid="subscription.primary_button"
           >
@@ -423,7 +428,7 @@ export default function SubscriptionPage({
     );
   }
 
-  // ── STEP 2: PAYMENT ─────────────────────────────────────
+  // ── STEP 2: PAYMENT ─────────────────────────────────────────
   const planForPayment = selectedPlan!;
   const { final: finalPrice, savings: planSavings } = calcFinal(
     planForPayment.originalPrice,
@@ -433,89 +438,81 @@ export default function SubscriptionPage({
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ background: bg }}
+      style={{ background: BG }}
       data-ocid="subscription.panel"
     >
       <header
         className="sticky top-0 z-10 px-4 py-3 flex items-center gap-3"
-        style={{ background: "oklch(0.16 0.05 155)", borderBottom: border }}
+        style={{ background: CARD, borderBottom: BORDER }}
       >
         <button
           type="button"
           onClick={() => setStep("plans")}
           className="p-1 rounded-lg"
-          style={{ color: textSecondary }}
+          style={{ color: MUTED }}
           data-ocid="subscription.cancel_button"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-base font-bold" style={{ color: textPrimary }}>
-          भुगतान करें
-        </h1>
+        <h1 className="text-base font-bold gold-gradient-text">भुगतान करें</h1>
       </header>
 
       <main className="flex-1 p-4 max-w-lg mx-auto w-full">
         {/* Selected plan summary */}
         <div
           className="rounded-2xl p-4 mb-5"
-          style={{ background: cardBg, border }}
+          style={{ background: CARD, border: BORDER }}
           data-ocid="subscription.card"
         >
-          <p className="text-xs mb-2" style={{ color: textSecondary }}>
+          <p className="text-xs mb-2" style={{ color: MUTED }}>
             चुना गया प्लान
           </p>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xl font-bold" style={{ color: greenLight }}>
+              <p className="text-xl font-bold gold-gradient-text">
                 {planForPayment.planName}
               </p>
-              <p className="text-xs mt-0.5" style={{ color: textSecondary }}>
+              <p className="text-xs mt-0.5" style={{ color: MUTED }}>
                 {planForPayment.planDays} दिन की सदस्यता
               </p>
             </div>
             {planForPayment.discountPercent > 0 && (
               <span
                 className="text-xs font-bold px-2 py-1 rounded-full"
-                style={{ background: green, color: "white" }}
+                style={{ background: GOLD_GRAD, color: "oklch(0.09 0.005 60)" }}
               >
                 {planForPayment.discountPercent}% OFF
               </span>
             )}
           </div>
-          <div className="mt-3 pt-3 space-y-1" style={{ borderTop: border }}>
+          <div className="mt-3 pt-3 space-y-1" style={{ borderTop: BORDER }}>
             <div className="flex items-center justify-between">
-              <span className="text-xs" style={{ color: textSecondary }}>
+              <span className="text-xs" style={{ color: MUTED }}>
                 मूल कीमत
               </span>
-              <span
-                className="text-sm line-through"
-                style={{ color: textSecondary }}
-              >
+              <span className="text-sm line-through" style={{ color: MUTED }}>
                 ₹{planForPayment.originalPrice}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs" style={{ color: textSecondary }}>
+              <span className="text-xs" style={{ color: MUTED }}>
                 छूट
               </span>
-              <span className="text-sm font-medium" style={{ color: amber }}>
+              <span className="text-sm font-medium" style={{ color: AMBER }}>
                 -{planForPayment.discountPercent}% (-₹{planSavings})
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span
-                className="text-sm font-semibold"
-                style={{ color: textPrimary }}
-              >
+              <span className="text-sm font-semibold" style={{ color: TEXT }}>
                 देय राशि
               </span>
-              <span className="text-lg font-bold" style={{ color: greenLight }}>
+              <span className="text-lg font-bold gold-gradient-text">
                 ₹{finalPrice}
               </span>
             </div>
             {planSavings > 0 && (
-              <p className="text-xs text-center pt-1" style={{ color: amber }}>
-                🎉 आपने ₹{planSavings} बचाए!
+              <p className="text-xs text-center pt-1" style={{ color: AMBER }}>
+                गर्व से — आपने ₹{planSavings} बचाए!
               </p>
             )}
           </div>
@@ -524,18 +521,12 @@ export default function SubscriptionPage({
         {/* QR Code */}
         <div
           className="rounded-2xl p-5 mb-5 flex flex-col items-center"
-          style={{ background: cardBg, border }}
+          style={{ background: CARD, border: BORDER }}
         >
-          <p
-            className="text-sm font-semibold mb-1"
-            style={{ color: textPrimary }}
-          >
+          <p className="text-sm font-semibold mb-1 gold-gradient-text">
             UPI से भुगतान करें
           </p>
-          <p
-            className="text-xs mb-4 text-center"
-            style={{ color: textSecondary }}
-          >
+          <p className="text-xs mb-4 text-center" style={{ color: MUTED }}>
             नीचे दिया QR कोड स्कैन करें
           </p>
           <div
@@ -551,10 +542,7 @@ export default function SubscriptionPage({
               }}
             />
           </div>
-          <p
-            className="text-xs text-center mt-3 font-medium"
-            style={{ color: greenLight }}
-          >
+          <p className="text-xs text-center mt-3 font-medium gold-gradient-text">
             Union Bank of India • UPI
           </p>
         </div>
@@ -572,9 +560,9 @@ export default function SubscriptionPage({
           onClick={() => fileInputRef.current?.click()}
           className="w-full rounded-xl py-3 mb-3 flex items-center justify-center gap-2 transition-all duration-150"
           style={{
-            background: cardBg,
-            border: screenshot ? "1px solid oklch(0.52 0.18 145)" : border,
-            color: screenshot ? greenLight : textSecondary,
+            background: CARD,
+            border: screenshot ? `2px solid ${GOLD}` : BORDER,
+            color: screenshot ? GOLD_LIGHT : MUTED,
           }}
           data-ocid="subscription.upload_button"
         >
@@ -585,12 +573,15 @@ export default function SubscriptionPage({
         </button>
 
         {screenshot && (
-          <div className="mb-4 rounded-xl overflow-hidden" style={{ border }}>
+          <div
+            className="mb-4 rounded-xl overflow-hidden"
+            style={{ border: BORDER }}
+          >
             <img
               src={screenshot}
               alt="भुगतान स्क्रीनशॉट"
               className="w-full max-h-48 object-contain"
-              style={{ background: "oklch(0.10 0.02 155)" }}
+              style={{ background: CARD_RAISED }}
             />
           </div>
         )}
@@ -599,8 +590,12 @@ export default function SubscriptionPage({
         <Button
           onClick={handlePaid}
           disabled={submitting}
-          className="w-full h-12 text-base font-semibold rounded-xl mb-4"
-          style={{ background: green, color: "white", border: "none" }}
+          className="w-full h-12 text-base font-semibold rounded-xl mb-4 gold-glow"
+          style={{
+            background: GOLD_GRAD,
+            color: "oklch(0.09 0.005 60)",
+            border: "none",
+          }}
           data-ocid="subscription.submit_button"
         >
           {submitting ? "भेज रहे हैं..." : "✅ मैंने भुगतान कर दिया"}
@@ -608,15 +603,15 @@ export default function SubscriptionPage({
 
         <div
           className="rounded-xl p-3 flex items-start gap-2"
-          style={{ background: "oklch(0.16 0.04 155)", border }}
+          style={{ background: CARD, border: BORDER }}
         >
           <Clock
             className="w-4 h-4 mt-0.5 flex-shrink-0"
-            style={{ color: greenLight }}
+            style={{ color: GOLD }}
           />
-          <p className="text-xs" style={{ color: textSecondary }}>
+          <p className="text-xs" style={{ color: MUTED }}>
             भुगतान के बाद एडमिन{" "}
-            <span style={{ color: greenLight, fontWeight: 600 }}>2 घंटे</span> में
+            <span style={{ color: GOLD_LIGHT, fontWeight: 600 }}>2 घंटे</span> में
             सत्यापित करेंगे — सत्यापन के बाद सदस्यता स्वचालित रूप से सक्रिय होगी
           </p>
         </div>

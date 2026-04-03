@@ -91,21 +91,21 @@ export default function StaffManager({ salonId }: Props) {
   };
 
   const cardStyle = {
-    background: "oklch(0.18 0.05 155)",
-    border: "1px solid oklch(0.28 0.05 155)",
+    background: "oklch(0.17 0.012 60)",
+    border: "1px solid oklch(0.28 0.04 75 / 0.6)",
   };
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold" style={{ color: "oklch(0.95 0.02 145)" }}>
+        <h2 className="font-semibold" style={{ color: "oklch(0.97 0.015 80)" }}>
           स्टाफ ({staff.length})
         </h2>
         <Button
           size="sm"
           onClick={openAdd}
           data-ocid="staff.add_button"
-          style={{ background: "oklch(0.52 0.18 145)", color: "white" }}
+          style={{ background: "oklch(0.78 0.12 80)", color: "white" }}
         >
           <Plus className="w-4 h-4 mr-1" />
           नया स्टाफ
@@ -120,7 +120,7 @@ export default function StaffManager({ salonId }: Props) {
         >
           <h3
             className="text-sm font-semibold"
-            style={{ color: "oklch(0.95 0.02 145)" }}
+            style={{ color: "oklch(0.97 0.015 80)" }}
           >
             {editing ? "स्टाफ अपडेट करें" : "नया स्टाफ जोड़ें"}
           </h3>
@@ -128,7 +128,7 @@ export default function StaffManager({ salonId }: Props) {
             <div>
               <Label
                 className="text-xs"
-                style={{ color: "oklch(0.75 0.05 145)" }}
+                style={{ color: "oklch(0.65 0.07 80)" }}
               >
                 नाम
               </Label>
@@ -139,16 +139,16 @@ export default function StaffManager({ salonId }: Props) {
                 }
                 placeholder="जैसे: राहुल शर्मा"
                 style={{
-                  background: "oklch(0.22 0.05 155)",
-                  border: "1px solid oklch(0.32 0.05 155)",
-                  color: "oklch(0.95 0.02 145)",
+                  background: "oklch(0.17 0.012 60)",
+                  border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                  color: "oklch(0.97 0.015 80)",
                 }}
               />
             </div>
             <div>
               <Label
                 className="text-xs"
-                style={{ color: "oklch(0.75 0.05 145)" }}
+                style={{ color: "oklch(0.65 0.07 80)" }}
               >
                 मोबाइल (वैकल्पिक)
               </Label>
@@ -159,16 +159,16 @@ export default function StaffManager({ salonId }: Props) {
                 }
                 placeholder="10 अंकों का नंबर"
                 style={{
-                  background: "oklch(0.22 0.05 155)",
-                  border: "1px solid oklch(0.32 0.05 155)",
-                  color: "oklch(0.95 0.02 145)",
+                  background: "oklch(0.17 0.012 60)",
+                  border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                  color: "oklch(0.97 0.015 80)",
                 }}
               />
             </div>
             <div>
               <Label
                 className="text-xs"
-                style={{ color: "oklch(0.75 0.05 145)" }}
+                style={{ color: "oklch(0.65 0.07 80)" }}
               >
                 काम
               </Label>
@@ -179,9 +179,9 @@ export default function StaffManager({ salonId }: Props) {
                 }
                 className="w-full rounded-md px-3 py-2 text-sm"
                 style={{
-                  background: "oklch(0.22 0.05 155)",
-                  border: "1px solid oklch(0.32 0.05 155)",
-                  color: "oklch(0.95 0.02 145)",
+                  background: "oklch(0.17 0.012 60)",
+                  border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                  color: "oklch(0.97 0.015 80)",
                 }}
               >
                 <option value="हेयरकट">हेयरकट</option>
@@ -197,7 +197,7 @@ export default function StaffManager({ salonId }: Props) {
             <Button
               type="submit"
               size="sm"
-              style={{ background: "oklch(0.52 0.18 145)", color: "white" }}
+              style={{ background: "oklch(0.78 0.12 80)", color: "white" }}
             >
               {editing ? "अपडेट करें" : "जोड़ें"}
             </Button>
@@ -206,7 +206,7 @@ export default function StaffManager({ salonId }: Props) {
               size="sm"
               variant="ghost"
               onClick={() => setShowForm(false)}
-              style={{ color: "oklch(0.6 0.05 145)" }}
+              style={{ color: "oklch(0.55 0.04 80)" }}
             >
               रद्द
             </Button>
@@ -220,7 +220,7 @@ export default function StaffManager({ salonId }: Props) {
             className="w-10 h-10 mx-auto mb-3"
             style={{ color: "oklch(0.4 0.05 155)" }}
           />
-          <p style={{ color: "oklch(0.6 0.05 145)" }}>कोई स्टाफ नहीं जोड़ा गया</p>
+          <p style={{ color: "oklch(0.55 0.04 80)" }}>कोई स्टाफ नहीं जोड़ा गया</p>
           <p className="text-sm mt-1" style={{ color: "oklch(0.45 0.04 155)" }}>
             ओपर “नया स्टाफ” पर टैप करें
           </p>
@@ -238,7 +238,7 @@ export default function StaffManager({ salonId }: Props) {
                 className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm"
                 style={{
                   background: "oklch(0.52 0.18 145 / 0.2)",
-                  color: "oklch(0.52 0.18 145)",
+                  color: "oklch(0.78 0.12 80)",
                 }}
               >
                 {s.name.charAt(0).toUpperCase()}
@@ -246,11 +246,11 @@ export default function StaffManager({ salonId }: Props) {
               <div>
                 <p
                   className="font-medium text-sm"
-                  style={{ color: "oklch(0.95 0.02 145)" }}
+                  style={{ color: "oklch(0.97 0.015 80)" }}
                 >
                   {s.name}
                 </p>
-                <p className="text-xs" style={{ color: "oklch(0.6 0.05 145)" }}>
+                <p className="text-xs" style={{ color: "oklch(0.55 0.04 80)" }}>
                   {s.role}
                   {s.mobile ? ` • ${s.mobile}` : ""}
                   {!s.isActive && (
@@ -268,8 +268,8 @@ export default function StaffManager({ salonId }: Props) {
                 className="text-xs px-2"
                 style={{
                   color: s.isActive
-                    ? "oklch(0.7 0.15 145)"
-                    : "oklch(0.6 0.05 145)",
+                    ? "oklch(0.78 0.12 80)"
+                    : "oklch(0.55 0.04 80)",
                 }}
               >
                 {s.isActive ? "सक्रिय" : "निष्क्रिय"}
@@ -279,7 +279,7 @@ export default function StaffManager({ salonId }: Props) {
                 variant="ghost"
                 onClick={() => openEdit(s)}
                 data-ocid={`staff.edit_button.${idx + 1}`}
-                style={{ color: "oklch(0.52 0.18 145)" }}
+                style={{ color: "oklch(0.78 0.12 80)" }}
               >
                 <Edit className="w-4 h-4" />
               </Button>

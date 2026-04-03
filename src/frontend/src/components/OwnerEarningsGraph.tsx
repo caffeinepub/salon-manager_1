@@ -80,8 +80,8 @@ export default function OwnerEarningsGraph({
   const activeStaff = allStaff.filter((s) => s.isActive);
 
   const cardStyle = {
-    background: "oklch(0.18 0.05 155)",
-    border: "1px solid oklch(0.25 0.05 155)",
+    background: "oklch(0.17 0.012 60)",
+    border: "1px solid oklch(0.28 0.04 75 / 0.6)",
   };
 
   return (
@@ -89,45 +89,45 @@ export default function OwnerEarningsGraph({
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl p-3" style={cardStyle}>
-          <p className="text-xs mb-1" style={{ color: "oklch(0.6 0.05 145)" }}>
+          <p className="text-xs mb-1" style={{ color: "oklch(0.55 0.04 80)" }}>
             कुल आमदनी
           </p>
           <p
             className="text-lg font-bold"
-            style={{ color: "oklch(0.52 0.18 145)" }}
+            style={{ color: "oklch(0.78 0.12 80)" }}
           >
             ₹{totalEarnings.toFixed(0)}
           </p>
         </div>
         <div className="rounded-xl p-3" style={cardStyle}>
-          <p className="text-xs mb-1" style={{ color: "oklch(0.6 0.05 145)" }}>
+          <p className="text-xs mb-1" style={{ color: "oklch(0.55 0.04 80)" }}>
             इस माह
           </p>
           <p
             className="text-lg font-bold"
-            style={{ color: "oklch(0.7 0.15 145)" }}
+            style={{ color: "oklch(0.88 0.12 82)" }}
           >
             ₹{monthlyEarnings.toFixed(0)}
           </p>
         </div>
         <div className="rounded-xl p-3" style={cardStyle}>
-          <p className="text-xs mb-1" style={{ color: "oklch(0.6 0.05 145)" }}>
+          <p className="text-xs mb-1" style={{ color: "oklch(0.55 0.04 80)" }}>
             कुल अपॉइंटमेंट
           </p>
           <p
             className="text-lg font-bold"
-            style={{ color: "oklch(0.95 0.02 145)" }}
+            style={{ color: "oklch(0.97 0.015 80)" }}
           >
             {totalAppointments}
           </p>
         </div>
         <div className="rounded-xl p-3" style={cardStyle}>
-          <p className="text-xs mb-1" style={{ color: "oklch(0.6 0.05 145)" }}>
+          <p className="text-xs mb-1" style={{ color: "oklch(0.55 0.04 80)" }}>
             पूरे हुए
           </p>
           <p
             className="text-lg font-bold"
-            style={{ color: "oklch(0.95 0.02 145)" }}
+            style={{ color: "oklch(0.97 0.015 80)" }}
           >
             {completedAppointments}
           </p>
@@ -138,7 +138,7 @@ export default function OwnerEarningsGraph({
       <div className="rounded-xl p-4" style={cardStyle}>
         <p
           className="text-sm font-semibold mb-3"
-          style={{ color: "oklch(0.95 0.02 145)" }}
+          style={{ color: "oklch(0.97 0.015 80)" }}
         >
           साप्ताहिक आमदनी (आज तक)
         </p>
@@ -147,18 +147,15 @@ export default function OwnerEarningsGraph({
             data={weeklyData}
             margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
           >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="oklch(0.28 0.05 155)"
-            />
+            <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.02 70)" />
             <XAxis
               dataKey="day"
-              tick={{ fill: "oklch(0.6 0.05 145)", fontSize: 11 }}
+              tick={{ fill: "oklch(0.55 0.04 80)", fontSize: 11 }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
-              tick={{ fill: "oklch(0.6 0.05 145)", fontSize: 10 }}
+              tick={{ fill: "oklch(0.55 0.04 80)", fontSize: 10 }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(v) =>
@@ -168,15 +165,15 @@ export default function OwnerEarningsGraph({
             <Tooltip
               formatter={(v: number) => [`₹${v}`, "आमदनी"]}
               contentStyle={{
-                background: "oklch(0.22 0.05 155)",
-                border: "1px solid oklch(0.32 0.05 155)",
+                background: "oklch(0.17 0.012 60)",
+                border: "1px solid oklch(0.28 0.04 75 / 0.6)",
                 borderRadius: "8px",
-                color: "oklch(0.95 0.02 145)",
+                color: "oklch(0.97 0.015 80)",
               }}
             />
             <Bar
               dataKey="earned"
-              fill="oklch(0.52 0.18 145)"
+              fill="oklch(0.78 0.12 80)"
               radius={[4, 4, 0, 0]}
             />
           </BarChart>
@@ -187,12 +184,12 @@ export default function OwnerEarningsGraph({
       <div className="rounded-xl p-4" style={cardStyle}>
         <p
           className="text-sm font-semibold mb-2"
-          style={{ color: "oklch(0.95 0.02 145)" }}
+          style={{ color: "oklch(0.97 0.015 80)" }}
         >
           आज सबसे ज़्यादा बिकी सेवा
         </p>
         {serviceCounts.length === 0 ? (
-          <p className="text-sm" style={{ color: "oklch(0.55 0.05 145)" }}>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
             आज कोई अपॉइंटमेंट नहीं
           </p>
         ) : (
@@ -203,7 +200,7 @@ export default function OwnerEarningsGraph({
                   className="text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
                   style={{
                     background:
-                      i === 0 ? "oklch(0.52 0.18 145)" : "oklch(0.28 0.05 155)",
+                      i === 0 ? "oklch(0.78 0.12 80)" : "oklch(0.22 0.02 70)",
                     color: "white",
                   }}
                 >
@@ -219,7 +216,7 @@ export default function OwnerEarningsGraph({
                     </span>
                     <span
                       className="text-xs"
-                      style={{ color: "oklch(0.6 0.05 145)" }}
+                      style={{ color: "oklch(0.55 0.04 80)" }}
                     >
                       {count} बार
                     </span>
@@ -234,7 +231,7 @@ export default function OwnerEarningsGraph({
                         width: `${(count / (topService?.[1] ?? 1)) * 100}%`,
                         background:
                           i === 0
-                            ? "oklch(0.52 0.18 145)"
+                            ? "oklch(0.78 0.12 80)"
                             : "oklch(0.42 0.10 145)",
                       }}
                     />
@@ -250,19 +247,19 @@ export default function OwnerEarningsGraph({
       <div className="rounded-xl p-4" style={cardStyle}>
         <p
           className="text-sm font-semibold mb-2"
-          style={{ color: "oklch(0.95 0.02 145)" }}
+          style={{ color: "oklch(0.97 0.015 80)" }}
         >
           स्टाफ परफोर्मेंस
         </p>
         {allStaff.length === 0 ? (
-          <p className="text-sm" style={{ color: "oklch(0.55 0.05 145)" }}>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
             स्टाफ टैब में जाकर स्टाफ जोड़ें
           </p>
         ) : (
           <div className="space-y-2">
             <div
               className="flex justify-between text-xs mb-1"
-              style={{ color: "oklch(0.55 0.05 145)" }}
+              style={{ color: "oklch(0.55 0.04 80)" }}
             >
               <span>कुल स्टाफ: {allStaff.length}</span>
               <span>सक्रिय: {activeStaff.length}</span>
@@ -274,9 +271,9 @@ export default function OwnerEarningsGraph({
                   style={{
                     background: s.isActive
                       ? "oklch(0.52 0.18 145 / 0.2)"
-                      : "oklch(0.28 0.05 155)",
+                      : "oklch(0.22 0.02 70)",
                     color: s.isActive
-                      ? "oklch(0.52 0.18 145)"
+                      ? "oklch(0.78 0.12 80)"
                       : "oklch(0.5 0.05 145)",
                   }}
                 >
@@ -291,11 +288,11 @@ export default function OwnerEarningsGraph({
                   </p>
                   <p
                     className="text-xs"
-                    style={{ color: "oklch(0.6 0.05 145)" }}
+                    style={{ color: "oklch(0.55 0.04 80)" }}
                   >
                     {s.role} •{" "}
                     {s.isActive ? (
-                      <span style={{ color: "oklch(0.7 0.15 145)" }}>
+                      <span style={{ color: "oklch(0.88 0.12 82)" }}>
                         सक्रिय
                       </span>
                     ) : (

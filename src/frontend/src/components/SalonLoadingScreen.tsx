@@ -23,7 +23,7 @@ export default function SalonLoadingScreen({
         />
         <Loader2
           className="w-5 h-5 animate-spin"
-          style={{ color: "oklch(0.52 0.18 145)" }}
+          style={{ color: "oklch(0.78 0.12 80)" }}
         />
       </div>
     );
@@ -32,7 +32,7 @@ export default function SalonLoadingScreen({
   return (
     <div
       className="min-h-screen flex items-center justify-center"
-      style={{ background: "oklch(0.98 0.008 145)" }}
+      style={{ background: "oklch(0.09 0.005 60)" }}
     >
       <motion.div
         className="flex flex-col items-center gap-4 px-6 text-center"
@@ -51,15 +51,10 @@ export default function SalonLoadingScreen({
             ease: "easeInOut",
           }}
         />
-        <p
-          className="text-base font-medium"
-          style={{ color: "oklch(0.35 0.06 155)" }}
-        >
-          {message}
-        </p>
+        <p className="text-base font-medium gold-gradient-text">{message}</p>
         <Loader2
           className="w-6 h-6 animate-spin"
-          style={{ color: "oklch(0.52 0.18 145)" }}
+          style={{ color: "oklch(0.78 0.12 80)" }}
         />
       </motion.div>
     </div>

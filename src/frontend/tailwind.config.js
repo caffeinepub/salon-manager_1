@@ -68,16 +68,30 @@ export default {
           border: "oklch(var(--sidebar-border))",
           ring: "oklch(var(--sidebar-ring))",
         },
+        // Salon360Pro luxury gold tokens
+        gold: {
+          DEFAULT: "oklch(0.78 0.12 80)",
+          light: "oklch(0.88 0.1 82)",
+          dark: "oklch(0.62 0.1 75)",
+          muted: "oklch(0.55 0.07 78)",
+        },
+        "salon-bg": "oklch(0.09 0.005 60)",
+        "salon-surface": "oklch(0.13 0.008 60)",
+        "salon-raised": "oklch(0.17 0.012 60)",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        "2xl": "1rem",
+        "3xl": "1.5rem",
       },
       boxShadow: {
         xs: "0 1px 2px 0 rgba(0,0,0,0.05)",
-        card: "0 2px 16px 0 oklch(0.52 0.18 145 / 0.08)",
-        sidebar: "4px 0 24px 0 oklch(0.22 0.05 155 / 0.12)",
+        card: "0 2px 16px 0 oklch(0.09 0.005 60 / 0.5)",
+        sidebar: "4px 0 24px 0 oklch(0.07 0.005 60 / 0.5)",
+        gold: "0 4px 24px oklch(0.78 0.12 80 / 0.3)",
+        "gold-lg": "0 8px 40px oklch(0.78 0.12 80 / 0.35), 0 0 0 1px oklch(0.78 0.12 80 / 0.15)",
       },
       keyframes: {
         "accordion-down": {
@@ -88,10 +102,15 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "gold-pulse": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.6" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "gold-pulse": "gold-pulse 2s ease-in-out infinite",
       },
     },
   },

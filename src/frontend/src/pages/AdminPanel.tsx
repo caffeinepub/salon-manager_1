@@ -90,24 +90,52 @@ function formatDate(ns: bigint): string {
 function StatusBadge({ status }: { status: string }) {
   if (status === "pending")
     return (
-      <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-xs">
+      <Badge
+        className="text-xs border"
+        style={{
+          background: "oklch(0.82 0.14 78 / 0.15)",
+          color: "oklch(0.82 0.14 78)",
+          borderColor: "oklch(0.82 0.14 78 / 0.4)",
+        }}
+      >
         ⏳ प्रतीक्षारत
       </Badge>
     );
   if (status === "approved")
     return (
-      <Badge className="bg-green-100 text-green-800 border-green-300 text-xs">
+      <Badge
+        className="text-xs border"
+        style={{
+          background: "oklch(0.78 0.12 80 / 0.15)",
+          color: "oklch(0.88 0.12 82)",
+          borderColor: "oklch(0.78 0.12 80 / 0.4)",
+        }}
+      >
         ✅ स्वीकृत
       </Badge>
     );
   if (status === "rejected")
     return (
-      <Badge className="bg-red-100 text-red-800 border-red-300 text-xs">
+      <Badge
+        className="text-xs border"
+        style={{
+          background: "oklch(0.577 0.245 27 / 0.15)",
+          color: "oklch(0.7 0.2 27)",
+          borderColor: "oklch(0.577 0.245 27 / 0.4)",
+        }}
+      >
         ❌ अस्वीकृत
       </Badge>
     );
   return (
-    <Badge className="bg-gray-100 text-gray-500 border-gray-200 text-xs">
+    <Badge
+      className="text-xs border"
+      style={{
+        background: "oklch(0.2 0.01 70)",
+        color: "oklch(0.5 0.03 70)",
+        borderColor: "oklch(0.3 0.02 70)",
+      }}
+    >
       ⏰ एक्सपायर्ड
     </Badge>
   );
@@ -130,16 +158,31 @@ function SubRequestCard({
       <CardContent className="pt-4 space-y-3">
         <div className="flex items-start justify-between gap-2 flex-wrap">
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-gray-900">{req.salonName}</p>
-            <p className="text-xs text-gray-500">फ़ोन: {req.ownerPhone}</p>
+            <p
+              className="font-semibold"
+              style={{ color: "oklch(0.97 0.015 80)" }}
+            >
+              {req.salonName}
+            </p>
+            <p className="text-xs" style={{ color: "oklch(0.55 0.04 80)" }}>
+              फ़ोन: {req.ownerPhone}
+            </p>
           </div>
           <StatusBadge status={req.status} />
         </div>
 
         {/* Plan details */}
-        <div className="rounded-lg p-3 bg-gray-50 space-y-1">
+        <div
+          className="rounded-lg p-3 space-y-1"
+          style={{
+            background: "oklch(0.17 0.012 60)",
+            border: "1px solid oklch(0.28 0.04 75 / 0.6)",
+          }}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500">प्लान</span>
+            <span className="text-xs" style={{ color: "oklch(0.55 0.04 80)" }}>
+              प्लान
+            </span>
             <span className="text-sm font-semibold text-gray-800">
               {req.planName} ({Number(req.planDays)} दिन)
             </span>
@@ -147,41 +190,65 @@ function SubRequestCard({
           {req.originalPrice > 0 && (
             <>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">मूल कीमत</span>
-                <span className="text-sm line-through text-gray-400">
+                <span
+                  className="text-xs"
+                  style={{ color: "oklch(0.55 0.04 80)" }}
+                >
+                  मूल कीमत
+                </span>
+                <span
+                  className="text-sm line-through"
+                  style={{ color: "oklch(0.55 0.04 80)" }}
+                >
                   ₹{req.originalPrice}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">छूट</span>
-                <span className="text-sm text-orange-600 font-medium">
+                <span
+                  className="text-xs"
+                  style={{ color: "oklch(0.55 0.04 80)" }}
+                >
+                  छूट
+                </span>
+                <span
+                  className="text-sm font-medium"
+                  style={{ color: "oklch(0.82 0.14 78)" }}
+                >
                   -{req.discountPercent}%
                 </span>
               </div>
               <div className="flex items-center justify-between border-t pt-1 mt-1">
-                <span className="text-sm font-semibold text-gray-700">
+                <span
+                  className="text-sm font-semibold"
+                  style={{ color: "oklch(0.97 0.015 80)" }}
+                >
                   देय राशि
                 </span>
-                <span className="text-base font-bold text-green-700">
+                <span className="text-base font-bold gold-gradient-text">
                   ₹{req.finalPrice}
                 </span>
               </div>
               {req.savings > 0 && (
-                <p className="text-xs text-amber-600">₹{req.savings} की बचत</p>
+                <p className="text-xs" style={{ color: "oklch(0.82 0.14 78)" }}>
+                  ₹{req.savings} की बचत
+                </p>
               )}
             </>
           )}
         </div>
 
-        <div className="text-xs text-gray-400 space-y-0.5">
+        <div
+          className="text-xs space-y-0.5"
+          style={{ color: "oklch(0.4 0.03 70)" }}
+        >
           <p>अनुरोध समय: {formatDate(req.requestTime)}</p>
           {req.status === "pending" && (
-            <p className="text-amber-600 font-medium">
+            <p style={{ color: "oklch(0.82 0.14 78)", fontWeight: 600 }}>
               ≈ {formatRemainingTime(req.requestTime)}
             </p>
           )}
           {req.status === "approved" && req.approvedAt > 0n && (
-            <p className="text-green-600">
+            <p style={{ color: "oklch(0.88 0.12 82)" }}>
               स्वीकृत: {formatDate(req.approvedAt)}
             </p>
           )}
@@ -193,7 +260,8 @@ function SubRequestCard({
             <img
               src={req.screenshotBase64}
               alt="screenshot"
-              className="max-h-48 w-full rounded border object-contain bg-gray-50"
+              className="max-h-48 w-full rounded border object-contain"
+              style={{ background: "oklch(0.17 0.012 60)" }}
             />
           </div>
         )}
@@ -222,6 +290,11 @@ function SubRequestCard({
               size="sm"
               variant="destructive"
               className="flex-1"
+              style={{
+                background: "oklch(0.17 0.012 60)",
+                border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                color: "oklch(0.97 0.015 80)",
+              }}
               disabled={approveMutation.isPending || rejectMutation.isPending}
               onClick={() =>
                 rejectMutation.mutate(req.id, {
@@ -261,15 +334,24 @@ function SubscriptionRequestsTab() {
   return (
     <div className="space-y-4">
       {/* Sub-tabs */}
-      <div className="flex rounded-lg overflow-hidden border border-gray-200">
+      <div
+        className="flex rounded-lg overflow-hidden"
+        style={{ border: "1px solid oklch(0.28 0.04 75 / 0.6)" }}
+      >
         <button
           type="button"
           onClick={() => setSubTab("pending")}
-          className={`flex-1 py-2 text-sm font-medium transition-colors ${
-            subTab === "pending"
-              ? "bg-blue-600 text-white"
-              : "bg-white text-gray-600 hover:bg-gray-50"
-          }`}
+          className="flex-1 py-2 text-sm font-medium transition-colors"
+          style={{
+            background:
+              subTab === "pending"
+                ? "oklch(0.78 0.12 80)"
+                : "oklch(0.17 0.012 60)",
+            color:
+              subTab === "pending"
+                ? "oklch(0.09 0.005 60)"
+                : "oklch(0.55 0.04 80)",
+          }}
           data-ocid="sub_requests.tab"
         >
           ⏳ लंबित ({pendingReqs.length})
@@ -277,11 +359,18 @@ function SubscriptionRequestsTab() {
         <button
           type="button"
           onClick={() => setSubTab("history")}
-          className={`flex-1 py-2 text-sm font-medium transition-colors border-l ${
-            subTab === "history"
-              ? "bg-blue-600 text-white"
-              : "bg-white text-gray-600 hover:bg-gray-50"
-          }`}
+          className="flex-1 py-2 text-sm font-medium transition-colors border-l"
+          style={{
+            background:
+              subTab === "history"
+                ? "oklch(0.78 0.12 80)"
+                : "oklch(0.17 0.012 60)",
+            color:
+              subTab === "history"
+                ? "oklch(0.09 0.005 60)"
+                : "oklch(0.55 0.04 80)",
+            borderColor: "oklch(0.28 0.04 75 / 0.6)",
+          }}
           data-ocid="sub_requests.tab"
         >
           📜 इतिहास ({allReqs.length})
@@ -293,12 +382,19 @@ function SubscriptionRequestsTab() {
           className="py-8 text-center"
           data-ocid="sub_requests.loading_state"
         >
-          <div className="inline-block w-5 h-5 rounded-full border-2 border-t-transparent border-blue-500 animate-spin" />
+          <div
+            className="inline-block w-5 h-5 rounded-full border-2 border-t-transparent animate-spin"
+            style={{
+              borderColor: "oklch(0.78 0.12 80)",
+              borderTopColor: "transparent",
+            }}
+          />
           <p className="text-sm text-gray-500 mt-2">लोड हो रहा है...</p>
         </div>
       ) : displayList.length === 0 ? (
         <div
-          className="text-center py-12 text-gray-400"
+          className="text-center py-12"
+          style={{ color: "oklch(0.55 0.04 80)" }}
           data-ocid="sub_requests.empty_state"
         >
           {subTab === "pending" ? "कोई लंबित अनुरोध नहीं है" : "कोई इतिहास नहीं है"}
@@ -378,7 +474,11 @@ function PlanPricingEditor() {
   };
 
   if (isLoading)
-    return <p className="text-sm text-gray-500">लोड हो रहा है...</p>;
+    return (
+      <p className="text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
+        लोड हो रहा है...
+      </p>
+    );
 
   return (
     <Card>
@@ -386,7 +486,7 @@ function PlanPricingEditor() {
         <CardTitle className="text-sm">प्लान कीमत सेट करें</CardTitle>
       </CardHeader>
       <CardContent className="pb-4 space-y-4">
-        <p className="text-xs text-gray-500">
+        <p className="text-xs" style={{ color: "oklch(0.55 0.04 80)" }}>
           प्रत्येक प्लान की मूल कीमत और छूट % सेट करें
         </p>
         {plans.map((plan) => {
@@ -403,20 +503,33 @@ function PlanPricingEditor() {
           return (
             <div
               key={plan.planName}
-              className="border rounded-lg p-3 space-y-2"
+              className="rounded-lg p-3 space-y-2"
+              style={{
+                border: "1px solid oklch(0.28 0.04 75 / 0.6)",
+                background: "oklch(0.17 0.012 60)",
+              }}
             >
               <div className="flex items-center justify-between">
-                <span className="font-medium text-sm text-gray-800">
+                <span
+                  className="font-medium text-sm"
+                  style={{ color: "oklch(0.97 0.015 80)" }}
+                >
                   {plan.planName}
                 </span>
                 <div className="text-right">
-                  <span className="text-xs text-gray-400 line-through">
+                  <span
+                    className="text-xs line-through"
+                    style={{ color: "oklch(0.55 0.04 80)" }}
+                  >
                     ₹{previewOriginal}
                   </span>
-                  <span className="text-sm font-bold text-green-700 ml-2">
+                  <span className="text-sm font-bold ml-2 gold-gradient-text">
                     ₹{previewFinal}
                   </span>
-                  <span className="text-xs text-orange-500 ml-1">
+                  <span
+                    className="text-xs ml-1"
+                    style={{ color: "oklch(0.82 0.14 78)" }}
+                  >
                     ({previewDisc}% OFF)
                   </span>
                 </div>
@@ -440,6 +553,11 @@ function PlanPricingEditor() {
                       }))
                     }
                     className="h-8 text-sm"
+                    style={{
+                      background: "oklch(0.17 0.012 60)",
+                      border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                      color: "oklch(0.97 0.015 80)",
+                    }}
                     data-ocid="settings.input"
                   />
                 </div>
@@ -461,6 +579,11 @@ function PlanPricingEditor() {
                       }))
                     }
                     className="h-8 text-sm"
+                    style={{
+                      background: "oklch(0.17 0.012 60)",
+                      border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                      color: "oklch(0.97 0.015 80)",
+                    }}
                     data-ocid="settings.input"
                   />
                 </div>
@@ -525,8 +648,10 @@ function ReviewsTab() {
     return (
       <div className="text-center py-16" data-ocid="reviews.empty_state">
         <p className="text-4xl mb-3">⭐</p>
-        <p className="text-gray-500 font-medium">कोई समीक्षा नहीं</p>
-        <p className="text-sm text-gray-400 mt-1">
+        <p style={{ color: "oklch(0.55 0.04 80)", fontWeight: 500 }}>
+          कोई समीक्षा नहीं
+        </p>
+        <p className="text-sm " style={{ color: "oklch(0.4 0.03 70)" }}>
           ग्राहकों की समीक्षाएं यहाँ दिखेंगी
         </p>
       </div>
@@ -535,22 +660,35 @@ function ReviewsTab() {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-gray-500">कुल {ratings.length} समीक्षाएं</p>
+      <p className="text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
+        कुल {ratings.length} समीक्षाएं
+      </p>
       {ratings.map((entry, idx) => (
         <Card key={entry.appointmentId} data-ocid={`reviews.item.${idx + 1}`}>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-sm text-gray-800">
+                  <span
+                    className="font-semibold text-sm"
+                    style={{ color: "oklch(0.97 0.015 80)" }}
+                  >
                     {entry.salonName}
                   </span>
                   <StarDisplay stars={entry.stars} />
                 </div>
                 {entry.review && (
-                  <p className="text-sm text-gray-700 mt-1">{entry.review}</p>
+                  <p
+                    className="text-sm mt-1"
+                    style={{ color: "oklch(0.97 0.015 80)" }}
+                  >
+                    {entry.review}
+                  </p>
                 )}
-                <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                <div
+                  className="flex items-center gap-2 mt-2 text-xs"
+                  style={{ color: "oklch(0.4 0.03 70)" }}
+                >
                   <span>📱 {entry.customerPhone}</span>
                   <span>•</span>
                   <span>
@@ -614,7 +752,11 @@ function SubscriptionIncomeTab({
 
   const yearlyIncome = activeSubs.length * subscriptionPrice * 12;
 
-  const cardBase = "rounded-xl p-4 bg-white border border-gray-100 shadow-sm";
+  const cardBase = "rounded-xl p-4";
+  const cardBaseStyle = {
+    background: "oklch(0.13 0.008 60)",
+    border: "1px solid oklch(0.28 0.04 75 / 0.6)",
+  };
 
   // Backend earnings from approved subscription requests
   const backendTotal = earnings ? earnings[0] : 0;
@@ -625,26 +767,52 @@ function SubscriptionIncomeTab({
     <div className="space-y-4">
       {/* Backend earnings from sub requests */}
       {(backendTotal > 0 || backendCount > 0) && (
-        <div className="rounded-xl p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
-          <p className="text-sm font-semibold text-green-800 mb-3">
+        <div
+          className="rounded-xl p-4"
+          style={{
+            background: "oklch(0.78 0.12 80 / 0.08)",
+            border: "1px solid oklch(0.78 0.12 80 / 0.3)",
+          }}
+        >
+          <p
+            className="text-sm font-semibold mb-3"
+            style={{ color: "oklch(0.88 0.12 82)" }}
+          >
             💰 सदस्यता अनुरोधों से आय
           </p>
           <div className="grid grid-cols-3 gap-2">
             <div className="text-center">
-              <p className="text-xs text-green-600">कुल आय</p>
-              <p className="text-lg font-bold text-green-800">
+              <p className="text-xs" style={{ color: "oklch(0.78 0.12 80)" }}>
+                कुल आय
+              </p>
+              <p
+                className="text-lg font-bold"
+                style={{ color: "oklch(0.88 0.12 82)" }}
+              >
                 ₹{backendTotal.toLocaleString("hi-IN")}
               </p>
             </div>
             <div className="text-center">
-              <p className="text-xs text-green-600">इस माह</p>
-              <p className="text-lg font-bold text-green-800">
+              <p className="text-xs" style={{ color: "oklch(0.78 0.12 80)" }}>
+                इस माह
+              </p>
+              <p
+                className="text-lg font-bold"
+                style={{ color: "oklch(0.88 0.12 82)" }}
+              >
                 ₹{backendMonthly.toLocaleString("hi-IN")}
               </p>
             </div>
             <div className="text-center">
-              <p className="text-xs text-green-600">स्वीकृत</p>
-              <p className="text-lg font-bold text-green-800">{backendCount}</p>
+              <p className="text-xs" style={{ color: "oklch(0.78 0.12 80)" }}>
+                स्वीकृत
+              </p>
+              <p
+                className="text-lg font-bold"
+                style={{ color: "oklch(0.88 0.12 82)" }}
+              >
+                {backendCount}
+              </p>
             </div>
           </div>
         </div>
@@ -652,25 +820,31 @@ function SubscriptionIncomeTab({
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3">
-        <div className={cardBase}>
+        <div className={cardBase} style={cardBaseStyle}>
           <p className="text-xs text-gray-500 mb-1">कुल सक्रिय सदस्यताएं</p>
-          <p className="text-2xl font-bold text-blue-600">
+          <p
+            className="text-2xl font-bold"
+            style={{ color: "oklch(0.78 0.12 80)" }}
+          >
             {activeSubs.length}
           </p>
         </div>
-        <div className={cardBase}>
+        <div className={cardBase} style={cardBaseStyle}>
           <p className="text-xs text-gray-500 mb-1">सदस्यता मूल्य</p>
-          <p className="text-2xl font-bold text-green-600">
+          <p
+            className="text-2xl font-bold"
+            style={{ color: "oklch(0.88 0.12 82)" }}
+          >
             ₹{subscriptionPrice}/माह
           </p>
         </div>
-        <div className={cardBase}>
+        <div className={cardBase} style={cardBaseStyle}>
           <p className="text-xs text-gray-500 mb-1">इस माह आय (अनुमानित)</p>
           <p className="text-2xl font-bold text-green-700">
             ₹{totalIncome.toLocaleString("hi-IN")}
           </p>
         </div>
-        <div className={cardBase}>
+        <div className={cardBase} style={cardBaseStyle}>
           <p className="text-xs text-gray-500 mb-1">वार्षिक आय (अनुमानित)</p>
           <p className="text-2xl font-bold text-purple-600">
             ₹{yearlyIncome.toLocaleString("hi-IN")}
@@ -679,12 +853,15 @@ function SubscriptionIncomeTab({
       </div>
 
       {/* Bar chart */}
-      <div className={cardBase}>
+      <div className={cardBase} style={cardBaseStyle}>
         <p className="text-sm font-semibold text-gray-800 mb-3">
           मासिक सब्स्क्रिप्शन आय ({currentYear})
         </p>
         {activeSubs.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-4">
+          <p
+            className="text-sm text-center py-4"
+            style={{ color: "oklch(0.55 0.04 80)" }}
+          >
             अभी कोई सक्रिय सदस्यता नहीं
           </p>
         ) : (
@@ -693,23 +870,37 @@ function SubscriptionIncomeTab({
               data={monthlyData}
               margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="oklch(0.22 0.02 70)"
+              />
               <XAxis
                 dataKey="month"
-                tick={{ fontSize: 10, fill: "#6b7280" }}
+                tick={{ fontSize: 10, fill: "oklch(0.55 0.04 80)" }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fontSize: 10, fill: "#6b7280" }}
+                tick={{ fontSize: 10, fill: "oklch(0.55 0.04 80)" }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={(v) =>
                   v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)
                 }
               />
-              <Tooltip formatter={(v: number) => [`₹${v}`, "आय"]} />
-              <Bar dataKey="income" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              <Tooltip
+                formatter={(v: number) => [`₹${v}`, "आय"]}
+                contentStyle={{
+                  background: "oklch(0.13 0.008 60)",
+                  border: "1px solid oklch(0.28 0.04 75 / 0.6)",
+                  color: "oklch(0.97 0.015 80)",
+                }}
+              />
+              <Bar
+                dataKey="income"
+                fill="oklch(0.78 0.12 80)"
+                radius={[4, 4, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -719,22 +910,35 @@ function SubscriptionIncomeTab({
       </div>
 
       {/* Active subscriptions list */}
-      <div className={cardBase}>
+      <div className={cardBase} style={cardBaseStyle}>
         <p className="text-sm font-semibold text-gray-800 mb-3">
           सक्रिय सदस्यताएं ({activeSubs.length})
         </p>
         {activeSubs.length === 0 ? (
-          <p className="text-sm text-gray-400">कोई सक्रिय सदस्यता नहीं</p>
+          <p className="text-sm" style={{ color: "oklch(0.4 0.03 70)" }}>
+            कोई सक्रिय सदस्यता नहीं
+          </p>
         ) : (
-          <div className="divide-y">
+          <div
+            className="divide-y"
+            style={{ borderColor: "oklch(0.22 0.03 70)" }}
+          >
             {activeSubs.map((s) => (
               <div
                 key={s.id.toString()}
                 className="flex items-center justify-between py-2"
               >
                 <div>
-                  <p className="text-sm font-medium text-gray-800">{s.name}</p>
-                  <p className="text-xs text-gray-500">
+                  <p
+                    className="text-sm font-medium"
+                    style={{ color: "oklch(0.97 0.015 80)" }}
+                  >
+                    {s.name}
+                  </p>
+                  <p
+                    className="text-xs"
+                    style={{ color: "oklch(0.55 0.04 80)" }}
+                  >
                     {s.city} • {s.phone}
                   </p>
                 </div>
@@ -816,7 +1020,7 @@ function BackupTab() {
           <CardTitle className="text-base">डेटा बैकअप</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
             सभी सैलून, सेवाएं, अपॉइंटमेंट और ग्राहकों का पूरा डेटा JSON फ़ाइल में डाउनलोड
             होगा।
           </p>
@@ -902,22 +1106,22 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
     {
       label: "कुल दुकानें",
       value: stats ? Number(stats.total) : "—",
-      color: "text-blue-600",
+      color: "oklch(0.78 0.12 80)",
     },
     {
       label: "सक्रिय दुकानें",
       value: stats ? Number(stats.active) : "—",
-      color: "text-green-600",
+      color: "oklch(0.88 0.12 82)",
     },
     {
       label: "समाप्त/निष्क्रिय",
       value: stats ? Number(stats.expired) : "—",
-      color: "text-red-600",
+      color: "oklch(0.7 0.2 27)",
     },
     {
       label: "लंबित अनुमोदन",
       value: stats ? Number(stats.pending) : "—",
-      color: "text-yellow-600",
+      color: "oklch(0.82 0.14 78)",
     },
   ];
 
@@ -937,12 +1141,25 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div
+      className="min-h-screen"
+      style={{ background: "oklch(0.09 0.005 60)" }}
+    >
       {/* Header */}
-      <div className="bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-10">
+      <div
+        className="px-4 py-3 flex items-center justify-between sticky top-0 z-10"
+        style={{
+          background: "oklch(0.13 0.008 60)",
+          borderBottom: "1px solid oklch(0.28 0.04 75 / 0.6)",
+        }}
+      >
         <div>
-          <h1 className="text-lg font-bold text-gray-900">Salon360Pro Admin</h1>
-          <p className="text-xs text-gray-500">सुपर एडमिन पैनल</p>
+          <h1 className="text-lg font-bold gold-gradient-text">
+            Salon360Pro Admin
+          </h1>
+          <p className="text-xs" style={{ color: "oklch(0.55 0.04 80)" }}>
+            सुपर एडमिन पैनल
+          </p>
         </div>
         {onLogout && (
           <Button variant="outline" size="sm" onClick={onLogout}>
@@ -952,17 +1169,25 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b px-4 flex gap-0 overflow-x-auto">
+      <div
+        className="px-4 flex gap-0 overflow-x-auto"
+        style={{
+          background: "oklch(0.13 0.008 60)",
+          borderBottom: "1px solid oklch(0.28 0.04 75 / 0.6)",
+        }}
+      >
         {tabs.map((t) => (
           <button
             type="button"
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-              tab === t.id
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-600 hover:text-gray-900"
-            }`}
+            className="px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors"
+            style={{
+              borderBottomColor:
+                tab === t.id ? "oklch(0.78 0.12 80)" : "transparent",
+              color:
+                tab === t.id ? "oklch(0.78 0.12 80)" : "oklch(0.55 0.04 80)",
+            }}
             data-ocid={"admin.tab"}
           >
             {t.label}
@@ -970,7 +1195,10 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
         ))}
       </div>
 
-      <div className="p-4 max-w-2xl mx-auto space-y-4">
+      <div
+        className="p-4 max-w-2xl mx-auto space-y-4"
+        style={{ background: "oklch(0.09 0.005 60)" }}
+      >
         {/* Dashboard Tab */}
         {tab === "dashboard" && (
           <>
@@ -978,10 +1206,18 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
               {statCards.map((s) => (
                 <Card key={s.label}>
                   <CardContent className="pt-4 pb-3">
-                    <div className={`text-3xl font-bold ${s.color}`}>
+                    <div
+                      className="text-3xl font-bold"
+                      style={{ color: s.color }}
+                    >
                       {statsLoading ? "..." : s.value}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">{s.label}</div>
+                    <div
+                      className="text-xs mt-1"
+                      style={{ color: "oklch(0.55 0.04 80)" }}
+                    >
+                      {s.label}
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -989,10 +1225,19 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
 
             {/* Pending sub requests notification */}
             {pendingSubReqs.length > 0 && (
-              <Card className="border-amber-200 bg-amber-50">
+              <Card
+                className=""
+                style={{
+                  background: "oklch(0.78 0.12 80 / 0.07)",
+                  border: "1px solid oklch(0.78 0.12 80 / 0.3)",
+                }}
+              >
                 <CardContent className="pt-4 pb-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-amber-800">
+                    <p
+                      className="text-sm"
+                      style={{ color: "oklch(0.85 0.12 80)" }}
+                    >
                       ⏳{" "}
                       <span className="font-bold">{pendingSubReqs.length}</span>{" "}
                       सदस्यता अनुरोध लंबित हैं
@@ -1039,7 +1284,8 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
                   variant="outline"
                   onClick={() =>
                     processExpMutation.mutate(undefined, {
-                      onSuccess: () => alert("एक्सपायर दुकानें निष्क्रिय हो गईं"),
+                      onSuccess: () =>
+                        toast.success("एक्सपायर दुकानें निष्क्रिय हो गईं"),
                     })
                   }
                   disabled={processExpMutation.isPending}
@@ -1056,14 +1302,20 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
         {/* Pending Tab */}
         {tab === "pending" && (
           <>
-            <h2 className="text-base font-semibold text-gray-800">
+            <h2
+              className="text-base font-semibold"
+              style={{ color: "oklch(0.97 0.015 80)" }}
+            >
               अनुमोदन हेतु दुकानें
             </h2>
             {pendingLoading ? (
-              <p className="text-gray-500 text-sm">लोड हो रहा है...</p>
+              <p className="text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
+                लोड हो रहा है...
+              </p>
             ) : pendingSalons.length === 0 ? (
               <div
-                className="text-center py-12 text-gray-400"
+                className="text-center py-12"
+                style={{ color: "oklch(0.55 0.04 80)" }}
                 data-ocid="pending.empty_state"
               >
                 कोई लंबित अनुमोदन नहीं
@@ -1077,10 +1329,16 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
                   <CardContent className="pt-4 pb-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="font-semibold text-gray-900">
+                        <p
+                          className="font-semibold"
+                          style={{ color: "oklch(0.97 0.015 80)" }}
+                        >
                           {salon.name}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p
+                          className="text-xs"
+                          style={{ color: "oklch(0.55 0.04 80)" }}
+                        >
                           {salon.city} • {salon.phone}
                         </p>
                         <p className="text-xs text-gray-400 mt-0.5">
@@ -1095,7 +1353,7 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
                           data-ocid={`pending.delete_button.${idx + 1}`}
                           onClick={() =>
                             rejectMutation.mutate(salon.id, {
-                              onSuccess: () => alert("दुकान अस्वीकृत"),
+                              onSuccess: () => toast.success("दुकान अस्वीकृत"),
                             })
                           }
                           disabled={rejectMutation.isPending}
@@ -1107,7 +1365,8 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
                           data-ocid={`pending.confirm_button.${idx + 1}`}
                           onClick={() =>
                             approveMutation.mutate(salon.id, {
-                              onSuccess: () => alert("दुकान स्वीकृत हो गई!"),
+                              onSuccess: () =>
+                                toast.success("दुकान स्वीकृत हो गई!"),
                             })
                           }
                           disabled={approveMutation.isPending}
@@ -1126,14 +1385,20 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
         {/* All Salons Tab */}
         {tab === "salons" && (
           <>
-            <h2 className="text-base font-semibold text-gray-800">
+            <h2
+              className="text-base font-semibold"
+              style={{ color: "oklch(0.97 0.015 80)" }}
+            >
               सभी दुकानें ({allSalons.length})
             </h2>
             {salonsLoading ? (
-              <p className="text-gray-500 text-sm">लोड हो रहा है...</p>
+              <p className="text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
+                लोड हो रहा है...
+              </p>
             ) : allSalons.length === 0 ? (
               <div
-                className="text-center py-12 text-gray-400"
+                className="text-center py-12"
+                style={{ color: "oklch(0.55 0.04 80)" }}
                 data-ocid="salons.empty_state"
               >
                 कोई दुकान नहीं
@@ -1155,7 +1420,12 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
         {/* Settings Tab */}
         {tab === "settings" && (
           <>
-            <h2 className="text-base font-semibold text-gray-800">सेटिंग</h2>
+            <h2
+              className="text-base font-semibold"
+              style={{ color: "oklch(0.97 0.015 80)" }}
+            >
+              सेटिंग
+            </h2>
 
             {/* Subscription Price */}
             <Card>
@@ -1174,6 +1444,11 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
                     onChange={(e) => setPriceInput(e.target.value)}
                     data-ocid="settings.input"
                     className="flex-1"
+                    style={{
+                      background: "oklch(0.17 0.012 60)",
+                      border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                      color: "oklch(0.97 0.015 80)",
+                    }}
                   />
                   <Button
                     size="sm"
@@ -1181,13 +1456,17 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
                     onClick={() => {
                       const p = Number(priceInput);
                       if (!p || p < 1) {
-                        alert("सही कीमत डालें");
+                        toast.error("सही कीमत डालें");
                         return;
                       }
                       setPriceMutation.mutate(p, {
                         onSuccess: () => {
-                          alert(`कीमत ₹${p}/माह हो गई`);
+                          toast.success(`✅ कीमत ₹${p}/माह सेव हो गई!`);
                           setPriceInput("");
+                        },
+                        onError: (err) => {
+                          console.error("Subscription price save error:", err);
+                          toast.error("कीमत सेव नहीं हो पाई। दोबारा कोशिश करें।");
                         },
                       });
                     }}
@@ -1219,6 +1498,11 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
                     onChange={(e) => setTrialDaysInput(e.target.value)}
                     data-ocid="settings.input"
                     className="flex-1"
+                    style={{
+                      background: "oklch(0.17 0.012 60)",
+                      border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                      color: "oklch(0.97 0.015 80)",
+                    }}
                   />
                   <Button
                     size="sm"
@@ -1249,28 +1533,53 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
         {/* Revenue Tab */}
         {tab === "revenue" && (
           <>
-            <h2 className="text-base font-semibold text-gray-800">रेवेन्यू</h2>
+            <h2
+              className="text-base font-semibold"
+              style={{ color: "oklch(0.97 0.015 80)" }}
+            >
+              रेवेन्यू
+            </h2>
             {revenueLoading ? (
-              <p className="text-gray-500 text-sm">लोड हो रहा है...</p>
+              <p className="text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
+                लोड हो रहा है...
+              </p>
             ) : !revenueStats ? (
-              <p className="text-gray-400 text-sm">डेटा उपलब्ध नहीं</p>
+              <p className="text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
+                डेटा उपलब्ध नहीं
+              </p>
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-3">
                   <Card>
                     <CardContent className="pt-4 pb-3">
-                      <div className="text-2xl font-bold text-green-600">
+                      <div
+                        className="text-2xl font-bold"
+                        style={{ color: "oklch(0.88 0.12 82)" }}
+                      >
                         ₹{revenueStats.totalRevenue.toLocaleString("hi-IN")}
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">कुल रेवेन्यू</div>
+                      <div
+                        className="text-xs mt-1"
+                        style={{ color: "oklch(0.55 0.04 80)" }}
+                      >
+                        कुल रेवेन्यू
+                      </div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="pt-4 pb-3">
-                      <div className="text-2xl font-bold text-blue-600">
+                      <div
+                        className="text-2xl font-bold"
+                        style={{ color: "oklch(0.78 0.12 80)" }}
+                      >
                         ₹{revenueStats.monthlyRevenue.toLocaleString("hi-IN")}
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">इस माह</div>
+                      <div
+                        className="text-xs mt-1"
+                        style={{ color: "oklch(0.55 0.04 80)" }}
+                      >
+                        इस माह
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -1294,7 +1603,10 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
                               <span className="text-sm text-gray-800 font-medium">
                                 {salonName}
                               </span>
-                              <span className="text-sm font-semibold text-green-700">
+                              <span
+                                className="text-sm font-semibold"
+                                style={{ color: "oklch(0.88 0.12 82)" }}
+                              >
                                 ₹{revenue.toLocaleString("hi-IN")}
                               </span>
                             </div>
@@ -1312,7 +1624,10 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
         {/* Reviews Tab */}
         {tab === "reviews" && (
           <>
-            <h2 className="text-base font-semibold text-gray-800">
+            <h2
+              className="text-base font-semibold"
+              style={{ color: "oklch(0.97 0.015 80)" }}
+            >
               ग्राहक समीक्षाएं
             </h2>
             <ReviewsTab />
@@ -1322,7 +1637,10 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
         {/* Subscription Income Tab */}
         {tab === "subscription" && (
           <>
-            <h2 className="text-base font-semibold text-gray-800">
+            <h2
+              className="text-base font-semibold"
+              style={{ color: "oklch(0.97 0.015 80)" }}
+            >
               सब्स्क्रिप्शन आय
             </h2>
             <SubscriptionIncomeTab
@@ -1335,7 +1653,10 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
         {/* Backup Tab */}
         {tab === "backup" && (
           <>
-            <h2 className="text-base font-semibold text-gray-800">
+            <h2
+              className="text-base font-semibold"
+              style={{ color: "oklch(0.97 0.015 80)" }}
+            >
               डेटा बैकअप और रिस्टोर
             </h2>
             <BackupTab />
@@ -1345,7 +1666,10 @@ export default function AdminPanel({ onLogout }: { onLogout?: () => void }) {
         {/* Subscription Requests Tab */}
         {tab === "sub_requests" && (
           <>
-            <h2 className="text-base font-semibold text-gray-800">
+            <h2
+              className="text-base font-semibold"
+              style={{ color: "oklch(0.97 0.015 80)" }}
+            >
               सदस्यता अनुरोध
             </h2>
             <SubscriptionRequestsTab />
@@ -1389,12 +1713,17 @@ function SalonManageCard({
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-semibold text-gray-900">{salon.name}</p>
+              <p
+                className="font-semibold"
+                style={{ color: "oklch(0.97 0.015 80)" }}
+              >
+                {salon.name}
+              </p>
               <Badge variant={trialStatus.variant} className="text-xs">
                 {trialStatus.label}
               </Badge>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs" style={{ color: "oklch(0.55 0.04 80)" }}>
               {salon.city} • {salon.phone}
             </p>
           </div>
@@ -1408,7 +1737,7 @@ function SalonManageCard({
                   { salonId: salon.id, active: !salon.isActive },
                   {
                     onSuccess: () =>
-                      alert(
+                      toast.success(
                         salon.isActive
                           ? "दुकान निष्क्रिय हो गई"
                           : "दुकान सक्रिय हो गई",
@@ -1435,31 +1764,50 @@ function SalonManageCard({
           <div className="mt-4 space-y-3 pt-3 border-t">
             {/* Subscription dates */}
             <div>
-              <p className="text-xs font-medium text-gray-600 mb-1">
+              <p
+                className="text-xs font-medium mb-1"
+                style={{ color: "oklch(0.55 0.04 80)" }}
+              >
                 सदस्यता तारीखें
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs text-gray-400">
+                  <label
+                    className="text-xs"
+                    style={{ color: "oklch(0.4 0.03 70)" }}
+                  >
                     शुरू
                     <input
                       type="date"
                       value={subStart}
                       onChange={(e) => setSubStart(e.target.value)}
                       data-ocid={`salons.input.${idx + 1}`}
-                      className="w-full text-xs border rounded px-2 py-1 mt-0.5 block"
+                      className="w-full text-xs rounded px-2 py-1 mt-0.5 block"
+                      style={{
+                        background: "oklch(0.17 0.012 60)",
+                        border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                        color: "oklch(0.97 0.015 80)",
+                      }}
                     />
                   </label>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400">
+                  <label
+                    className="text-xs"
+                    style={{ color: "oklch(0.4 0.03 70)" }}
+                  >
                     समाप्ति
                     <input
                       type="date"
                       value={subEnd}
                       onChange={(e) => setSubEnd(e.target.value)}
                       data-ocid={`salons.input.${idx + 1}`}
-                      className="w-full text-xs border rounded px-2 py-1 mt-0.5 block"
+                      className="w-full text-xs rounded px-2 py-1 mt-0.5 block"
+                      style={{
+                        background: "oklch(0.17 0.012 60)",
+                        border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                        color: "oklch(0.97 0.015 80)",
+                      }}
                     />
                   </label>
                 </div>
@@ -1470,12 +1818,12 @@ function SalonManageCard({
                 data-ocid={`salons.save_button.${idx + 1}`}
                 onClick={() => {
                   if (!subStart || !subEnd) {
-                    alert("दोनों तारीखें भरें");
+                    toast.error("दोनों तारीखें भरें");
                     return;
                   }
                   setSubMutation.mutate(
                     { salonId: salon.id, active: true },
-                    { onSuccess: () => alert("सदस्यता सक्रिय हो गई") },
+                    { onSuccess: () => toast.success("सदस्यता सक्रिय हो गई") },
                   );
                 }}
                 disabled={setSubMutation.isPending}
@@ -1486,7 +1834,10 @@ function SalonManageCard({
 
             {/* Trial days */}
             <div>
-              <p className="text-xs font-medium text-gray-600 mb-1">
+              <p
+                className="text-xs font-medium mb-1"
+                style={{ color: "oklch(0.55 0.04 80)" }}
+              >
                 ट्रायल दिन बदलें
               </p>
               <div className="flex gap-2">
@@ -1497,6 +1848,11 @@ function SalonManageCard({
                   onChange={(e) => setTrialDays(e.target.value)}
                   data-ocid={`salons.input.${idx + 1}`}
                   className="flex-1 h-8 text-sm"
+                  style={{
+                    background: "oklch(0.17 0.012 60)",
+                    border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                    color: "oklch(0.97 0.015 80)",
+                  }}
                 />
                 <Button
                   size="sm"
@@ -1504,17 +1860,17 @@ function SalonManageCard({
                   onClick={() => {
                     const d = Number(trialDays);
                     if (!d || d < 1) {
-                      alert("सही दिन डालें");
+                      toast.error("सही दिन डालें");
                       return;
                     }
-                    alert(`${salon.name} के लिए ट्रायल ${d} दिन सेट करें`);
+                    toast.info(`${salon.name} के लिए ट्रायल ${d} दिन सेट करें`);
                   }}
                 >
                   सेव
                 </Button>
               </div>
               {salon.trialStartDate > 0n && (
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs " style={{ color: "oklch(0.4 0.03 70)" }}>
                   ट्रायल शुरू:{" "}
                   {new Date(
                     Number(salon.trialStartDate) / 1_000_000,
@@ -1527,7 +1883,10 @@ function SalonManageCard({
 
             {/* Password Reset */}
             <div>
-              <p className="text-xs font-medium text-gray-600 mb-1">
+              <p
+                className="text-xs font-medium mb-1"
+                style={{ color: "oklch(0.55 0.04 80)" }}
+              >
                 पासवर्ड Reset करें
               </p>
               <div className="flex gap-2">
@@ -1537,11 +1896,19 @@ function SalonManageCard({
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="flex-1 h-8 text-sm"
+                  style={{
+                    background: "oklch(0.17 0.012 60)",
+                    border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                    color: "oklch(0.97 0.015 80)",
+                  }}
                 />
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                  style={{
+                    borderColor: "oklch(0.78 0.12 80 / 0.5)",
+                    color: "oklch(0.78 0.12 80)",
+                  }}
                   disabled={
                     resetPasswordMutation.isPending || newPassword.length < 6
                   }
@@ -1570,7 +1937,7 @@ function SalonManageCard({
                   {resetPasswordMutation.isPending ? "..." : "Reset"}
                 </Button>
               </div>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs " style={{ color: "oklch(0.4 0.03 70)" }}>
                 Owner: {salon.ownerPhone}
               </p>
             </div>

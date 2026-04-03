@@ -214,10 +214,10 @@ export default function SalonTimerWidget({
       data-ocid="timer.card"
       style={{
         background: hasSession
-          ? "oklch(0.16 0.06 155)"
+          ? "oklch(0.17 0.012 60)"
           : "oklch(0.16 0.04 220)",
         border: hasSession
-          ? "1px solid oklch(0.52 0.18 145)"
+          ? "1px solid oklch(0.78 0.12 80)"
           : "1px solid oklch(0.4 0.1 220)",
       }}
     >
@@ -225,13 +225,13 @@ export default function SalonTimerWidget({
         <div className="flex items-center justify-between">
           <CardTitle
             className="text-base flex items-center gap-2"
-            style={{ color: "oklch(0.95 0.02 145)" }}
+            style={{ color: "oklch(0.97 0.015 80)" }}
           >
             <AlarmClock
               className="w-5 h-5"
               style={{
                 color: hasSession
-                  ? "oklch(0.52 0.18 145)"
+                  ? "oklch(0.78 0.12 80)"
                   : "oklch(0.65 0.15 220)",
               }}
             />
@@ -240,9 +240,9 @@ export default function SalonTimerWidget({
           {hasSession && (
             <Badge
               style={{
-                background: "oklch(0.52 0.18 145 / 0.2)",
+                background: "oklch(0.78 0.12 80 / 0.12)",
                 color: "oklch(0.7 0.18 145)",
-                border: "1px solid oklch(0.52 0.18 145 / 0.4)",
+                border: "1px solid oklch(0.78 0.12 80 / 0.4)",
               }}
             >
               चल रहा है
@@ -261,7 +261,7 @@ export default function SalonTimerWidget({
                 color:
                   remaining < 60000
                     ? "oklch(0.65 0.22 30)"
-                    : "oklch(0.52 0.18 145)",
+                    : "oklch(0.78 0.12 80)",
               }}
             >
               {formatMMSS(remaining)}
@@ -351,7 +351,7 @@ export default function SalonTimerWidget({
                 onClick={() => setShowStartForm(true)}
                 disabled={starting}
                 data-ocid="timer.primary_button"
-                style={{ background: "oklch(0.52 0.18 145)", color: "white" }}
+                style={{ background: "oklch(0.78 0.12 80)", color: "white" }}
               >
                 <Play className="w-4 h-4 mr-2" />
                 सेवा शुरू करें
@@ -360,8 +360,8 @@ export default function SalonTimerWidget({
               <div
                 className="rounded-xl p-4 space-y-3"
                 style={{
-                  background: "oklch(0.18 0.05 155)",
-                  border: "1px solid oklch(0.28 0.05 155)",
+                  background: "oklch(0.17 0.012 60)",
+                  border: "1px solid oklch(0.28 0.04 75 / 0.6)",
                 }}
               >
                 <div>
@@ -378,9 +378,9 @@ export default function SalonTimerWidget({
                     <SelectTrigger
                       data-ocid="timer.select"
                       style={{
-                        background: "oklch(0.22 0.05 155)",
+                        background: "oklch(0.17 0.012 60)",
                         border: "1px solid oklch(0.32 0.05 155)",
-                        color: "oklch(0.95 0.02 145)",
+                        color: "oklch(0.97 0.015 80)",
                       }}
                     >
                       <SelectValue placeholder="ग्राहक चुनें" />
@@ -413,9 +413,9 @@ export default function SalonTimerWidget({
                     onChange={(e) => setDuration(e.target.value)}
                     data-ocid="timer.input"
                     style={{
-                      background: "oklch(0.22 0.05 155)",
+                      background: "oklch(0.17 0.012 60)",
                       border: "1px solid oklch(0.32 0.05 155)",
-                      color: "oklch(0.95 0.02 145)",
+                      color: "oklch(0.97 0.015 80)",
                     }}
                   />
                 </div>
@@ -426,7 +426,7 @@ export default function SalonTimerWidget({
                     onClick={handleStart}
                     data-ocid="timer.submit_button"
                     style={{
-                      background: "oklch(0.52 0.18 145)",
+                      background: "oklch(0.78 0.12 80)",
                       color: "white",
                     }}
                   >
@@ -439,7 +439,7 @@ export default function SalonTimerWidget({
                     variant="ghost"
                     onClick={() => setShowStartForm(false)}
                     data-ocid="timer.cancel_button"
-                    style={{ color: "oklch(0.6 0.05 145)" }}
+                    style={{ color: "oklch(0.55 0.04 80)" }}
                   >
                     रद्द
                   </Button>
@@ -454,7 +454,7 @@ export default function SalonTimerWidget({
           <div>
             <p
               className="text-xs font-medium mb-2"
-              style={{ color: "oklch(0.6 0.05 145)" }}
+              style={{ color: "oklch(0.55 0.04 80)" }}
             >
               आगे की Queue
             </p>
@@ -472,7 +472,7 @@ export default function SalonTimerWidget({
                   <div className="flex items-center gap-2">
                     <span
                       className="font-bold"
-                      style={{ color: "oklch(0.52 0.18 145)" }}
+                      style={{ color: "oklch(0.78 0.12 80)" }}
                     >
                       #{String(entry.queueNumber)}
                     </span>

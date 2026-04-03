@@ -220,37 +220,37 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
   return (
     <div
       className="min-h-screen"
-      style={{ background: "oklch(0.12 0.04 155)" }}
+      style={{ background: "oklch(0.09 0.005 60)" }}
     >
       <header
         className="sticky top-0 z-10 px-4 py-3 flex items-center justify-between"
         style={{
-          background: "oklch(0.16 0.05 155)",
-          borderBottom: "1px solid oklch(0.25 0.05 155)",
+          background: "oklch(0.13 0.008 60)",
+          borderBottom: "1px solid oklch(0.28 0.04 75 / 0.6)",
         }}
       >
         <div className="flex items-center gap-2">
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ background: "oklch(0.52 0.18 145)" }}
+            style={{ background: "oklch(0.78 0.12 80)" }}
           >
             <Scissors className="w-4 h-4 text-white" />
           </div>
           <div>
             <p
               className="font-bold text-sm"
-              style={{ color: "oklch(0.95 0.02 145)" }}
+              style={{ color: "oklch(0.97 0.015 80)" }}
             >
               Salon360
             </p>
             {effectiveProfileName ? (
-              <p className="text-xs" style={{ color: "oklch(0.6 0.05 145)" }}>
+              <p className="text-xs" style={{ color: "oklch(0.55 0.04 80)" }}>
                 नमस्ते, {effectiveProfileName}
               </p>
             ) : (
               <div
                 className="h-2.5 w-20 rounded animate-pulse mt-0.5"
-                style={{ background: "oklch(0.25 0.05 155)" }}
+                style={{ background: "oklch(0.22 0.03 70)" }}
               />
             )}
           </div>
@@ -260,7 +260,7 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
           size="sm"
           onClick={onSwitchRole}
           data-ocid="customer.close_button"
-          style={{ color: "oklch(0.6 0.05 145)" }}
+          style={{ color: "oklch(0.55 0.04 80)" }}
         >
           <LogOut className="w-4 h-4 mr-1" />
           बाहर
@@ -271,7 +271,7 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
         <Tabs defaultValue="salons">
           <TabsList
             className="w-full mb-4"
-            style={{ background: "oklch(0.18 0.05 155)" }}
+            style={{ background: "oklch(0.17 0.012 60)" }}
           >
             <TabsTrigger
               value="salons"
@@ -310,7 +310,7 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
 
       <footer
         className="text-center py-4 text-xs"
-        style={{ color: "oklch(0.45 0.04 155)" }}
+        style={{ color: "oklch(0.4 0.03 70)" }}
       >
         © {new Date().getFullYear()}. Built with love using{" "}
         <a
@@ -359,21 +359,21 @@ function ProfileSetupForm({
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ background: "oklch(0.12 0.04 155)" }}
+      style={{ background: "oklch(0.09 0.005 60)" }}
     >
       <header
         className="px-4 py-3 flex items-center justify-between"
         style={{
-          background: "oklch(0.16 0.05 155)",
-          borderBottom: "1px solid oklch(0.25 0.05 155)",
+          background: "oklch(0.13 0.008 60)",
+          borderBottom: "1px solid oklch(0.28 0.04 75 / 0.6)",
         }}
       >
         <div className="flex items-center gap-2">
           <Scissors
             className="w-5 h-5"
-            style={{ color: "oklch(0.52 0.18 145)" }}
+            style={{ color: "oklch(0.78 0.12 80)" }}
           />
-          <span className="font-bold" style={{ color: "oklch(0.95 0.02 145)" }}>
+          <span className="font-bold" style={{ color: "oklch(0.97 0.015 80)" }}>
             Salon360
           </span>
         </div>
@@ -381,7 +381,7 @@ function ProfileSetupForm({
           variant="ghost"
           size="sm"
           onClick={onLogout}
-          style={{ color: "oklch(0.6 0.05 145)" }}
+          style={{ color: "oklch(0.55 0.04 80)" }}
         >
           <LogOut className="w-4 h-4 mr-1" />
           बाहर
@@ -391,29 +391,29 @@ function ProfileSetupForm({
         <Card
           className="w-full max-w-md"
           style={{
-            background: "oklch(0.18 0.05 155)",
-            border: "1px solid oklch(0.28 0.05 155)",
+            background: "oklch(0.17 0.012 60)",
+            border: "1px solid oklch(0.28 0.04 75 / 0.6)",
           }}
         >
           <CardHeader>
             <div
               className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2"
-              style={{ background: "oklch(0.52 0.18 145 / 0.2)" }}
+              style={{ background: "oklch(0.78 0.12 80 / 0.12)" }}
             >
               <Star
                 className="w-6 h-6"
-                style={{ color: "oklch(0.52 0.18 145)" }}
+                style={{ color: "oklch(0.78 0.12 80)" }}
               />
             </div>
             <CardTitle
               className="text-center"
-              style={{ color: "oklch(0.95 0.02 145)" }}
+              style={{ color: "oklch(0.97 0.015 80)" }}
             >
               अपना नाम भरें
             </CardTitle>
             <p
               className="text-center text-sm"
-              style={{ color: "oklch(0.6 0.05 145)" }}
+              style={{ color: "oklch(0.55 0.04 80)" }}
             >
               सैलून बुक करने के लिए
             </p>
@@ -423,7 +423,7 @@ function ProfileSetupForm({
               <div>
                 <Label
                   className="text-sm"
-                  style={{ color: "oklch(0.75 0.05 145)" }}
+                  style={{ color: "oklch(0.65 0.07 80)" }}
                 >
                   आपका नाम *
                 </Label>
@@ -433,16 +433,16 @@ function ProfileSetupForm({
                   placeholder="अपना पूरा नाम"
                   data-ocid="profile.input"
                   style={{
-                    background: "oklch(0.22 0.05 155)",
-                    border: "1px solid oklch(0.32 0.05 155)",
-                    color: "oklch(0.95 0.02 145)",
+                    background: "oklch(0.17 0.012 60)",
+                    border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                    color: "oklch(0.97 0.015 80)",
                   }}
                 />
               </div>
               <div>
                 <Label
                   className="text-sm"
-                  style={{ color: "oklch(0.75 0.05 145)" }}
+                  style={{ color: "oklch(0.65 0.07 80)" }}
                 >
                   मोबाइल नंबर
                 </Label>
@@ -451,9 +451,9 @@ function ProfileSetupForm({
                   disabled
                   data-ocid="profile.input"
                   style={{
-                    background: "oklch(0.2 0.04 155)",
-                    border: "1px solid oklch(0.28 0.05 155)",
-                    color: "oklch(0.6 0.05 145)",
+                    background: "oklch(0.17 0.012 60)",
+                    border: "1px solid oklch(0.28 0.04 75 / 0.6)",
+                    color: "oklch(0.55 0.04 80)",
                   }}
                 />
               </div>
@@ -462,7 +462,7 @@ function ProfileSetupForm({
                 className="w-full"
                 disabled={isPending}
                 data-ocid="profile.submit_button"
-                style={{ background: "oklch(0.52 0.18 145)", color: "white" }}
+                style={{ background: "oklch(0.78 0.12 80)", color: "white" }}
               >
                 {isPending ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -518,15 +518,15 @@ function RatingPopup({
       <DialogContent
         data-ocid="rating.dialog"
         style={{
-          background: "oklch(0.18 0.05 155)",
-          border: "1px solid oklch(0.28 0.05 155)",
+          background: "oklch(0.17 0.012 60)",
+          border: "1px solid oklch(0.28 0.04 75 / 0.6)",
         }}
       >
         <DialogHeader>
-          <DialogTitle style={{ color: "oklch(0.95 0.02 145)" }}>
+          <DialogTitle style={{ color: "oklch(0.97 0.015 80)" }}>
             रेटिंग दें
           </DialogTitle>
-          <p className="text-sm" style={{ color: "oklch(0.6 0.05 145)" }}>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
             {salonName}
           </p>
         </DialogHeader>
@@ -536,7 +536,7 @@ function RatingPopup({
           <div>
             <p
               className="text-sm mb-2"
-              style={{ color: "oklch(0.75 0.05 145)" }}
+              style={{ color: "oklch(0.65 0.07 80)" }}
             >
               आपका अनुभव कैसा रहा?
             </p>
@@ -556,11 +556,11 @@ function RatingPopup({
                     style={{
                       color:
                         n <= (hovered || stars)
-                          ? "oklch(0.82 0.18 85)"
+                          ? "oklch(0.82 0.14 78)"
                           : "oklch(0.35 0.04 155)",
                       fill:
                         n <= (hovered || stars)
-                          ? "oklch(0.82 0.18 85)"
+                          ? "oklch(0.82 0.14 78)"
                           : "transparent",
                       transition: "color 0.15s, fill 0.15s",
                     }}
@@ -571,7 +571,7 @@ function RatingPopup({
             {stars > 0 && (
               <p
                 className="text-center text-xs mt-1"
-                style={{ color: "oklch(0.82 0.18 85)" }}
+                style={{ color: "oklch(0.82 0.14 78)" }}
               >
                 {["बहुत बुरा", "बुरा", "ठीक है", "अच्छा", "बहुत अच्छा"][stars - 1]}
               </p>
@@ -580,10 +580,7 @@ function RatingPopup({
 
           {/* Review text */}
           <div>
-            <Label
-              className="text-sm"
-              style={{ color: "oklch(0.75 0.05 145)" }}
-            >
+            <Label className="text-sm" style={{ color: "oklch(0.65 0.07 80)" }}>
               समीक्षा (वैकल्पिक)
             </Label>
             <Textarea
@@ -594,9 +591,9 @@ function RatingPopup({
               maxLength={300}
               data-ocid="rating.textarea"
               style={{
-                background: "oklch(0.22 0.05 155)",
-                border: "1px solid oklch(0.32 0.05 155)",
-                color: "oklch(0.95 0.02 145)",
+                background: "oklch(0.17 0.012 60)",
+                border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                color: "oklch(0.97 0.015 80)",
                 marginTop: "4px",
               }}
             />
@@ -609,7 +606,7 @@ function RatingPopup({
               onClick={onClose}
               className="flex-1"
               data-ocid="rating.cancel_button"
-              style={{ color: "oklch(0.6 0.05 145)" }}
+              style={{ color: "oklch(0.55 0.04 80)" }}
             >
               बाद में
             </Button>
@@ -617,7 +614,7 @@ function RatingPopup({
               onClick={handleSubmit}
               className="flex-1"
               data-ocid="rating.submit_button"
-              style={{ background: "oklch(0.52 0.18 145)", color: "white" }}
+              style={{ background: "oklch(0.78 0.12 80)", color: "white" }}
             >
               जमा करें
             </Button>
@@ -648,7 +645,7 @@ function SalonListTab({
 
   return (
     <div className="space-y-3">
-      <h2 className="font-semibold" style={{ color: "oklch(0.95 0.02 145)" }}>
+      <h2 className="font-semibold" style={{ color: "oklch(0.97 0.015 80)" }}>
         नज़दीकी सैलून ({salons.length})
       </h2>
 
@@ -656,9 +653,9 @@ function SalonListTab({
         <div className="text-center py-12" data-ocid="salons.empty_state">
           <Scissors
             className="w-10 h-10 mx-auto mb-3"
-            style={{ color: "oklch(0.4 0.05 155)" }}
+            style={{ color: "oklch(0.4 0.03 70)" }}
           />
-          <p style={{ color: "oklch(0.6 0.05 145)" }}>अभी कोई सैलून उपलब्ध नहीं</p>
+          <p style={{ color: "oklch(0.55 0.04 80)" }}>अभी कोई सैलून उपलब्ध नहीं</p>
         </div>
       ) : (
         salons.map((salon, idx) => {
@@ -672,26 +669,26 @@ function SalonListTab({
               data-ocid={`salons.item.${idx + 1}`}
               onClick={() => setSelectedSalon(salon)}
               style={{
-                background: "oklch(0.18 0.05 155)",
-                border: "1px solid oklch(0.28 0.05 155)",
+                background: "oklch(0.17 0.012 60)",
+                border: "1px solid oklch(0.28 0.04 75 / 0.6)",
               }}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div
                     className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: "oklch(0.52 0.18 145 / 0.2)" }}
+                    style={{ background: "oklch(0.78 0.12 80 / 0.12)" }}
                   >
                     <Scissors
                       className="w-5 h-5"
-                      style={{ color: "oklch(0.52 0.18 145)" }}
+                      style={{ color: "oklch(0.78 0.12 80)" }}
                     />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <p
                         className="font-semibold text-sm"
-                        style={{ color: "oklch(0.95 0.02 145)" }}
+                        style={{ color: "oklch(0.97 0.015 80)" }}
                       >
                         {salon.name}
                       </p>
@@ -699,8 +696,8 @@ function SalonListTab({
                         <Badge
                           className="text-xs px-1.5 py-0"
                           style={{
-                            background: "oklch(0.82 0.18 85 / 0.2)",
-                            color: "oklch(0.72 0.18 85)",
+                            background: "oklch(0.82 0.14 78 / 0.15)",
+                            color: "oklch(0.82 0.14 78)",
                             border: "1px solid oklch(0.72 0.18 85 / 0.3)",
                           }}
                         >
@@ -711,11 +708,11 @@ function SalonListTab({
                     <div className="flex items-center gap-1 mt-0.5">
                       <MapPin
                         className="w-3 h-3"
-                        style={{ color: "oklch(0.6 0.05 145)" }}
+                        style={{ color: "oklch(0.55 0.04 80)" }}
                       />
                       <p
                         className="text-xs"
-                        style={{ color: "oklch(0.6 0.05 145)" }}
+                        style={{ color: "oklch(0.55 0.04 80)" }}
                       >
                         {salon.city}
                       </p>
@@ -725,7 +722,7 @@ function SalonListTab({
                       <div className="flex items-center gap-1 mt-0.5">
                         <span
                           className="text-xs"
-                          style={{ color: "oklch(0.82 0.18 85)" }}
+                          style={{ color: "oklch(0.82 0.14 78)" }}
                         >
                           {Array.from({ length: 5 }, (_, i) =>
                             i < Math.round(avg) ? "★" : "☆",
@@ -733,7 +730,7 @@ function SalonListTab({
                         </span>
                         <span
                           className="text-xs"
-                          style={{ color: "oklch(0.75 0.05 145)" }}
+                          style={{ color: "oklch(0.65 0.07 80)" }}
                         >
                           {avg} ({count} समीक्षाएं)
                         </span>
@@ -741,7 +738,7 @@ function SalonListTab({
                     ) : (
                       <p
                         className="text-xs mt-0.5"
-                        style={{ color: "oklch(0.4 0.04 155)" }}
+                        style={{ color: "oklch(0.4 0.03 70)" }}
                       >
                         अभी कोई रेटिंग नहीं
                       </p>
@@ -749,7 +746,7 @@ function SalonListTab({
                     {salon.address && (
                       <p
                         className="text-xs mt-0.5"
-                        style={{ color: "oklch(0.5 0.04 155)" }}
+                        style={{ color: "oklch(0.45 0.03 70)" }}
                       >
                         {salon.address}
                       </p>
@@ -760,7 +757,7 @@ function SalonListTab({
                   {salon.phone && (
                     <span
                       className="text-xs"
-                      style={{ color: "oklch(0.52 0.18 145)" }}
+                      style={{ color: "oklch(0.78 0.12 80)" }}
                     >
                       <Phone className="w-3 h-3 inline mr-0.5" />
                       {salon.phone}
@@ -768,7 +765,7 @@ function SalonListTab({
                   )}
                   <ChevronRight
                     className="w-4 h-4"
-                    style={{ color: "oklch(0.4 0.05 155)" }}
+                    style={{ color: "oklch(0.4 0.03 70)" }}
                   />
                 </div>
               </div>
@@ -846,13 +843,13 @@ function BookingModal({
     <Dialog open onOpenChange={onClose}>
       <DialogContent
         style={{
-          background: "oklch(0.18 0.05 155)",
-          border: "1px solid oklch(0.28 0.05 155)",
+          background: "oklch(0.17 0.012 60)",
+          border: "1px solid oklch(0.28 0.04 75 / 0.6)",
         }}
         data-ocid="booking.dialog"
       >
         <DialogHeader>
-          <DialogTitle style={{ color: "oklch(0.95 0.02 145)" }}>
+          <DialogTitle style={{ color: "oklch(0.97 0.015 80)" }}>
             {salon.name}
           </DialogTitle>
         </DialogHeader>
@@ -861,25 +858,25 @@ function BookingModal({
           <div className="text-center py-6">
             <div
               className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-              style={{ background: "oklch(0.52 0.18 145 / 0.2)" }}
+              style={{ background: "oklch(0.78 0.12 80 / 0.12)" }}
             >
               <CheckCircle
                 className="w-8 h-8"
-                style={{ color: "oklch(0.52 0.18 145)" }}
+                style={{ color: "oklch(0.78 0.12 80)" }}
               />
             </div>
             <p
               className="text-lg font-bold mb-1"
-              style={{ color: "oklch(0.95 0.02 145)" }}
+              style={{ color: "oklch(0.97 0.015 80)" }}
             >
               बुकिंग हो गई! ༼
             </p>
-            <p className="text-sm" style={{ color: "oklch(0.6 0.05 145)" }}>
+            <p className="text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
               आपकी अपॉइंटमेंट {date} को है
             </p>
             <p
               className="text-xs mt-2"
-              style={{ color: "oklch(0.52 0.18 145)" }}
+              style={{ color: "oklch(0.78 0.12 80)" }}
             >
               "मेरी बुकिंग" में queue नंबर देखें
             </p>
@@ -887,7 +884,7 @@ function BookingModal({
               className="mt-4 w-full"
               onClick={onClose}
               data-ocid="booking.close_button"
-              style={{ background: "oklch(0.52 0.18 145)", color: "white" }}
+              style={{ background: "oklch(0.78 0.12 80)", color: "white" }}
             >
               ठीक है
             </Button>
@@ -897,7 +894,7 @@ function BookingModal({
             <div>
               <Label
                 className="text-sm mb-2 block"
-                style={{ color: "oklch(0.75 0.05 145)" }}
+                style={{ color: "oklch(0.65 0.07 80)" }}
               >
                 तारीख चुनें
               </Label>
@@ -908,16 +905,16 @@ function BookingModal({
                 onChange={(e) => setDate(e.target.value)}
                 data-ocid="booking.input"
                 style={{
-                  background: "oklch(0.22 0.05 155)",
-                  border: "1px solid oklch(0.32 0.05 155)",
-                  color: "oklch(0.95 0.02 145)",
+                  background: "oklch(0.17 0.012 60)",
+                  border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                  color: "oklch(0.97 0.015 80)",
                 }}
               />
             </div>
             <div>
               <Label
                 className="text-sm mb-2 block"
-                style={{ color: "oklch(0.75 0.05 145)" }}
+                style={{ color: "oklch(0.65 0.07 80)" }}
               >
                 सेवा चुनें
               </Label>
@@ -925,11 +922,11 @@ function BookingModal({
                 <div className="flex justify-center py-4">
                   <Loader2
                     className="w-5 h-5 animate-spin"
-                    style={{ color: "oklch(0.52 0.18 145)" }}
+                    style={{ color: "oklch(0.78 0.12 80)" }}
                   />
                 </div>
               ) : services.length === 0 ? (
-                <p className="text-sm" style={{ color: "oklch(0.6 0.05 145)" }}>
+                <p className="text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
                   इस सैलून में कोई सेवा नहीं है अभी
                 </p>
               ) : (
@@ -944,32 +941,32 @@ function BookingModal({
                       style={{
                         background:
                           selectedService === svc.name
-                            ? "oklch(0.52 0.18 145 / 0.2)"
-                            : "oklch(0.22 0.05 155)",
+                            ? "oklch(0.78 0.12 80 / 0.12)"
+                            : "oklch(0.17 0.012 60)",
                         border: `1px solid ${
                           selectedService === svc.name
-                            ? "oklch(0.52 0.18 145)"
-                            : "oklch(0.32 0.05 155)"
+                            ? "oklch(0.78 0.12 80)"
+                            : "oklch(0.32 0.06 78 / 0.5)"
                         }`,
                       }}
                     >
                       <div>
                         <p
                           className="font-medium text-sm"
-                          style={{ color: "oklch(0.95 0.02 145)" }}
+                          style={{ color: "oklch(0.97 0.015 80)" }}
                         >
                           {svc.name}
                         </p>
                         <p
                           className="text-xs"
-                          style={{ color: "oklch(0.6 0.05 145)" }}
+                          style={{ color: "oklch(0.55 0.04 80)" }}
                         >
                           {String(svc.durationMinutes)} मिनट
                         </p>
                       </div>
                       <span
                         className="font-bold"
-                        style={{ color: "oklch(0.52 0.18 145)" }}
+                        style={{ color: "oklch(0.78 0.12 80)" }}
                       >
                         ₹{Number(svc.price)}
                       </span>
@@ -984,7 +981,7 @@ function BookingModal({
                 onClick={onClose}
                 className="flex-1"
                 data-ocid="booking.cancel_button"
-                style={{ color: "oklch(0.6 0.05 145)" }}
+                style={{ color: "oklch(0.55 0.04 80)" }}
               >
                 रद्द
               </Button>
@@ -993,7 +990,7 @@ function BookingModal({
                 className="flex-1"
                 disabled={booking || !selectedService}
                 data-ocid="booking.primary_button"
-                style={{ background: "oklch(0.52 0.18 145)", color: "white" }}
+                style={{ background: "oklch(0.78 0.12 80)", color: "white" }}
               >
                 {booking ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1059,19 +1056,19 @@ function AppointmentCard({
       <div
         className="rounded-xl p-4"
         style={{
-          background: "oklch(0.18 0.05 155)",
-          border: "1px solid oklch(0.28 0.05 155)",
+          background: "oklch(0.17 0.012 60)",
+          border: "1px solid oklch(0.28 0.04 75 / 0.6)",
         }}
       >
         <div className="flex items-start justify-between gap-2 mb-2">
           <div>
             <p
               className="font-semibold text-sm"
-              style={{ color: "oklch(0.95 0.02 145)" }}
+              style={{ color: "oklch(0.97 0.015 80)" }}
             >
               {salonName}
             </p>
-            <p className="text-xs" style={{ color: "oklch(0.6 0.05 145)" }}>
+            <p className="text-xs" style={{ color: "oklch(0.55 0.04 80)" }}>
               {appt.serviceName} • {appt.date}
             </p>
           </div>
@@ -1080,16 +1077,16 @@ function AppointmentCard({
             style={{
               background:
                 appt.status === "completed"
-                  ? "oklch(0.52 0.18 145 / 0.2)"
+                  ? "oklch(0.78 0.12 80 / 0.12)"
                   : appt.status === "cancelled"
                     ? "oklch(0.577 0.245 27.325 / 0.2)"
-                    : "oklch(0.75 0.12 70 / 0.2)",
+                    : "oklch(0.78 0.12 80 / 0.12)",
               color:
                 appt.status === "completed"
-                  ? "oklch(0.52 0.18 145)"
+                  ? "oklch(0.78 0.12 80)"
                   : appt.status === "cancelled"
                     ? "oklch(0.577 0.245 27.325)"
-                    : "oklch(0.75 0.12 70)",
+                    : "oklch(0.78 0.12 80)",
               border: "none",
             }}
           >
@@ -1099,13 +1096,13 @@ function AppointmentCard({
         {isActive && queueInfo && (
           <div
             className="rounded-lg p-2 mt-2 flex items-center gap-2"
-            style={{ background: "oklch(0.52 0.18 145 / 0.1)" }}
+            style={{ background: "oklch(0.78 0.12 80 / 0.08)" }}
           >
             <Clock
               className="w-4 h-4 flex-shrink-0"
-              style={{ color: "oklch(0.52 0.18 145)" }}
+              style={{ color: "oklch(0.78 0.12 80)" }}
             />
-            <p className="text-xs" style={{ color: "oklch(0.75 0.1 145)" }}>
+            <p className="text-xs" style={{ color: "oklch(0.78 0.12 80)" }}>
               आप नंबर <strong>{String(queueInfo[0])}</strong> पर हैं
               {Number(queueInfo[1]) > 0 && ` • ${Number(queueInfo[1])} लोग पहले`}
             </p>
@@ -1119,7 +1116,7 @@ function AppointmentCard({
             style={{ borderTop: "1px solid oklch(0.25 0.04 155)" }}
           >
             {alreadyRated ? (
-              <p className="text-xs" style={{ color: "oklch(0.52 0.18 145)" }}>
+              <p className="text-xs" style={{ color: "oklch(0.78 0.12 80)" }}>
                 ✓ रेटिंग दी गई
               </p>
             ) : (
@@ -1131,7 +1128,7 @@ function AppointmentCard({
                 className="text-xs h-7 px-3"
                 style={{
                   background: "oklch(0.82 0.18 85 / 0.12)",
-                  color: "oklch(0.82 0.18 85)",
+                  color: "oklch(0.82 0.14 78)",
                   border: "1px solid oklch(0.72 0.18 85 / 0.25)",
                 }}
               >
@@ -1177,12 +1174,12 @@ function MyBookingsTab({ phone }: { phone: string }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold" style={{ color: "oklch(0.95 0.02 145)" }}>
+        <h2 className="font-semibold" style={{ color: "oklch(0.97 0.015 80)" }}>
           मेरी बुकिंग ({sorted.length})
         </h2>
         <div
           className="flex items-center gap-1 text-xs"
-          style={{ color: "oklch(0.52 0.18 145)" }}
+          style={{ color: "oklch(0.78 0.12 80)" }}
         >
           <Bell className="w-3 h-3" />
           <span>नोटिफ़िकेशन चालू</span>
@@ -1193,10 +1190,10 @@ function MyBookingsTab({ phone }: { phone: string }) {
         <div className="text-center py-12" data-ocid="bookings.empty_state">
           <Calendar
             className="w-10 h-10 mx-auto mb-3"
-            style={{ color: "oklch(0.4 0.05 155)" }}
+            style={{ color: "oklch(0.4 0.03 70)" }}
           />
-          <p style={{ color: "oklch(0.6 0.05 145)" }}>कोई बुकिंग नहीं है</p>
-          <p className="text-sm mt-1" style={{ color: "oklch(0.45 0.04 155)" }}>
+          <p style={{ color: "oklch(0.55 0.04 80)" }}>कोई बुकिंग नहीं है</p>
+          <p className="text-sm mt-1" style={{ color: "oklch(0.4 0.03 70)" }}>
             "सैलून चुनें" टैब से बुक करें
           </p>
         </div>

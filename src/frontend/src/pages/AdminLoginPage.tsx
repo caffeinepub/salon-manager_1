@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Crown, Eye, EyeOff, Lock, Mail, Scissors, Shield } from "lucide-react";
+import { Crown, Eye, EyeOff, Lock, Mail, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useActor } from "../hooks/useActor";
@@ -28,6 +28,16 @@ export function logoutAdmin(): void {
 interface Props {
   onLoginSuccess: () => void;
 }
+
+// Design tokens
+const BG = "oklch(0.09 0.005 60)";
+const CARD = "oklch(0.13 0.008 60)";
+const CARD_BORDER = "1px solid oklch(0.28 0.04 75 / 0.6)";
+const GOLD = "oklch(0.78 0.12 80)";
+const TEXT = "oklch(0.97 0.015 80)";
+const MUTED = "oklch(0.55 0.04 80)";
+const INPUT_BG = "oklch(0.17 0.012 60)";
+const INPUT_BORDER = "1px solid oklch(0.32 0.06 78 / 0.5)";
 
 export default function AdminLoginPage({ onLoginSuccess }: Props) {
   const { actor: backend } = useActor();
@@ -122,27 +132,43 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
     }
   };
 
+  const goldGradient =
+    "linear-gradient(135deg, oklch(0.88 0.12 82) 0%, oklch(0.68 0.13 74) 100%)";
+
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4"
-      style={{ background: "oklch(0.12 0.04 155)" }}
+      style={{ background: BG }}
     >
-      <div className="w-full max-w-sm">
+      {/* Subtle salon watermark background */}
+      <div
+        className="fixed inset-0 pointer-events-none overflow-hidden"
+        aria-hidden="true"
+      >
+        <div
+          className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[20rem] font-bold select-none"
+          style={{ color: "oklch(0.78 0.12 80 / 0.03)", userSelect: "none" }}
+        >
+          ✂
+        </div>
+      </div>
+
+      <div className="w-full max-w-sm relative z-10">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
-            style={{ background: "oklch(0.75 0.12 70)" }}
+            className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 gold-glow"
+            style={{ background: goldGradient }}
           >
-            <Crown className="w-8 h-8 text-white" />
+            <Crown
+              className="w-8 h-8"
+              style={{ color: "oklch(0.09 0.005 60)" }}
+            />
           </div>
-          <h1
-            className="text-2xl font-bold"
-            style={{ color: "oklch(0.95 0.02 145)" }}
-          >
-            Salon360
+          <h1 className="text-2xl font-bold font-display gold-gradient-text">
+            Salon360Pro
           </h1>
-          <p className="text-sm mt-1" style={{ color: "oklch(0.6 0.05 145)" }}>
+          <p className="text-sm mt-1" style={{ color: MUTED }}>
             Super Admin Login
           </p>
         </div>
@@ -150,35 +176,32 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
         {/* Card */}
         <div
           className="rounded-2xl p-6"
-          style={{
-            background: "oklch(0.16 0.05 155)",
-            border: "1px solid oklch(0.25 0.05 155)",
-          }}
+          style={{ background: CARD, border: CARD_BORDER }}
         >
           {isFirstLogin ? (
             <>
               <div
                 className="flex items-center gap-2 mb-5 p-3 rounded-xl"
                 style={{
-                  background: "oklch(0.75 0.12 70 / 0.15)",
-                  border: "1px solid oklch(0.75 0.12 70 / 0.3)",
+                  background: "oklch(0.78 0.12 80 / 0.1)",
+                  border: "1px solid oklch(0.78 0.12 80 / 0.3)",
                 }}
               >
                 <Shield
                   className="w-5 h-5 flex-shrink-0"
-                  style={{ color: "oklch(0.75 0.12 70)" }}
+                  style={{ color: GOLD }}
                 />
-                <p className="text-sm" style={{ color: "oklch(0.9 0.05 145)" }}>
+                <p className="text-sm" style={{ color: TEXT }}>
                   पहली बार login — अपना password set करें
                 </p>
               </div>
               <form onSubmit={handleFirstLogin} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label style={{ color: "oklch(0.75 0.05 145)" }}>Email</Label>
+                  <Label style={{ color: MUTED }}>Email</Label>
                   <div className="relative">
                     <Mail
                       className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
-                      style={{ color: "oklch(0.5 0.05 145)" }}
+                      style={{ color: MUTED }}
                     />
                     <Input
                       type="email"
@@ -187,21 +210,21 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
                       className="pl-9"
                       readOnly
                       style={{
-                        background: "oklch(0.22 0.05 155)",
-                        border: "1px solid oklch(0.32 0.05 155)",
-                        color: "oklch(0.95 0.02 145)",
+                        background: INPUT_BG,
+                        border: INPUT_BORDER,
+                        color: TEXT,
                       }}
                     />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label style={{ color: "oklch(0.75 0.05 145)" }}>
+                  <Label style={{ color: MUTED }}>
                     नया Password (कम से कम 8 characters)
                   </Label>
                   <div className="relative">
                     <Lock
                       className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
-                      style={{ color: "oklch(0.5 0.05 145)" }}
+                      style={{ color: MUTED }}
                     />
                     <Input
                       type={showPassword ? "text" : "password"}
@@ -210,16 +233,16 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
                       placeholder="कम से कम 8 characters"
                       className="pl-9 pr-10"
                       style={{
-                        background: "oklch(0.22 0.05 155)",
-                        border: "1px solid oklch(0.32 0.05 155)",
-                        color: "oklch(0.95 0.02 145)",
+                        background: INPUT_BG,
+                        border: INPUT_BORDER,
+                        color: TEXT,
                       }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2"
-                      style={{ color: "oklch(0.5 0.05 145)" }}
+                      style={{ color: MUTED }}
                     >
                       {showPassword ? (
                         <EyeOff className="w-4 h-4" />
@@ -230,13 +253,11 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label style={{ color: "oklch(0.75 0.05 145)" }}>
-                    Password दोबारा डालें
-                  </Label>
+                  <Label style={{ color: MUTED }}>Password दोबारा डालें</Label>
                   <div className="relative">
                     <Lock
                       className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
-                      style={{ color: "oklch(0.5 0.05 145)" }}
+                      style={{ color: MUTED }}
                     />
                     <Input
                       type={showConfirm ? "text" : "password"}
@@ -245,16 +266,16 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
                       placeholder="Password फिर से डालें"
                       className="pl-9 pr-10"
                       style={{
-                        background: "oklch(0.22 0.05 155)",
-                        border: "1px solid oklch(0.32 0.05 155)",
-                        color: "oklch(0.95 0.02 145)",
+                        background: INPUT_BG,
+                        border: INPUT_BORDER,
+                        color: TEXT,
                       }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirm(!showConfirm)}
                       className="absolute right-3 top-1/2 -translate-y-1/2"
-                      style={{ color: "oklch(0.5 0.05 145)" }}
+                      style={{ color: MUTED }}
                     >
                       {showConfirm ? (
                         <EyeOff className="w-4 h-4" />
@@ -266,9 +287,13 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full font-semibold"
+                  className="w-full font-semibold gold-glow"
                   disabled={loading}
-                  style={{ background: "oklch(0.75 0.12 70)", color: "white" }}
+                  style={{
+                    background: goldGradient,
+                    color: "oklch(0.09 0.005 60)",
+                    border: "none",
+                  }}
                 >
                   {loading ? "Password Set हो रहा है..." : "Password Set करें"}
                 </Button>
@@ -276,19 +301,16 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
             </>
           ) : (
             <>
-              <h2
-                className="text-lg font-semibold mb-5"
-                style={{ color: "oklch(0.95 0.02 145)" }}
-              >
+              <h2 className="text-lg font-semibold mb-5 gold-gradient-text">
                 Admin Login
               </h2>
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label style={{ color: "oklch(0.75 0.05 145)" }}>Email</Label>
+                  <Label style={{ color: MUTED }}>Email</Label>
                   <div className="relative">
                     <Mail
                       className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
-                      style={{ color: "oklch(0.5 0.05 145)" }}
+                      style={{ color: MUTED }}
                     />
                     <Input
                       type="email"
@@ -297,21 +319,19 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
                       className="pl-9"
                       readOnly
                       style={{
-                        background: "oklch(0.22 0.05 155)",
-                        border: "1px solid oklch(0.32 0.05 155)",
-                        color: "oklch(0.95 0.02 145)",
+                        background: INPUT_BG,
+                        border: INPUT_BORDER,
+                        color: TEXT,
                       }}
                     />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label style={{ color: "oklch(0.75 0.05 145)" }}>
-                    Password
-                  </Label>
+                  <Label style={{ color: MUTED }}>Password</Label>
                   <div className="relative">
                     <Lock
                       className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
-                      style={{ color: "oklch(0.5 0.05 145)" }}
+                      style={{ color: MUTED }}
                     />
                     <Input
                       type={showPassword ? "text" : "password"}
@@ -320,16 +340,16 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
                       placeholder="अपना password डालें"
                       className="pl-9 pr-10"
                       style={{
-                        background: "oklch(0.22 0.05 155)",
-                        border: "1px solid oklch(0.32 0.05 155)",
-                        color: "oklch(0.95 0.02 145)",
+                        background: INPUT_BG,
+                        border: INPUT_BORDER,
+                        color: TEXT,
                       }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2"
-                      style={{ color: "oklch(0.5 0.05 145)" }}
+                      style={{ color: MUTED }}
                     >
                       {showPassword ? (
                         <EyeOff className="w-4 h-4" />
@@ -341,9 +361,13 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full font-semibold"
+                  className="w-full font-semibold gold-glow"
                   disabled={loading}
-                  style={{ background: "oklch(0.52 0.18 145)", color: "white" }}
+                  style={{
+                    background: goldGradient,
+                    color: "oklch(0.09 0.005 60)",
+                    border: "none",
+                  }}
                 >
                   {loading ? "Login हो रहा है..." : "Login करें"}
                 </Button>
@@ -354,7 +378,7 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
 
         <p
           className="text-center text-xs mt-4"
-          style={{ color: "oklch(0.4 0.04 155)" }}
+          style={{ color: "oklch(0.35 0.03 70)" }}
         >
           सिर्फ Authorized Admin ही login कर सकते हैं
         </p>
