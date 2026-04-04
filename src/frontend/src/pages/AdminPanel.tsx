@@ -21,6 +21,7 @@ import { Input } from "../components/ui/input";
 import {
   type SalonWithId,
   type SubRequestType,
+  type SubscriptionHistoryType,
   useAdminApproveSalon,
   useAdminApproveSubRequest,
   useAdminBackup,
@@ -33,6 +34,7 @@ import {
   useAdminGetPendingSalons,
   useAdminGetPendingSubRequests,
   useAdminGetRevenueStats,
+  useAdminGetSubHistory,
   useAdminGetSubRequestEarnings,
   useAdminGetSubscriptionPrice,
   useAdminProcessTrialExpirations,
@@ -44,6 +46,7 @@ import {
   useAdminSetPlanPricing,
   useAdminSetSalonActive,
   useAdminSetSalonSubscription,
+  useAdminSetSalonTrialDays,
   useAdminSetSubscriptionPrice,
 } from "../hooks/useQueries";
 import {
@@ -314,13 +317,124 @@ function SubRequestCard({
   );
 }
 
+function SubHistoryTable({ history }: { history: SubscriptionHistoryType[] }) {
+  if (history.length === 0) {
+    return (
+      <div
+        className="text-center py-12"
+        style={{ color: "oklch(0.55 0.04 80)" }}
+        data-ocid="sub_requests.empty_state"
+      >
+        कोई सदस्यता इतिहास नहीं है
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-3" data-ocid="sub_requests.list">
+      {history.map((h, idx) => (
+        <div
+          key={h.id.toString()}
+          className="rounded-xl p-4 space-y-2"
+          style={{
+            background: "oklch(0.13 0.008 60)",
+            border: "1px solid oklch(0.28 0.04 75 / 0.6)",
+          }}
+          data-ocid={`sub_requests.item.${idx + 1}`}
+        >
+          <div className="flex items-start justify-between gap-2 flex-wrap">
+            <div>
+              <p
+                className="font-semibold text-sm"
+                style={{ color: "oklch(0.97 0.015 80)" }}
+              >
+                {h.salonName}
+              </p>
+              <p className="text-xs" style={{ color: "oklch(0.55 0.04 80)" }}>
+                {h.ownerPhone}
+              </p>
+            </div>
+            <span
+              className="text-xs font-bold px-2 py-1 rounded-full"
+              style={{
+                background: "oklch(0.78 0.12 80 / 0.15)",
+                color: "oklch(0.88 0.12 82)",
+                border: "1px solid oklch(0.78 0.12 80 / 0.4)",
+              }}
+            >
+              ✅ स्वीकृत
+            </span>
+          </div>
+          <div
+            className="rounded-lg p-3 space-y-1 text-xs"
+            style={{
+              background: "oklch(0.17 0.012 60)",
+              border: "1px solid oklch(0.28 0.04 75 / 0.4)",
+            }}
+          >
+            <div className="flex justify-between">
+              <span style={{ color: "oklch(0.55 0.04 80)" }}>प्लान</span>
+              <span
+                style={{ color: "oklch(0.97 0.015 80)" }}
+                className="font-medium"
+              >
+                {h.planName} ({Number(h.planDays)} दिन)
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span style={{ color: "oklch(0.55 0.04 80)" }}>देय राशि</span>
+              <span
+                className="font-bold"
+                style={{ color: "oklch(0.88 0.12 82)" }}
+              >
+                ₹{h.finalPrice}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span style={{ color: "oklch(0.55 0.04 80)" }}>शुरू</span>
+              <span style={{ color: "oklch(0.97 0.015 80)" }}>
+                {h.startDate > 0n ? formatDate(h.startDate) : "—"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span style={{ color: "oklch(0.55 0.04 80)" }}>समाप्त</span>
+              <span style={{ color: "oklch(0.97 0.015 80)" }}>
+                {h.endDate > 0n ? formatDate(h.endDate) : "—"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span style={{ color: "oklch(0.55 0.04 80)" }}>स्वीकृत</span>
+              <span style={{ color: "oklch(0.82 0.14 78)" }}>
+                {h.approvedAt > 0n ? formatDate(h.approvedAt) : "—"}
+              </span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SubscriptionRequestsTab() {
-  const [subTab, setSubTab] = useState<"pending" | "history">("pending");
-  const { data: pendingReqs = [], isLoading: pendingLoading } =
-    useAdminGetPendingSubRequests();
-  const { data: allReqs = [], isLoading: allLoading } =
-    useAdminGetAllSubRequests();
+  const [subTab, setSubTab] = useState<"pending" | "all" | "history">(
+    "pending",
+  );
+  const {
+    data: pendingReqs = [],
+    isLoading: pendingLoading,
+    isError: pendingError,
+  } = useAdminGetPendingSubRequests();
+  const {
+    data: allReqs = [],
+    isLoading: allLoading,
+    isError: allError,
+  } = useAdminGetAllSubRequests();
+  const {
+    data: historyData = [],
+    isLoading: historyLoading,
+    isError: historyError,
+  } = useAdminGetSubHistory();
   const expireMutation = useAdminExpireOldSubRequests();
+  const prevCountRef = useRef(0);
 
   // Auto-expire on mount (run once)
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally run once on mount
@@ -328,8 +442,43 @@ function SubscriptionRequestsTab() {
     expireMutation.mutate();
   }, []);
 
-  const displayList = subTab === "pending" ? pendingReqs : allReqs;
-  const isLoading = subTab === "pending" ? pendingLoading : allLoading;
+  // Sound alert when new pending requests arrive
+  useEffect(() => {
+    if (pendingReqs.length > prevCountRef.current && prevCountRef.current > 0) {
+      try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.5);
+      } catch {}
+      toast.info(`🔔 नई सदस्यता अनुरोध! (${pendingReqs.length} लंबित)`);
+    }
+    prevCountRef.current = pendingReqs.length;
+  }, [pendingReqs.length]);
+
+  const isError =
+    subTab === "pending"
+      ? pendingError
+      : subTab === "all"
+        ? allError
+        : historyError;
+  const isLoading =
+    subTab === "pending"
+      ? pendingLoading
+      : subTab === "all"
+        ? allLoading
+        : historyLoading;
+
+  const errorBg = {
+    background: "oklch(0.15 0.04 27 / 0.3)",
+    border: "1px solid oklch(0.5 0.2 27 / 0.4)",
+  };
 
   return (
     <div className="space-y-4">
@@ -338,46 +487,52 @@ function SubscriptionRequestsTab() {
         className="flex rounded-lg overflow-hidden"
         style={{ border: "1px solid oklch(0.28 0.04 75 / 0.6)" }}
       >
-        <button
-          type="button"
-          onClick={() => setSubTab("pending")}
-          className="flex-1 py-2 text-sm font-medium transition-colors"
-          style={{
-            background:
-              subTab === "pending"
-                ? "oklch(0.78 0.12 80)"
-                : "oklch(0.17 0.012 60)",
-            color:
-              subTab === "pending"
-                ? "oklch(0.09 0.005 60)"
-                : "oklch(0.55 0.04 80)",
-          }}
-          data-ocid="sub_requests.tab"
-        >
-          ⏳ लंबित ({pendingReqs.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setSubTab("history")}
-          className="flex-1 py-2 text-sm font-medium transition-colors border-l"
-          style={{
-            background:
-              subTab === "history"
-                ? "oklch(0.78 0.12 80)"
-                : "oklch(0.17 0.012 60)",
-            color:
-              subTab === "history"
-                ? "oklch(0.09 0.005 60)"
-                : "oklch(0.55 0.04 80)",
-            borderColor: "oklch(0.28 0.04 75 / 0.6)",
-          }}
-          data-ocid="sub_requests.tab"
-        >
-          📜 इतिहास ({allReqs.length})
-        </button>
+        {(["pending", "all", "history"] as const).map((tab, i) => {
+          const labels = [
+            `⏳ लंबित (${pendingReqs.length})`,
+            `📜 सभी (${allReqs.length})`,
+            `📚 इतिहास (${historyData.length})`,
+          ];
+          return (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setSubTab(tab)}
+              className="flex-1 py-2 text-xs font-medium transition-colors"
+              style={{
+                background:
+                  subTab === tab
+                    ? "oklch(0.78 0.12 80)"
+                    : "oklch(0.17 0.012 60)",
+                color:
+                  subTab === tab
+                    ? "oklch(0.09 0.005 60)"
+                    : "oklch(0.55 0.04 80)",
+                borderLeft:
+                  i > 0 ? "1px solid oklch(0.28 0.04 75 / 0.6)" : "none",
+              }}
+              data-ocid="sub_requests.tab"
+            >
+              {labels[i]}
+            </button>
+          );
+        })}
       </div>
 
-      {isLoading ? (
+      {/* Error state */}
+      {isError && (
+        <div
+          className="rounded-lg p-4 text-center"
+          style={errorBg}
+          data-ocid="sub_requests.error_state"
+        >
+          <p style={{ color: "oklch(0.7 0.2 27)" }}>
+            ❌ डेटा लोड नहीं हो सका। कृपया पेज reload करें।
+          </p>
+        </div>
+      )}
+
+      {!isError && isLoading && (
         <div
           className="py-8 text-center"
           data-ocid="sub_requests.loading_state"
@@ -389,28 +544,44 @@ function SubscriptionRequestsTab() {
               borderTopColor: "transparent",
             }}
           />
-          <p className="text-sm text-gray-500 mt-2">लोड हो रहा है...</p>
-        </div>
-      ) : displayList.length === 0 ? (
-        <div
-          className="text-center py-12"
-          style={{ color: "oklch(0.55 0.04 80)" }}
-          data-ocid="sub_requests.empty_state"
-        >
-          {subTab === "pending" ? "कोई लंबित अनुरोध नहीं है" : "कोई इतिहास नहीं है"}
-        </div>
-      ) : (
-        <div className="space-y-3" data-ocid="sub_requests.list">
-          {displayList.map((req, idx) => (
-            <SubRequestCard
-              key={req.id.toString()}
-              req={req}
-              idx={idx}
-              showActions={subTab === "pending"}
-            />
-          ))}
+          <p className="text-sm mt-2" style={{ color: "oklch(0.55 0.04 80)" }}>
+            लोड हो रहा है...
+          </p>
         </div>
       )}
+
+      {!isError && !isLoading && subTab === "history" && (
+        <SubHistoryTable history={historyData} />
+      )}
+
+      {!isError &&
+        !isLoading &&
+        subTab !== "history" &&
+        (() => {
+          const displayList = subTab === "pending" ? pendingReqs : allReqs;
+          return displayList.length === 0 ? (
+            <div
+              className="text-center py-12"
+              style={{ color: "oklch(0.55 0.04 80)" }}
+              data-ocid="sub_requests.empty_state"
+            >
+              {subTab === "pending"
+                ? "कोई लंबित अनुरोध नहीं है"
+                : "कोई अनुरोध नहीं है"}
+            </div>
+          ) : (
+            <div className="space-y-3" data-ocid="sub_requests.list">
+              {displayList.map((req, idx) => (
+                <SubRequestCard
+                  key={req.id.toString()}
+                  req={req}
+                  idx={idx}
+                  showActions={subTab === "pending"}
+                />
+              ))}
+            </div>
+          );
+        })()}
     </div>
   );
 }
@@ -1688,6 +1859,51 @@ async function hashPassword(password: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+function TrialDaysSaveButton({
+  salonId,
+  salonName,
+  trialDays,
+  setTrialDays,
+  idx,
+}: {
+  salonId: bigint;
+  salonName: string;
+  trialDays: string;
+  setTrialDays: (v: string) => void;
+  idx: number;
+}) {
+  const setTrialDaysMutation = useAdminSetSalonTrialDays();
+  return (
+    <Button
+      size="sm"
+      data-ocid={`salons.save_button.${idx + 1}`}
+      disabled={setTrialDaysMutation.isPending}
+      onClick={() => {
+        const d = Number(trialDays);
+        if (!d || d < 1) {
+          toast.error("सही दिन डालें");
+          return;
+        }
+        setTrialDaysMutation.mutate(
+          { salonId, days: BigInt(d) },
+          {
+            onSuccess: () => {
+              toast.success(`${salonName} के लिए ट्रायल ${d} दिन सेट हो गए`);
+              setTrialDays("");
+            },
+            onError: (err) => {
+              console.error("Trial days save error:", err);
+              toast.error("ट्रायल दिन सेव नहीं हो पाए। दोबारा कोशिश करें।");
+            },
+          },
+        );
+      }}
+    >
+      {setTrialDaysMutation.isPending ? "सेव..." : "सेव"}
+    </Button>
+  );
+}
+
 function SalonManageCard({
   salon,
   idx,
@@ -1854,20 +2070,13 @@ function SalonManageCard({
                     color: "oklch(0.97 0.015 80)",
                   }}
                 />
-                <Button
-                  size="sm"
-                  data-ocid={`salons.save_button.${idx + 1}`}
-                  onClick={() => {
-                    const d = Number(trialDays);
-                    if (!d || d < 1) {
-                      toast.error("सही दिन डालें");
-                      return;
-                    }
-                    toast.info(`${salon.name} के लिए ट्रायल ${d} दिन सेट करें`);
-                  }}
-                >
-                  सेव
-                </Button>
+                <TrialDaysSaveButton
+                  salonId={salon.id}
+                  salonName={salon.name}
+                  trialDays={trialDays}
+                  setTrialDays={setTrialDays}
+                  idx={idx}
+                />
               </div>
               {salon.trialStartDate > 0n && (
                 <p className="text-xs " style={{ color: "oklch(0.4 0.03 70)" }}>

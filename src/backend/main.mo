@@ -7,8 +7,7 @@ import Float "mo:core/Float";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
-
-
+import Iter "mo:core/Iter";
 
 actor {
   // ================================================================
@@ -166,14 +165,32 @@ actor {
     savings : Float;
     requestTime : Int;
     screenshotBase64 : Text;
-    status : Text;  // "pending" | "approved" | "rejected" | "expired"
+    status : Text;
     approvedAt : Int;
+  };
+
+  public type SubscriptionHistory = {
+    id : Nat;
+    salonId : Nat;
+    ownerPhone : Text;
+    salonName : Text;
+    planName : Text;
+    planDays : Nat;
+    originalPrice : Float;
+    discountPercent : Float;
+    finalPrice : Float;
+    savings : Float;
+    startDate : Int;
+    endDate : Int;
+    approvedAt : Int;
+    transactionId : Text;
   };
 
   // ================================================================
   // STATE (V3)
   // ================================================================
   let ADMIN_EMAIL : Text = "amitkrji498@gmail.com";
+
   // ================================================================
   // STABLE STORAGE (data persists across canister upgrades/builds)
   // ================================================================
@@ -192,10 +209,11 @@ actor {
   var stableServiceSessions : [(Nat, ServiceSession)] = [];
   var stableNotifiedAppointments : [Nat] = [];
   var stablePushSubscriptions : [(Text, PushSubscription)] = [];
-  // NEW: Subscription request stable storage
   var stableNextSubRequestId : Nat = 1;
   var stableSubRequests : [(Nat, SubRequest)] = [];
   var stablePlanPricings : [(Text, PlanPricing)] = [];
+  var stableNextSubHistoryId : Nat = 1;
+  var stableSubHistory : [(Nat, SubscriptionHistory)] = [];
 
   // State vars — auto-restored from stable memory on upgrade
   var adminPasswordHash : ?Text = stableAdminPasswordHash;
@@ -205,6 +223,7 @@ actor {
   var defaultTrialDays   : Nat = stableDefaultTrialDays;
   var platformSubscriptionPrice : Float = stablePlatformPrice;
   var nextSubRequestId   : Nat = stableNextSubRequestId;
+  var nextSubHistoryId   : Nat = stableNextSubHistoryId;
   let MAX_SHOPS          : Nat = 100;
 
   // V3 maps (phone-keyed) — filled from stable in postupgrade
@@ -223,6 +242,26 @@ actor {
   // Subscription request maps
   let subRequestsMap = Map.empty<Nat, SubRequest>();
   let planPricingsMap = Map.empty<Text, PlanPricing>();
+  let subHistoryMap = Map.empty<Nat, SubscriptionHistory>();
+
+  // ================================================================
+  // AUTHORIZATION HELPERS
+  // ================================================================
+  func requireAdminAuth(email : Text, passwordHash : Text) {
+    if (email != ADMIN_EMAIL) {
+      Runtime.trap("Unauthorized: Invalid admin credentials");
+    };
+    switch (adminPasswordHash) {
+      case (null) {
+        Runtime.trap("Unauthorized: Admin password not set");
+      };
+      case (?stored) {
+        if (stored != passwordHash) {
+          Runtime.trap("Unauthorized: Invalid admin credentials");
+        };
+      };
+    };
+  };
 
   // ================================================================
   // HELPERS
@@ -268,7 +307,6 @@ actor {
     timestamp >= monthStart;
   };
 
-  // Get default plan pricing (called when no custom pricing set)
   func getDefaultPlanPricing(planName : Text) : PlanPricing {
     if (planName == "30 दिन") {
       { planName; planDays = 30; originalPrice = 149.0; discountPercent = 0.0 }
@@ -307,11 +345,13 @@ actor {
   // ================================================================
   // ADMIN — SUBSCRIPTION PRICE
   // ================================================================
-  public query func adminGetSubscriptionPrice() : async Float {
+  public query func adminGetSubscriptionPrice(email : Text, passwordHash : Text) : async Float {
+    requireAdminAuth(email, passwordHash);
     platformSubscriptionPrice;
   };
 
-  public func adminSetSubscriptionPrice(price : Float) : async () {
+  public func adminSetSubscriptionPrice(email : Text, passwordHash : Text, price : Float) : async () {
+    requireAdminAuth(email, passwordHash);
     if (price < 0.0) { Runtime.trap("Price must be non-negative") };
     platformSubscriptionPrice := price;
   };
@@ -319,7 +359,8 @@ actor {
   // ================================================================
   // ADMIN — DASHBOARD
   // ================================================================
-  public query func adminGetDashboardStats() : async DashboardStats {
+  public query func adminGetDashboardStats(email : Text, passwordHash : Text) : async DashboardStats {
+    requireAdminAuth(email, passwordHash);
     var total : Nat = 0; var active : Nat = 0;
     var expired : Nat = 0; var pending : Nat = 0;
     for ((_, s) in salonProfilesV3.entries().toArray().vals()) {
@@ -332,21 +373,24 @@ actor {
     { total; active; expired; pending };
   };
 
-  public query func adminGetAllSalons() : async [SalonWithId] {
+  public query func adminGetAllSalons(email : Text, passwordHash : Text) : async [SalonWithId] {
+    requireAdminAuth(email, passwordHash);
     salonProfilesV3.entries().toArray()
       .filterMap(func((id, s)) {
         if (not s.pendingApproval) { ?makeSalonWithId(id, s) } else { null }
       });
   };
 
-  public query func adminGetPendingSalons() : async [SalonWithId] {
+  public query func adminGetPendingSalons(email : Text, passwordHash : Text) : async [SalonWithId] {
+    requireAdminAuth(email, passwordHash);
     salonProfilesV3.entries().toArray()
       .filterMap(func((id, s)) {
         if (s.pendingApproval) { ?makeSalonWithId(id, s) } else { null }
       });
   };
 
-  public func adminApproveSalon(salonId : Nat) : async () {
+  public func adminApproveSalon(email : Text, passwordHash : Text, salonId : Nat) : async () {
+    requireAdminAuth(email, passwordHash);
     switch (salonProfilesV3.get(salonId)) {
       case (null) { Runtime.trap("Salon not found") };
       case (?s) {
@@ -360,7 +404,8 @@ actor {
     };
   };
 
-  public func adminRejectSalon(salonId : Nat) : async () {
+  public func adminRejectSalon(email : Text, passwordHash : Text, salonId : Nat) : async () {
+    requireAdminAuth(email, passwordHash);
     switch (salonProfilesV3.get(salonId)) {
       case (null) { Runtime.trap("Salon not found") };
       case (?s) {
@@ -370,7 +415,8 @@ actor {
     };
   };
 
-  public func adminSetSalonActive(salonId : Nat, active : Bool) : async () {
+  public func adminSetSalonActive(email : Text, passwordHash : Text, salonId : Nat, active : Bool) : async () {
+    requireAdminAuth(email, passwordHash);
     switch (salonProfilesV3.get(salonId)) {
       case (null) { Runtime.trap("Salon not found") };
       case (?s) {
@@ -384,7 +430,8 @@ actor {
     };
   };
 
-  public func adminSetSalonSubscription(salonId : Nat, active : Bool) : async () {
+  public func adminSetSalonSubscription(email : Text, passwordHash : Text, salonId : Nat, active : Bool) : async () {
+    requireAdminAuth(email, passwordHash);
     switch (salonProfilesV3.get(salonId)) {
       case (null) { Runtime.trap("Salon not found") };
       case (?s) {
@@ -398,14 +445,19 @@ actor {
     };
   };
 
-  public query func adminGetDefaultTrialDays() : async Nat { defaultTrialDays };
+  public query func adminGetDefaultTrialDays(email : Text, passwordHash : Text) : async Nat {
+    requireAdminAuth(email, passwordHash);
+    defaultTrialDays;
+  };
 
-  public func adminSetDefaultTrialDays(days : Nat) : async () {
+  public func adminSetDefaultTrialDays(email : Text, passwordHash : Text, days : Nat) : async () {
+    requireAdminAuth(email, passwordHash);
     if (days == 0) { Runtime.trap("Trial days must be at least 1") };
     defaultTrialDays := days;
   };
 
-  public func adminSetSalonTrialDays(salonId : Nat, days : Nat) : async () {
+  public func adminSetSalonTrialDays(email : Text, passwordHash : Text, salonId : Nat, days : Nat) : async () {
+    requireAdminAuth(email, passwordHash);
     if (days == 0) { Runtime.trap("Trial days must be at least 1") };
     switch (salonProfilesV3.get(salonId)) {
       case (null) { Runtime.trap("Salon not found") };
@@ -420,7 +472,8 @@ actor {
     };
   };
 
-  public func adminProcessTrialExpirations() : async Nat {
+  public func adminProcessTrialExpirations(email : Text, passwordHash : Text) : async Nat {
+    requireAdminAuth(email, passwordHash);
     var count : Nat = 0;
     for ((id, s) in salonProfilesV3.entries().toArray().vals()) {
       if (s.isActive and not s.pendingApproval and not s.subscriptionActive and isTrialExpired(s)) {
@@ -439,7 +492,8 @@ actor {
   // ================================================================
   // ADMIN — REVENUE TRACKING
   // ================================================================
-  public query func adminGetRevenueStats() : async RevenueStats {
+  public query func adminGetRevenueStats(email : Text, passwordHash : Text) : async RevenueStats {
+    requireAdminAuth(email, passwordHash);
     var totalRevenue : Float = 0.0;
     var monthlyRevenue : Float = 0.0;
     let salonRevenueMap = Map.empty<Nat, Float>();
@@ -471,19 +525,22 @@ actor {
   // ================================================================
   // ADMIN — BACKUP & RESTORE
   // ================================================================
-  public query func adminGetAllSalonsForBackup() : async [SalonWithId] {
+  public query func adminGetAllSalonsForBackup(email : Text, passwordHash : Text) : async [SalonWithId] {
+    requireAdminAuth(email, passwordHash);
     salonProfilesV3.entries().toArray().map(func((id, s)) {
       makeSalonWithId(id, s)
     });
   };
 
-  public query func adminGetAllServicesForBackup() : async [ServiceWithId] {
+  public query func adminGetAllServicesForBackup(email : Text, passwordHash : Text) : async [ServiceWithId] {
+    requireAdminAuth(email, passwordHash);
     salonServicesList.entries().toArray().map(func((id, s)) {
       { id; salonId = s.salonId; name = s.name; price = s.price; durationMinutes = s.durationMinutes }
     });
   };
 
-  public query func adminGetAllAppointmentsForBackup() : async [AppointmentWithId] {
+  public query func adminGetAllAppointmentsForBackup(email : Text, passwordHash : Text) : async [AppointmentWithId] {
+    requireAdminAuth(email, passwordHash);
     salonAppointmentsV3.entries().toArray().map(func((id, a)) {
       { id; salonId = a.salonId; customerPhone = a.customerPhone;
         customerName = a.customerName; serviceName = a.serviceName;
@@ -492,19 +549,24 @@ actor {
     });
   };
 
-  public query func adminGetAllCustomersForBackup() : async [CustomerProfile] {
+  public query func adminGetAllCustomersForBackup(email : Text, passwordHash : Text) : async [CustomerProfile] {
+    requireAdminAuth(email, passwordHash);
     custProfilesByPhone.values().toArray();
   };
 
-  public query func adminGetOwnerPhoneMapForBackup() : async [(Text, Nat)] {
+  public query func adminGetOwnerPhoneMapForBackup(email : Text, passwordHash : Text) : async [(Text, Nat)] {
+    requireAdminAuth(email, passwordHash);
     ownerPhoneSalonMap.entries().toArray();
   };
 
-  public query func adminGetNextIdsForBackup() : async (Nat, Nat, Nat) {
+  public query func adminGetNextIdsForBackup(email : Text, passwordHash : Text) : async (Nat, Nat, Nat) {
+    requireAdminAuth(email, passwordHash);
     (nextSalonId, nextServiceId, nextAppointmentId);
   };
 
   public func adminRestoreAllData(
+    email : Text,
+    passwordHash : Text,
     salons : [SalonWithId],
     svcs : [ServiceWithId],
     appts : [AppointmentWithId],
@@ -514,6 +576,7 @@ actor {
     nServiceId : Nat,
     nAppointmentId : Nat
   ) : async () {
+    requireAdminAuth(email, passwordHash);
     for ((k, _) in salonProfilesV3.entries().toArray().vals()) {
       salonProfilesV3.remove(k);
     };
@@ -645,7 +708,8 @@ actor {
     };
   };
 
-  public func adminResetOwnerPassword(ownerPhone : Text, newPasswordHash : Text) : async Bool {
+  public func adminResetOwnerPassword(email : Text, passwordHash : Text, ownerPhone : Text, newPasswordHash : Text) : async Bool {
+    requireAdminAuth(email, passwordHash);
     switch (ownerPhoneSalonMap.get(ownerPhone)) {
       case (null) { return false };
       case (?_) {
@@ -1010,7 +1074,8 @@ actor {
   // ================================================================
   // PLAN PRICING — Admin controlled
   // ================================================================
-  public query func adminGetAllPlanPricings() : async [PlanPricing] {
+  public query func adminGetAllPlanPricings(email : Text, passwordHash : Text) : async [PlanPricing] {
+    requireAdminAuth(email, passwordHash);
     let planNames = ["30 दिन", "90 दिन", "120 दिन", "365 दिन"];
     planNames.map(func(name) {
       switch (planPricingsMap.get(name)) {
@@ -1020,7 +1085,8 @@ actor {
     });
   };
 
-  public func adminSetPlanPricing(planName : Text, originalPrice : Float, discountPercent : Float) : async () {
+  public func adminSetPlanPricing(email : Text, passwordHash : Text, planName : Text, originalPrice : Float, discountPercent : Float) : async () {
+    requireAdminAuth(email, passwordHash);
     if (originalPrice < 0.0) { Runtime.trap("Price must be non-negative") };
     if (discountPercent < 0.0 or discountPercent > 100.0) { Runtime.trap("Discount must be 0-100") };
     let planDays : Nat = if (planName == "30 दिन") { 30 }
@@ -1044,7 +1110,6 @@ actor {
   // SUBSCRIPTION REQUESTS — Full backend system
   // ================================================================
 
-  // Owner submits a payment request
   public func submitSubscriptionRequest(
     ownerPhone : Text,
     salonName : Text,
@@ -1076,28 +1141,28 @@ actor {
     id;
   };
 
-  // Admin: get all requests (history)
-  public query func adminGetAllSubRequests() : async [SubRequest] {
+  public query func adminGetAllSubRequests(email : Text, passwordHash : Text) : async [SubRequest] {
+    requireAdminAuth(email, passwordHash);
     subRequestsMap.values().toArray();
   };
 
-  // Admin: get only pending requests
-  public query func adminGetPendingSubRequests() : async [SubRequest] {
+  public query func adminGetPendingSubRequests(email : Text, passwordHash : Text) : async [SubRequest] {
+    requireAdminAuth(email, passwordHash);
     subRequestsMap.values().toArray().filter(func(r) { r.status == "pending" });
   };
 
-  // Owner: get their own requests
   public query func getMySubRequests(ownerPhone : Text) : async [SubRequest] {
     subRequestsMap.values().toArray().filter(func(r) { r.ownerPhone == ownerPhone });
   };
 
-  // Admin: approve a request — activates salon subscription
-  public func adminApproveSubRequest(requestId : Nat) : async Bool {
+  public func adminApproveSubRequest(email : Text, passwordHash : Text, requestId : Nat) : async Bool {
+    requireAdminAuth(email, passwordHash);
     switch (subRequestsMap.get(requestId)) {
       case (null) { return false };
       case (?req) {
         if (req.status != "pending") { return false };
-        // Update request status
+
+        let approvedAt = Time.now();
         subRequestsMap.add(requestId, {
           id = req.id;
           ownerPhone = req.ownerPhone;
@@ -1111,9 +1176,9 @@ actor {
           requestTime = req.requestTime;
           screenshotBase64 = req.screenshotBase64;
           status = "approved";
-          approvedAt = Time.now();
+          approvedAt;
         });
-        // Activate salon subscription
+
         switch (ownerPhoneSalonMap.get(req.ownerPhone)) {
           case (null) {};
           case (?salonId) {
@@ -1126,6 +1191,27 @@ actor {
                   pendingApproval = false; trialStartDate = s.trialStartDate;
                   subscriptionActive = true; trialDays = s.trialDays;
                 });
+
+                let startDate = Time.now();
+                let endDate = startDate + (req.planDays * 86_400 * 1_000_000_000);
+                let historyId = nextSubHistoryId;
+                nextSubHistoryId += 1;
+                subHistoryMap.add(historyId, {
+                  id = historyId;
+                  salonId;
+                  ownerPhone = req.ownerPhone;
+                  salonName = req.salonName;
+                  planName = req.planName;
+                  planDays = req.planDays;
+                  originalPrice = req.originalPrice;
+                  discountPercent = req.discountPercent;
+                  finalPrice = req.finalPrice;
+                  savings = req.savings;
+                  startDate;
+                  endDate;
+                  approvedAt;
+                  transactionId = requestId.toText();
+                });
               };
             };
           };
@@ -1135,8 +1221,8 @@ actor {
     };
   };
 
-  // Admin: reject a request
-  public func adminRejectSubRequest(requestId : Nat) : async Bool {
+  public func adminRejectSubRequest(email : Text, passwordHash : Text, requestId : Nat) : async Bool {
+    requireAdminAuth(email, passwordHash);
     switch (subRequestsMap.get(requestId)) {
       case (null) { return false };
       case (?req) {
@@ -1161,8 +1247,8 @@ actor {
     };
   };
 
-  // Admin: expire overdue pending requests (older than 2 hours)
-  public func adminExpireOldSubRequests() : async Nat {
+  public func adminExpireOldSubRequests(email : Text, passwordHash : Text) : async Nat {
+    requireAdminAuth(email, passwordHash);
     let twoHoursNanos : Int = 2 * 60 * 60 * 1_000_000_000;
     let now = Time.now();
     var count : Nat = 0;
@@ -1189,8 +1275,8 @@ actor {
     count;
   };
 
-  // Get total subscription earnings from approved requests
-  public query func adminGetSubRequestEarnings() : async (Float, Float, Nat) {
+  public query func adminGetSubRequestEarnings(email : Text, passwordHash : Text) : async (Float, Float, Nat) {
+    requireAdminAuth(email, passwordHash);
     var total : Float = 0.0;
     var monthly : Float = 0.0;
     var approvedCount : Nat = 0;
@@ -1204,6 +1290,15 @@ actor {
       };
     };
     (total, monthly, approvedCount);
+  };
+
+  public query func adminGetSubHistory(email : Text, passwordHash : Text) : async [SubscriptionHistory] {
+    requireAdminAuth(email, passwordHash);
+    subHistoryMap.values().toArray().sort(func(a, b) { Int.compare(b.approvedAt, a.approvedAt) });
+  };
+
+  public query func getMySubHistory(ownerPhone : Text) : async [SubscriptionHistory] {
+    subHistoryMap.values().toArray().filter(func(h) { h.ownerPhone == ownerPhone }).sort(func(a, b) { Int.compare(b.approvedAt, a.approvedAt) });
   };
 
   // ================================================================
@@ -1228,6 +1323,8 @@ actor {
     stableNextSubRequestId := nextSubRequestId;
     stableSubRequests := subRequestsMap.entries().toArray();
     stablePlanPricings := planPricingsMap.entries().toArray();
+    stableNextSubHistoryId := nextSubHistoryId;
+    stableSubHistory := subHistoryMap.entries().toArray();
   };
 
   system func postupgrade() {
@@ -1242,7 +1339,9 @@ actor {
     for ((k, v) in stablePushSubscriptions.vals()) { pushSubscriptionsByPhone.add(k, v) };
     for ((k, v) in stableSubRequests.vals()) { subRequestsMap.add(k, v) };
     for ((k, v) in stablePlanPricings.vals()) { planPricingsMap.add(k, v) };
+    for ((k, v) in stableSubHistory.vals()) { subHistoryMap.add(k, v) };
     nextSubRequestId := stableNextSubRequestId;
+    nextSubHistoryId := stableNextSubHistoryId;
     stableSalons := [];
     stableServices := [];
     stableAppointments := [];
@@ -1254,5 +1353,6 @@ actor {
     stablePushSubscriptions := [];
     stableSubRequests := [];
     stablePlanPricings := [];
+    stableSubHistory := [];
   };
 };

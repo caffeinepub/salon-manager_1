@@ -1,44 +1,59 @@
-# Salon360Pro — Enhanced Payment System
+# salon360Pro
 
 ## Current State
-- SubscriptionPage.tsx: 4 plans (30/90/120/365 days), plan selection, UPI QR code (upi-qr.png), screenshot upload, "मैंने भुगतान कर दिया" button
-- Requests saved to localStorage only — NOT in backend
-- AdminPanel has SubscriptionRequestsTab reading from localStorage — not connected to backend
-- No pricing info shown on plans
-- No timer system
-- No automatic subscription activation on admin approval
-- No notification to admin on payment submission
+- Subscription submit silently falls back to localStorage on backend failure — shows fake success
+- Screenshot never reaches backend when backend fails
+- Plan pricing save (adminSetPlanPricing) exists in backend but fails silently at runtime
+- All subscription query hooks catch errors and return [] — admin sees empty list, no error shown
+- Admin pending requests poll every 30 seconds, not 10
+- No sound alert when new request arrives in admin panel
+- adminApproveSubRequest does not record startDate/endDate in salon profile
+- No permanent subscription history separate from request status
+- Trial days save button shows toast but never calls backend mutation
 
 ## Requested Changes (Diff)
 
 ### Add
-- Backend: SubRequest type with fields: id, ownerPhone, salonName, planName, planDays, originalPrice, discountPercent, finalPrice, savings, requestTime, screenshotBase64, status (pending/approved/rejected/expired), approvedAt
-- Backend: PlanPricing type with originalPrice and discountPercent per plan
-- Backend functions: submitSubscriptionRequest, adminGetSubscriptionRequests, adminApproveSubscriptionRequest, adminRejectSubscriptionRequest, getMySubscriptionRequests, adminGetPlanPricings, adminSetPlanPricing
-- SubscriptionPage: Show originalPrice (strike-through), discountPercent badge, finalPrice, savings for each plan
-- SubscriptionPage: 2-hour expiry timer shown after submission ("सत्यापन लंबित — X घंटे X मिनट बचे")
-- SubscriptionPage: Replace old upi-qr.png with new uploaded QR image
-- AdminPanel sub_requests tab: Load from backend instead of localStorage
-- AdminPanel sub_requests tab: Show screenshot, plan details, original/discount/final price, timer remaining, Approve/Reject buttons
-- AdminPanel sub_requests tab: On Approve → call adminApproveSubscriptionRequest → auto-activates salon subscription with start+end dates
-- AdminPanel settings: Plan pricing editor — admin can set originalPrice and discountPercent per plan, final price auto-calculated
-- Salon owner dashboard: Show subscription expiry banner with days remaining
-- History tab for admin showing all requests (pending/approved/rejected/expired)
+- Sound alert in admin panel when new pending request arrives
+- Subscription start/end date fields to SalonProfile type in backend
+- Permanent subscription history: separate SubscriptionHistory type with salonId, ownerPhone, planName, planDays, finalPrice, startDate, endDate, approvedAt, transactionId
+- Backend functions: adminGetSubHistory (all), getMySubHistory (by owner phone)
+- Stable storage for subscription history across builds
+- Error state UI in admin panel when backend query fails (instead of empty list)
 
 ### Modify
-- SubscriptionPage: Save request to backend instead of localStorage
-- SubscriptionPage: QR code image path updated to new Union Bank QR
-- AdminPanel: sub_requests tab reads from backend, not localStorage
-- useQueries.ts: Add new subscription-related hooks
+- SubscriptionPage.tsx handlePaid: remove localStorage fallback entirely; on catch show clear Hindi error toast, do NOT set step to success
+- useQueries.ts all subscription/plan-pricing catch blocks: throw errors instead of returning [] so React Query surfaces them via isError
+- useAdminGetPendingSubRequests: change refetchInterval from 30000 to 10000
+- useAdminGetAllSubRequests: change refetchInterval from 30000 to 10000
+- adminApproveSubRequest in backend: calculate startDate and endDate (startDate = now, endDate = now + planDays * 86400s), store in salon profile
+- SalonProfile type: add subscriptionStartDate and subscriptionEndDate fields
+- SubscriptionRequestsTab in AdminPanel: add error state display; add sound alert on new pending request count increase; add new request badge
+- AdminPanel SalonManageCard trial days save: wire up to actual adminSetSalonTrialDays mutation
 
 ### Remove
-- localStorage-based subscription request storage (replace with backend)
+- localStorage fallback in handlePaid (lines 128-151 SubscriptionPage.tsx)
+- Silent catch { return [] } in all subscription/plan-pricing query hooks
 
 ## Implementation Plan
-1. Update main.mo: Add SubRequest and PlanPricing types, stable storage, CRUD functions for subscription requests and plan pricing
-2. Copy uploaded QR image as new upi-qr.png
-3. Update useQueries.ts: Add hooks for new backend functions
-4. Rewrite SubscriptionPage.tsx: Pricing display, new QR, backend save, 2-hour pending timer
-5. Update AdminPanel.tsx: sub_requests tab uses backend, plan pricing editor in settings, history view
-6. Update SalonOwnerDashboard.tsx: Show subscription expiry/status banner
-7. Validate and deploy
+1. Update backend main.mo:
+   a. Add subscriptionStartDate and subscriptionEndDate to SalonProfileV3 type
+   b. Add SubscriptionHistory type
+   c. Add subHistoryMap stable storage
+   d. Update adminApproveSubRequest to set start/end dates and push to subHistoryMap
+   e. Add adminGetSubHistory and getMySubHistory query functions
+   f. Update preupgrade/postupgrade for new stable vars
+   g. Add migration default values for existing salons
+2. Update useQueries.ts:
+   a. Remove all silent catch { return [] } — let errors propagate
+   b. Change both polling intervals from 30000 to 10000
+   c. Add useAdminGetSubHistory and useGetMySubHistory hooks
+3. Update SubscriptionPage.tsx:
+   a. Remove localStorage fallback in catch block
+   b. Show clear Hindi error on failure, do not advance to success step
+4. Update AdminPanel.tsx:
+   a. Add isError handling in SubscriptionRequestsTab — show clear error UI
+   b. Add sound alert + badge when pending count increases
+   c. Wire trial days save button to adminSetSalonTrialDays mutation
+   d. Add subscription history tab for admin showing subHistoryMap data
+5. Update SalonOwnerDashboard.tsx or SubscriptionPage to show owner's subscription history

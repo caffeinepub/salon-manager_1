@@ -125,29 +125,12 @@ export default function SubscriptionPage({
       const now = Date.now();
       setPendingSince(now);
       setStep("success");
-    } catch {
-      // Fallback: save to localStorage
-      const existing = JSON.parse(
-        localStorage.getItem("salon360_sub_requests") || "[]",
+    } catch (err) {
+      console.error("Subscription submit error:", err);
+      toast.error(
+        "अनुरोध भेजा नहीं जा सका। कृपया दोबारा कोशिश करें। अगर समस्या बनी रहे तो पेज reload करें।",
       );
-      existing.push({
-        ownerPhone,
-        salonName,
-        planName: selectedPlan.planName,
-        planDays: selectedPlan.planDays,
-        originalPrice: selectedPlan.originalPrice,
-        discountPercent: selectedPlan.discountPercent,
-        finalPrice: final,
-        savings,
-        status: "pending",
-        requestTime: Date.now(),
-        screenshotBase64: screenshot ?? "",
-      });
-      localStorage.setItem("salon360_sub_requests", JSON.stringify(existing));
-      const now = Date.now();
-      setPendingSince(now);
-      setStep("success");
-      toast.warning("अनुरोध सेव हो गया (ऑफ़लाइन मोड)");
+      // Do NOT advance to success — backend must confirm
     } finally {
       setSubmitting(false);
     }

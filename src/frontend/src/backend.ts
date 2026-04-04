@@ -89,6 +89,38 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface PushSubscription {
+    endpoint: string;
+    auth: string;
+    p256dh: string;
+}
+export interface SubscriptionHistory {
+    id: bigint;
+    finalPrice: number;
+    originalPrice: number;
+    endDate: bigint;
+    approvedAt: bigint;
+    ownerPhone: string;
+    discountPercent: number;
+    savings: number;
+    planDays: bigint;
+    planName: string;
+    salonName: string;
+    salonId: bigint;
+    transactionId: string;
+    startDate: bigint;
+}
+export interface CustomerProfile {
+    name: string;
+    phone: string;
+}
+export interface ServiceWithId {
+    id: bigint;
+    name: string;
+    durationMinutes: bigint;
+    price: number;
+    salonId: bigint;
+}
 export interface AppointmentWithId {
     id: bigint;
     customerName: string;
@@ -100,6 +132,28 @@ export interface AppointmentWithId {
     queueNumber: bigint;
     servicePrice: number;
     salonId: bigint;
+}
+export interface RevenueStats {
+    perSalon: Array<[bigint, string, number]>;
+    totalRevenue: number;
+    monthlyRevenue: number;
+}
+export interface OwnerRevenueSummary {
+    monthlyEarnings: number;
+    completedAppointments: bigint;
+    totalEarnings: number;
+    totalAppointments: bigint;
+}
+export interface ServiceSession {
+    startTime: bigint;
+    durationMinutes: bigint;
+    appointmentId: bigint;
+}
+export interface DashboardStats {
+    total: bigint;
+    active: bigint;
+    expired: bigint;
+    pending: bigint;
 }
 export interface SalonWithId {
     id: bigint;
@@ -114,10 +168,11 @@ export interface SalonWithId {
     phone: string;
     trialStartDate: bigint;
 }
-export interface PushSubscription {
-    endpoint: string;
-    auth: string;
-    p256dh: string;
+export interface PlanPricing {
+    originalPrice: number;
+    discountPercent: number;
+    planDays: bigint;
+    planName: string;
 }
 export interface QueueScheduleEntry {
     customerName: string;
@@ -126,38 +181,20 @@ export interface QueueScheduleEntry {
     queueNumber: bigint;
     appointmentId: bigint;
 }
-export interface ServiceWithId {
+export interface SubRequest {
     id: bigint;
-    name: string;
-    durationMinutes: bigint;
-    price: number;
-    salonId: bigint;
-}
-export interface OwnerRevenueSummary {
-    monthlyEarnings: number;
-    completedAppointments: bigint;
-    totalEarnings: number;
-    totalAppointments: bigint;
-}
-export interface RevenueStats {
-    perSalon: Array<[bigint, string, number]>;
-    totalRevenue: number;
-    monthlyRevenue: number;
-}
-export interface DashboardStats {
-    total: bigint;
-    active: bigint;
-    expired: bigint;
-    pending: bigint;
-}
-export interface ServiceSession {
-    startTime: bigint;
-    durationMinutes: bigint;
-    appointmentId: bigint;
-}
-export interface CustomerProfile {
-    name: string;
-    phone: string;
+    finalPrice: number;
+    status: string;
+    originalPrice: number;
+    approvedAt: bigint;
+    ownerPhone: string;
+    discountPercent: number;
+    savings: number;
+    planDays: bigint;
+    screenshotBase64: string;
+    planName: string;
+    salonName: string;
+    requestTime: bigint;
 }
 export enum UserRole {
     admin = "admin",
@@ -167,31 +204,40 @@ export enum UserRole {
 export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     addSalonServiceByPhone(ownerPhone: string, salonId: bigint, name: string, price: number, durationMinutes: bigint): Promise<bigint>;
-    adminApproveSalon(salonId: bigint): Promise<void>;
-    adminGetAllAppointmentsForBackup(): Promise<Array<AppointmentWithId>>;
-    adminGetAllCustomersForBackup(): Promise<Array<CustomerProfile>>;
-    adminGetAllSalons(): Promise<Array<SalonWithId>>;
-    adminGetAllSalonsForBackup(): Promise<Array<SalonWithId>>;
-    adminGetAllServicesForBackup(): Promise<Array<ServiceWithId>>;
-    adminGetDashboardStats(): Promise<DashboardStats>;
-    adminGetDefaultTrialDays(): Promise<bigint>;
-    adminGetNextIdsForBackup(): Promise<[bigint, bigint, bigint]>;
-    adminGetOwnerPhoneMapForBackup(): Promise<Array<[string, bigint]>>;
-    adminGetPendingSalons(): Promise<Array<SalonWithId>>;
-    adminGetRevenueStats(): Promise<RevenueStats>;
-    adminGetSubscriptionPrice(): Promise<number>;
+    adminApproveSalon(email: string, passwordHash: string, salonId: bigint): Promise<void>;
+    adminApproveSubRequest(email: string, passwordHash: string, requestId: bigint): Promise<boolean>;
+    adminExpireOldSubRequests(email: string, passwordHash: string): Promise<bigint>;
+    adminGetAllAppointmentsForBackup(email: string, passwordHash: string): Promise<Array<AppointmentWithId>>;
+    adminGetAllCustomersForBackup(email: string, passwordHash: string): Promise<Array<CustomerProfile>>;
+    adminGetAllPlanPricings(email: string, passwordHash: string): Promise<Array<PlanPricing>>;
+    adminGetAllSalons(email: string, passwordHash: string): Promise<Array<SalonWithId>>;
+    adminGetAllSalonsForBackup(email: string, passwordHash: string): Promise<Array<SalonWithId>>;
+    adminGetAllServicesForBackup(email: string, passwordHash: string): Promise<Array<ServiceWithId>>;
+    adminGetAllSubRequests(email: string, passwordHash: string): Promise<Array<SubRequest>>;
+    adminGetDashboardStats(email: string, passwordHash: string): Promise<DashboardStats>;
+    adminGetDefaultTrialDays(email: string, passwordHash: string): Promise<bigint>;
+    adminGetNextIdsForBackup(email: string, passwordHash: string): Promise<[bigint, bigint, bigint]>;
+    adminGetOwnerPhoneMapForBackup(email: string, passwordHash: string): Promise<Array<[string, bigint]>>;
+    adminGetPendingSalons(email: string, passwordHash: string): Promise<Array<SalonWithId>>;
+    adminGetPendingSubRequests(email: string, passwordHash: string): Promise<Array<SubRequest>>;
+    adminGetRevenueStats(email: string, passwordHash: string): Promise<RevenueStats>;
+    adminGetSubHistory(email: string, passwordHash: string): Promise<Array<SubscriptionHistory>>;
+    adminGetSubRequestEarnings(email: string, passwordHash: string): Promise<[number, number, bigint]>;
+    adminGetSubscriptionPrice(email: string, passwordHash: string): Promise<number>;
     adminLogin(email: string, passwordHash: string): Promise<boolean>;
     adminPasswordIsSet(): Promise<boolean>;
-    adminProcessTrialExpirations(): Promise<bigint>;
-    adminRejectSalon(salonId: bigint): Promise<void>;
-    adminResetOwnerPassword(ownerPhone: string, newPasswordHash: string): Promise<boolean>;
-    adminRestoreAllData(salons: Array<SalonWithId>, svcs: Array<ServiceWithId>, appts: Array<AppointmentWithId>, custs: Array<CustomerProfile>, ownerPhoneMap: Array<[string, bigint]>, nSalonId: bigint, nServiceId: bigint, nAppointmentId: bigint): Promise<void>;
-    adminSetDefaultTrialDays(days: bigint): Promise<void>;
+    adminProcessTrialExpirations(email: string, passwordHash: string): Promise<bigint>;
+    adminRejectSalon(email: string, passwordHash: string, salonId: bigint): Promise<void>;
+    adminRejectSubRequest(email: string, passwordHash: string, requestId: bigint): Promise<boolean>;
+    adminResetOwnerPassword(email: string, passwordHash: string, ownerPhone: string, newPasswordHash: string): Promise<boolean>;
+    adminRestoreAllData(email: string, passwordHash: string, salons: Array<SalonWithId>, svcs: Array<ServiceWithId>, appts: Array<AppointmentWithId>, custs: Array<CustomerProfile>, ownerPhoneMap: Array<[string, bigint]>, nSalonId: bigint, nServiceId: bigint, nAppointmentId: bigint): Promise<void>;
+    adminSetDefaultTrialDays(email: string, passwordHash: string, days: bigint): Promise<void>;
     adminSetPassword(email: string, passwordHash: string): Promise<boolean>;
-    adminSetSalonActive(salonId: bigint, active: boolean): Promise<void>;
-    adminSetSalonSubscription(salonId: bigint, active: boolean): Promise<void>;
-    adminSetSalonTrialDays(salonId: bigint, days: bigint): Promise<void>;
-    adminSetSubscriptionPrice(price: number): Promise<void>;
+    adminSetPlanPricing(email: string, passwordHash: string, planName: string, originalPrice: number, discountPercent: number): Promise<void>;
+    adminSetSalonActive(email: string, passwordHash: string, salonId: bigint, active: boolean): Promise<void>;
+    adminSetSalonSubscription(email: string, passwordHash: string, salonId: bigint, active: boolean): Promise<void>;
+    adminSetSalonTrialDays(email: string, passwordHash: string, salonId: bigint, days: bigint): Promise<void>;
+    adminSetSubscriptionPrice(email: string, passwordHash: string, price: number): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     bookAppointmentByPhone(customerPhone: string, salonId: bigint, customerName: string, serviceName: string, date: string): Promise<bigint>;
     clearServiceSession(ownerPhone: string): Promise<void>;
@@ -201,9 +247,12 @@ export interface backendInterface {
     getCurrentServiceSession(salonId: bigint): Promise<ServiceSession | null>;
     getMyAppointmentsByPhone(customerPhone: string): Promise<Array<AppointmentWithId>>;
     getMyCustomerProfileByPhone(phone: string): Promise<CustomerProfile | null>;
+    getMySubHistory(ownerPhone: string): Promise<Array<SubscriptionHistory>>;
+    getMySubRequests(ownerPhone: string): Promise<Array<SubRequest>>;
     getOwnerRevenueSummaryByPhone(ownerPhone: string): Promise<OwnerRevenueSummary>;
     getOwnerSalonByPhone(ownerPhone: string): Promise<SalonWithId | null>;
     getPendingNotifications(salonId: bigint, date: string): Promise<Array<bigint>>;
+    getPlanPricings(): Promise<Array<PlanPricing>>;
     getPushSubscription(requestorPhone: string, customerPhone: string): Promise<PushSubscription | null>;
     getQueueInfo(appointmentId: bigint): Promise<[bigint, bigint]>;
     getQueueScheduleForSalon(salonId: bigint, date: string): Promise<Array<QueueScheduleEntry>>;
@@ -219,6 +268,7 @@ export interface backendInterface {
     saveCustomerProfileByPhone(phone: string, name: string): Promise<void>;
     savePushSubscription(customerPhone: string, endpoint: string, p256dh: string, auth: string): Promise<void>;
     startServiceSession(ownerPhone: string, appointmentId: bigint, durationMinutes: bigint): Promise<void>;
+    submitSubscriptionRequest(ownerPhone: string, salonName: string, planName: string, planDays: bigint, originalPrice: number, discountPercent: number, finalPrice: number, savings: number, screenshotBase64: string): Promise<bigint>;
     updateAppointmentStatusByPhone(ownerPhone: string, appointmentId: bigint, newStatus: string): Promise<void>;
     updateOwnerSalonByPhone(ownerPhone: string, name: string, address: string, phone: string, city: string): Promise<void>;
 }
@@ -253,122 +303,178 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async adminApproveSalon(arg0: bigint): Promise<void> {
+    async adminApproveSalon(arg0: string, arg1: string, arg2: bigint): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminApproveSalon(arg0);
+                const result = await this.actor.adminApproveSalon(arg0, arg1, arg2);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminApproveSalon(arg0);
+            const result = await this.actor.adminApproveSalon(arg0, arg1, arg2);
             return result;
         }
     }
-    async adminGetAllAppointmentsForBackup(): Promise<Array<AppointmentWithId>> {
+    async adminApproveSubRequest(arg0: string, arg1: string, arg2: bigint): Promise<boolean> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminGetAllAppointmentsForBackup();
+                const result = await this.actor.adminApproveSubRequest(arg0, arg1, arg2);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminGetAllAppointmentsForBackup();
+            const result = await this.actor.adminApproveSubRequest(arg0, arg1, arg2);
             return result;
         }
     }
-    async adminGetAllCustomersForBackup(): Promise<Array<CustomerProfile>> {
+    async adminExpireOldSubRequests(arg0: string, arg1: string): Promise<bigint> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminGetAllCustomersForBackup();
+                const result = await this.actor.adminExpireOldSubRequests(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminGetAllCustomersForBackup();
+            const result = await this.actor.adminExpireOldSubRequests(arg0, arg1);
             return result;
         }
     }
-    async adminGetAllSalons(): Promise<Array<SalonWithId>> {
+    async adminGetAllAppointmentsForBackup(arg0: string, arg1: string): Promise<Array<AppointmentWithId>> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminGetAllSalons();
+                const result = await this.actor.adminGetAllAppointmentsForBackup(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminGetAllSalons();
+            const result = await this.actor.adminGetAllAppointmentsForBackup(arg0, arg1);
             return result;
         }
     }
-    async adminGetAllSalonsForBackup(): Promise<Array<SalonWithId>> {
+    async adminGetAllCustomersForBackup(arg0: string, arg1: string): Promise<Array<CustomerProfile>> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminGetAllSalonsForBackup();
+                const result = await this.actor.adminGetAllCustomersForBackup(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminGetAllSalonsForBackup();
+            const result = await this.actor.adminGetAllCustomersForBackup(arg0, arg1);
             return result;
         }
     }
-    async adminGetAllServicesForBackup(): Promise<Array<ServiceWithId>> {
+    async adminGetAllPlanPricings(arg0: string, arg1: string): Promise<Array<PlanPricing>> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminGetAllServicesForBackup();
+                const result = await this.actor.adminGetAllPlanPricings(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminGetAllServicesForBackup();
+            const result = await this.actor.adminGetAllPlanPricings(arg0, arg1);
             return result;
         }
     }
-    async adminGetDashboardStats(): Promise<DashboardStats> {
+    async adminGetAllSalons(arg0: string, arg1: string): Promise<Array<SalonWithId>> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminGetDashboardStats();
+                const result = await this.actor.adminGetAllSalons(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminGetDashboardStats();
+            const result = await this.actor.adminGetAllSalons(arg0, arg1);
             return result;
         }
     }
-    async adminGetDefaultTrialDays(): Promise<bigint> {
+    async adminGetAllSalonsForBackup(arg0: string, arg1: string): Promise<Array<SalonWithId>> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminGetDefaultTrialDays();
+                const result = await this.actor.adminGetAllSalonsForBackup(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminGetDefaultTrialDays();
+            const result = await this.actor.adminGetAllSalonsForBackup(arg0, arg1);
             return result;
         }
     }
-    async adminGetNextIdsForBackup(): Promise<[bigint, bigint, bigint]> {
+    async adminGetAllServicesForBackup(arg0: string, arg1: string): Promise<Array<ServiceWithId>> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminGetNextIdsForBackup();
+                const result = await this.actor.adminGetAllServicesForBackup(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminGetAllServicesForBackup(arg0, arg1);
+            return result;
+        }
+    }
+    async adminGetAllSubRequests(arg0: string, arg1: string): Promise<Array<SubRequest>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminGetAllSubRequests(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminGetAllSubRequests(arg0, arg1);
+            return result;
+        }
+    }
+    async adminGetDashboardStats(arg0: string, arg1: string): Promise<DashboardStats> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminGetDashboardStats(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminGetDashboardStats(arg0, arg1);
+            return result;
+        }
+    }
+    async adminGetDefaultTrialDays(arg0: string, arg1: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminGetDefaultTrialDays(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminGetDefaultTrialDays(arg0, arg1);
+            return result;
+        }
+    }
+    async adminGetNextIdsForBackup(arg0: string, arg1: string): Promise<[bigint, bigint, bigint]> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminGetNextIdsForBackup(arg0, arg1);
                 return [
                     result[0],
                     result[1],
@@ -379,7 +485,7 @@ export class Backend implements backendInterface {
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminGetNextIdsForBackup();
+            const result = await this.actor.adminGetNextIdsForBackup(arg0, arg1);
             return [
                 result[0],
                 result[1],
@@ -387,59 +493,109 @@ export class Backend implements backendInterface {
             ];
         }
     }
-    async adminGetOwnerPhoneMapForBackup(): Promise<Array<[string, bigint]>> {
+    async adminGetOwnerPhoneMapForBackup(arg0: string, arg1: string): Promise<Array<[string, bigint]>> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminGetOwnerPhoneMapForBackup();
+                const result = await this.actor.adminGetOwnerPhoneMapForBackup(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminGetOwnerPhoneMapForBackup();
+            const result = await this.actor.adminGetOwnerPhoneMapForBackup(arg0, arg1);
             return result;
         }
     }
-    async adminGetPendingSalons(): Promise<Array<SalonWithId>> {
+    async adminGetPendingSalons(arg0: string, arg1: string): Promise<Array<SalonWithId>> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminGetPendingSalons();
+                const result = await this.actor.adminGetPendingSalons(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminGetPendingSalons();
+            const result = await this.actor.adminGetPendingSalons(arg0, arg1);
             return result;
         }
     }
-    async adminGetRevenueStats(): Promise<RevenueStats> {
+    async adminGetPendingSubRequests(arg0: string, arg1: string): Promise<Array<SubRequest>> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminGetRevenueStats();
+                const result = await this.actor.adminGetPendingSubRequests(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminGetRevenueStats();
+            const result = await this.actor.adminGetPendingSubRequests(arg0, arg1);
             return result;
         }
     }
-    async adminGetSubscriptionPrice(): Promise<number> {
+    async adminGetRevenueStats(arg0: string, arg1: string): Promise<RevenueStats> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminGetSubscriptionPrice();
+                const result = await this.actor.adminGetRevenueStats(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminGetSubscriptionPrice();
+            const result = await this.actor.adminGetRevenueStats(arg0, arg1);
+            return result;
+        }
+    }
+    async adminGetSubHistory(arg0: string, arg1: string): Promise<Array<SubscriptionHistory>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminGetSubHistory(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminGetSubHistory(arg0, arg1);
+            return result;
+        }
+    }
+    async adminGetSubRequestEarnings(arg0: string, arg1: string): Promise<[number, number, bigint]> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminGetSubRequestEarnings(arg0, arg1);
+                return [
+                    result[0],
+                    result[1],
+                    result[2]
+                ];
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminGetSubRequestEarnings(arg0, arg1);
+            return [
+                result[0],
+                result[1],
+                result[2]
+            ];
+        }
+    }
+    async adminGetSubscriptionPrice(arg0: string, arg1: string): Promise<number> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminGetSubscriptionPrice(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminGetSubscriptionPrice(arg0, arg1);
             return result;
         }
     }
@@ -471,73 +627,87 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async adminProcessTrialExpirations(): Promise<bigint> {
+    async adminProcessTrialExpirations(arg0: string, arg1: string): Promise<bigint> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminProcessTrialExpirations();
+                const result = await this.actor.adminProcessTrialExpirations(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminProcessTrialExpirations();
+            const result = await this.actor.adminProcessTrialExpirations(arg0, arg1);
             return result;
         }
     }
-    async adminRejectSalon(arg0: bigint): Promise<void> {
+    async adminRejectSalon(arg0: string, arg1: string, arg2: bigint): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminRejectSalon(arg0);
+                const result = await this.actor.adminRejectSalon(arg0, arg1, arg2);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminRejectSalon(arg0);
+            const result = await this.actor.adminRejectSalon(arg0, arg1, arg2);
             return result;
         }
     }
-    async adminResetOwnerPassword(arg0: string, arg1: string): Promise<boolean> {
+    async adminRejectSubRequest(arg0: string, arg1: string, arg2: bigint): Promise<boolean> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminResetOwnerPassword(arg0, arg1);
+                const result = await this.actor.adminRejectSubRequest(arg0, arg1, arg2);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminResetOwnerPassword(arg0, arg1);
+            const result = await this.actor.adminRejectSubRequest(arg0, arg1, arg2);
             return result;
         }
     }
-    async adminRestoreAllData(arg0: Array<SalonWithId>, arg1: Array<ServiceWithId>, arg2: Array<AppointmentWithId>, arg3: Array<CustomerProfile>, arg4: Array<[string, bigint]>, arg5: bigint, arg6: bigint, arg7: bigint): Promise<void> {
+    async adminResetOwnerPassword(arg0: string, arg1: string, arg2: string, arg3: string): Promise<boolean> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminRestoreAllData(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+                const result = await this.actor.adminResetOwnerPassword(arg0, arg1, arg2, arg3);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminRestoreAllData(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+            const result = await this.actor.adminResetOwnerPassword(arg0, arg1, arg2, arg3);
             return result;
         }
     }
-    async adminSetDefaultTrialDays(arg0: bigint): Promise<void> {
+    async adminRestoreAllData(arg0: string, arg1: string, arg2: Array<SalonWithId>, arg3: Array<ServiceWithId>, arg4: Array<AppointmentWithId>, arg5: Array<CustomerProfile>, arg6: Array<[string, bigint]>, arg7: bigint, arg8: bigint, arg9: bigint): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminSetDefaultTrialDays(arg0);
+                const result = await this.actor.adminRestoreAllData(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminSetDefaultTrialDays(arg0);
+            const result = await this.actor.adminRestoreAllData(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+            return result;
+        }
+    }
+    async adminSetDefaultTrialDays(arg0: string, arg1: string, arg2: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminSetDefaultTrialDays(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminSetDefaultTrialDays(arg0, arg1, arg2);
             return result;
         }
     }
@@ -555,59 +725,73 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async adminSetSalonActive(arg0: bigint, arg1: boolean): Promise<void> {
+    async adminSetPlanPricing(arg0: string, arg1: string, arg2: string, arg3: number, arg4: number): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminSetSalonActive(arg0, arg1);
+                const result = await this.actor.adminSetPlanPricing(arg0, arg1, arg2, arg3, arg4);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminSetSalonActive(arg0, arg1);
+            const result = await this.actor.adminSetPlanPricing(arg0, arg1, arg2, arg3, arg4);
             return result;
         }
     }
-    async adminSetSalonSubscription(arg0: bigint, arg1: boolean): Promise<void> {
+    async adminSetSalonActive(arg0: string, arg1: string, arg2: bigint, arg3: boolean): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminSetSalonSubscription(arg0, arg1);
+                const result = await this.actor.adminSetSalonActive(arg0, arg1, arg2, arg3);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminSetSalonSubscription(arg0, arg1);
+            const result = await this.actor.adminSetSalonActive(arg0, arg1, arg2, arg3);
             return result;
         }
     }
-    async adminSetSalonTrialDays(arg0: bigint, arg1: bigint): Promise<void> {
+    async adminSetSalonSubscription(arg0: string, arg1: string, arg2: bigint, arg3: boolean): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminSetSalonTrialDays(arg0, arg1);
+                const result = await this.actor.adminSetSalonSubscription(arg0, arg1, arg2, arg3);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminSetSalonTrialDays(arg0, arg1);
+            const result = await this.actor.adminSetSalonSubscription(arg0, arg1, arg2, arg3);
             return result;
         }
     }
-    async adminSetSubscriptionPrice(arg0: number): Promise<void> {
+    async adminSetSalonTrialDays(arg0: string, arg1: string, arg2: bigint, arg3: bigint): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.adminSetSubscriptionPrice(arg0);
+                const result = await this.actor.adminSetSalonTrialDays(arg0, arg1, arg2, arg3);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.adminSetSubscriptionPrice(arg0);
+            const result = await this.actor.adminSetSalonTrialDays(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async adminSetSubscriptionPrice(arg0: string, arg1: string, arg2: number): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminSetSubscriptionPrice(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.adminSetSubscriptionPrice(arg0, arg1, arg2);
             return result;
         }
     }
@@ -737,6 +921,34 @@ export class Backend implements backendInterface {
             return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getMySubHistory(arg0: string): Promise<Array<SubscriptionHistory>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getMySubHistory(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getMySubHistory(arg0);
+            return result;
+        }
+    }
+    async getMySubRequests(arg0: string): Promise<Array<SubRequest>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getMySubRequests(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getMySubRequests(arg0);
+            return result;
+        }
+    }
     async getOwnerRevenueSummaryByPhone(arg0: string): Promise<OwnerRevenueSummary> {
         if (this.processError) {
             try {
@@ -776,6 +988,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getPendingNotifications(arg0, arg1);
+            return result;
+        }
+    }
+    async getPlanPricings(): Promise<Array<PlanPricing>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getPlanPricings();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getPlanPricings();
             return result;
         }
     }
@@ -998,6 +1224,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.startServiceSession(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async submitSubscriptionRequest(arg0: string, arg1: string, arg2: string, arg3: bigint, arg4: number, arg5: number, arg6: number, arg7: number, arg8: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.submitSubscriptionRequest(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.submitSubscriptionRequest(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
             return result;
         }
     }

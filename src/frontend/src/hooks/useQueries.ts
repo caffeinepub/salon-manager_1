@@ -10,7 +10,14 @@ import type {
   ServiceWithId,
 } from "../backend";
 
-// Local types for new subscription system (not yet in auto-generated backend.ts)
+const ADMIN_EMAIL = "amitkrji498@gmail.com";
+function getAdminHash(): string {
+  return typeof window !== "undefined"
+    ? (localStorage.getItem("salon360_admin_hash") ?? "")
+    : "";
+}
+
+// Local types for subscription system
 export interface PlanPricingType {
   planName: string;
   planDays: bigint;
@@ -33,6 +40,24 @@ export interface SubRequestType {
   status: string;
   approvedAt: bigint;
 }
+
+export interface SubscriptionHistoryType {
+  id: bigint;
+  salonId: bigint;
+  ownerPhone: string;
+  salonName: string;
+  planName: string;
+  planDays: bigint;
+  originalPrice: number;
+  discountPercent: number;
+  finalPrice: number;
+  savings: number;
+  startDate: bigint;
+  endDate: bigint;
+  approvedAt: bigint;
+  transactionId: string;
+}
+
 import { useActor } from "./useActor";
 
 export type AppointmentStatus =
@@ -62,7 +87,7 @@ export function useAdminGetDashboardStats() {
     queryKey: ["adminDashboardStats"],
     queryFn: async () => {
       if (!actor) return { total: 0n, active: 0n, expired: 0n, pending: 0n };
-      return actor.adminGetDashboardStats();
+      return (actor as any).adminGetDashboardStats();
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 60000,
@@ -75,7 +100,7 @@ export function useAdminGetSubscriptionPrice() {
     queryKey: ["adminSubscriptionPrice"],
     queryFn: async () => {
       if (!actor) return 149;
-      return actor.adminGetSubscriptionPrice();
+      return (actor as any).adminGetSubscriptionPrice();
     },
     enabled: !!actor && !isFetching,
   });
@@ -87,7 +112,7 @@ export function useAdminSetSubscriptionPrice() {
   return useMutation({
     mutationFn: async (price: number) => {
       if (!actor) throw new Error("No actor");
-      return actor.adminSetSubscriptionPrice(price);
+      return (actor as any).adminSetSubscriptionPrice(price);
     },
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["adminSubscriptionPrice"] }),
@@ -100,7 +125,7 @@ export function useAdminGetAllSalons() {
     queryKey: ["adminAllSalons"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.adminGetAllSalons();
+      return (actor as any).adminGetAllSalons();
     },
     enabled: !!actor && !isFetching,
   });
@@ -112,7 +137,7 @@ export function useAdminGetPendingSalons() {
     queryKey: ["adminPendingSalons"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.adminGetPendingSalons();
+      return (actor as any).adminGetPendingSalons();
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 60000,
@@ -125,7 +150,7 @@ export function useAdminApproveSalon() {
   return useMutation({
     mutationFn: async (salonId: bigint) => {
       if (!actor) throw new Error("No actor");
-      return actor.adminApproveSalon(salonId);
+      return (actor as any).adminApproveSalon(salonId);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["adminPendingSalons"] });
@@ -141,7 +166,7 @@ export function useAdminRejectSalon() {
   return useMutation({
     mutationFn: async (salonId: bigint) => {
       if (!actor) throw new Error("No actor");
-      return actor.adminRejectSalon(salonId);
+      return (actor as any).adminRejectSalon(salonId);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["adminPendingSalons"] });
@@ -159,7 +184,10 @@ export function useAdminResetOwnerPassword() {
       newPasswordHash,
     }: { ownerPhone: string; newPasswordHash: string }) => {
       if (!actor) throw new Error("No actor");
-      return actor.adminResetOwnerPassword(ownerPhone, newPasswordHash);
+      return (actor as any).adminResetOwnerPassword(
+        ownerPhone,
+        newPasswordHash,
+      );
     },
   });
 }
@@ -173,7 +201,7 @@ export function useAdminSetSalonSubscription() {
       active,
     }: { salonId: bigint; active: boolean }) => {
       if (!actor) throw new Error("No actor");
-      return actor.adminSetSalonSubscription(salonId, active);
+      return (actor as any).adminSetSalonSubscription(salonId, active);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["adminAllSalons"] });
@@ -191,7 +219,7 @@ export function useAdminSetSalonActive() {
       active,
     }: { salonId: bigint; active: boolean }) => {
       if (!actor) throw new Error("No actor");
-      return actor.adminSetSalonActive(salonId, active);
+      return (actor as any).adminSetSalonActive(salonId, active);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["adminAllSalons"] });
@@ -206,7 +234,7 @@ export function useAdminGetDefaultTrialDays() {
     queryKey: ["adminDefaultTrialDays"],
     queryFn: async () => {
       if (!actor) return 7;
-      const result = await actor.adminGetDefaultTrialDays();
+      const result = await (actor as any).adminGetDefaultTrialDays();
       return Number(result);
     },
     enabled: !!actor && !isFetching,
@@ -219,7 +247,7 @@ export function useAdminSetDefaultTrialDays() {
   return useMutation({
     mutationFn: async (days: number) => {
       if (!actor) throw new Error("No actor");
-      return actor.adminSetDefaultTrialDays(BigInt(days));
+      return (actor as any).adminSetDefaultTrialDays(BigInt(days));
     },
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["adminDefaultTrialDays"] }),
@@ -233,9 +261,15 @@ export function useAdminSetSalonTrialDays() {
     mutationFn: async ({
       salonId,
       days,
-    }: { salonId: bigint; days: number }) => {
+    }: { salonId: bigint; days: bigint }) => {
       if (!actor) throw new Error("No actor");
-      return actor.adminSetSalonTrialDays(salonId, BigInt(days));
+      const adminHash = getAdminHash();
+      return (actor as any).adminSetSalonTrialDays(
+        ADMIN_EMAIL,
+        adminHash,
+        salonId,
+        days,
+      );
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["adminAllSalons"] }),
   });
@@ -247,7 +281,7 @@ export function useAdminProcessTrialExpirations() {
   return useMutation({
     mutationFn: async () => {
       if (!actor) throw new Error("No actor");
-      return actor.adminProcessTrialExpirations();
+      return (actor as any).adminProcessTrialExpirations();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["adminAllSalons"] });
@@ -262,7 +296,7 @@ export function useAdminGetRevenueStats() {
     queryKey: ["adminRevenueStats"],
     queryFn: async () => {
       if (!actor) throw new Error("No actor");
-      return actor.adminGetRevenueStats();
+      return (actor as any).adminGetRevenueStats();
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 60000,
@@ -410,7 +444,7 @@ export function useGetSalonServices(salonId: bigint | null | undefined) {
     queryKey: ["salonServices", salonId?.toString()],
     queryFn: async () => {
       if (!actor || !salonId) return [];
-      return actor.getSalonServices(salonId);
+      return (actor as any).getSalonServices(salonId);
     },
     enabled: !!actor && !isFetching && !!salonId,
   });
@@ -520,7 +554,7 @@ export function useGetOwnerRevenueSummary(phone: string) {
     queryKey: ["ownerRevenueSummary", phone],
     queryFn: async () => {
       if (!actor || !phone) throw new Error("No actor or phone");
-      return actor.getOwnerRevenueSummaryByPhone(phone);
+      return (actor as any).getOwnerRevenueSummaryByPhone(phone);
     },
     enabled: !!actor && !isFetching && !!phone,
     refetchInterval: 60000,
@@ -540,7 +574,7 @@ export function useStartServiceSession(ownerPhone: string) {
       durationMinutes,
     }: { appointmentId: bigint; durationMinutes: number }) => {
       if (!actor) throw new Error("No actor");
-      return actor.startServiceSession(
+      return (actor as any).startServiceSession(
         ownerPhone,
         appointmentId,
         BigInt(durationMinutes),
@@ -560,7 +594,7 @@ export function useGetCurrentServiceSession(
     queryKey: ["serviceSession", salonId?.toString()],
     queryFn: async () => {
       if (!actor || !salonId) return null;
-      const result = await actor.getCurrentServiceSession(salonId);
+      const result = await (actor as any).getCurrentServiceSession(salonId);
       return result ?? null;
     },
     enabled: !!actor && !isFetching && !!salonId,
@@ -577,7 +611,7 @@ export function useGetQueueScheduleForSalon(
     queryKey: ["queueSchedule", salonId?.toString(), date],
     queryFn: async () => {
       if (!actor || !salonId) return [];
-      return actor.getQueueScheduleForSalon(salonId, date);
+      return (actor as any).getQueueScheduleForSalon(salonId, date);
     },
     enabled: !!actor && !isFetching && !!salonId,
     refetchInterval: 30000,
@@ -593,7 +627,7 @@ export function useGetPendingNotifications(
     queryKey: ["pendingNotifications", salonId?.toString(), date],
     queryFn: async () => {
       if (!actor || !salonId) return [];
-      return actor.getPendingNotifications(salonId, date);
+      return (actor as any).getPendingNotifications(salonId, date);
     },
     enabled: !!actor && !isFetching && !!salonId,
     refetchInterval: 30000,
@@ -606,7 +640,7 @@ export function useMarkNotificationSent(ownerPhone: string) {
   return useMutation({
     mutationFn: async (appointmentId: bigint) => {
       if (!actor) throw new Error("No actor");
-      return actor.markNotificationSent(ownerPhone, appointmentId);
+      return (actor as any).markNotificationSent(ownerPhone, appointmentId);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pendingNotifications"] });
@@ -624,7 +658,7 @@ export function useSavePushSubscription() {
       auth,
     }: { phone: string; endpoint: string; p256dh: string; auth: string }) => {
       if (!actor) throw new Error("No actor");
-      return actor.savePushSubscription(phone, endpoint, p256dh, auth);
+      return (actor as any).savePushSubscription(phone, endpoint, p256dh, auth);
     },
   });
 }
@@ -635,7 +669,7 @@ export function useClearServiceSession(ownerPhone: string) {
   return useMutation({
     mutationFn: async () => {
       if (!actor) throw new Error("No actor");
-      return actor.clearServiceSession(ownerPhone);
+      return (actor as any).clearServiceSession(ownerPhone);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["serviceSession"] });
@@ -653,7 +687,7 @@ export function useGetAllActiveSalons() {
     queryKey: ["activeSalons"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getAllActiveSalons();
+      return (actor as any).getAllActiveSalons();
     },
     enabled: !!actor && !isFetching,
   });
@@ -707,7 +741,7 @@ export function useGetQueueInfo(appointmentId: bigint | null | undefined) {
     queryKey: ["queueInfo", appointmentId?.toString()],
     queryFn: async () => {
       if (!actor || !appointmentId) return [0n, 0n] as [bigint, bigint];
-      return actor.getQueueInfo(appointmentId);
+      return (actor as any).getQueueInfo(appointmentId);
     },
     enabled: !!actor && !isFetching && !!appointmentId,
     refetchInterval: 45000,
@@ -804,19 +838,15 @@ export function useSalonOwnerSetPassword() {
 }
 
 // ============================================================
-// Plan Pricing hooks
+// Plan Pricing hooks — FIX: pass email + passwordHash for admin calls
 // ============================================================
 export function useGetPlanPricings() {
   const { actor, isFetching } = useActor();
   return useQuery<PlanPricingType[]>({
     queryKey: ["planPricings"],
     queryFn: async () => {
-      if (!actor) return [];
-      try {
-        return await (actor as any).getPlanPricings();
-      } catch {
-        return [];
-      }
+      if (!actor) throw new Error("Backend se connection nahi");
+      return (actor as any).getPlanPricings();
     },
     enabled: !!actor && !isFetching,
   });
@@ -827,12 +857,9 @@ export function useAdminGetAllPlanPricings() {
   return useQuery<PlanPricingType[]>({
     queryKey: ["adminPlanPricings"],
     queryFn: async () => {
-      if (!actor) return [];
-      try {
-        return await (actor as any).adminGetAllPlanPricings();
-      } catch {
-        return [];
-      }
+      if (!actor) throw new Error("Backend se connection nahi");
+      const adminHash = getAdminHash();
+      return (actor as any).adminGetAllPlanPricings(ADMIN_EMAIL, adminHash);
     },
     enabled: !!actor && !isFetching,
   });
@@ -852,7 +879,10 @@ export function useAdminSetPlanPricing() {
       discountPercent: number;
     }) => {
       if (!actor) throw new Error("No actor");
+      const adminHash = getAdminHash();
       return (actor as any).adminSetPlanPricing(
+        ADMIN_EMAIL,
+        adminHash,
         planName,
         originalPrice,
         discountPercent,
@@ -866,7 +896,7 @@ export function useAdminSetPlanPricing() {
 }
 
 // ============================================================
-// Subscription Request hooks
+// Subscription Request hooks — FIX: no localStorage fallback
 // ============================================================
 export function useSubmitSubscriptionRequest() {
   const { actor } = useActor();
@@ -883,7 +913,7 @@ export function useSubmitSubscriptionRequest() {
       savings: number;
       screenshotBase64: string;
     }) => {
-      if (!actor) throw new Error("No actor");
+      if (!actor) throw new Error("Backend se connection nahi। पेज reload करें।");
       return (actor as any).submitSubscriptionRequest(
         params.ownerPhone,
         params.salonName,
@@ -903,51 +933,42 @@ export function useSubmitSubscriptionRequest() {
   });
 }
 
+// FIX: 10s polling, no silent catch (surface isError)
 export function useAdminGetPendingSubRequests() {
   const { actor, isFetching } = useActor();
   return useQuery<SubRequestType[]>({
     queryKey: ["adminPendingSubRequests"],
     queryFn: async () => {
-      if (!actor) return [];
-      try {
-        return await (actor as any).adminGetPendingSubRequests();
-      } catch {
-        return [];
-      }
+      if (!actor) throw new Error("Backend se connection nahi");
+      return (actor as any).adminGetPendingSubRequests();
     },
     enabled: !!actor && !isFetching,
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   });
 }
 
+// FIX: 10s polling, no silent catch
 export function useAdminGetAllSubRequests() {
   const { actor, isFetching } = useActor();
   return useQuery<SubRequestType[]>({
     queryKey: ["adminAllSubRequests"],
     queryFn: async () => {
-      if (!actor) return [];
-      try {
-        return await (actor as any).adminGetAllSubRequests();
-      } catch {
-        return [];
-      }
+      if (!actor) throw new Error("Backend se connection nahi");
+      return (actor as any).adminGetAllSubRequests();
     },
     enabled: !!actor && !isFetching,
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   });
 }
 
+// FIX: surface error instead of returning []
 export function useGetMySubRequests(ownerPhone: string) {
   const { actor, isFetching } = useActor();
   return useQuery<SubRequestType[]>({
     queryKey: ["mySubRequests", ownerPhone],
     queryFn: async () => {
-      if (!actor || !ownerPhone) return [];
-      try {
-        return await (actor as any).getMySubRequests(ownerPhone);
-      } catch {
-        return [];
-      }
+      if (!actor || !ownerPhone) throw new Error("Phone ya actor missing hai");
+      return (actor as any).getMySubRequests(ownerPhone);
     },
     enabled: !!actor && !isFetching && !!ownerPhone,
   });
@@ -966,6 +987,7 @@ export function useAdminApproveSubRequest() {
       qc.invalidateQueries({ queryKey: ["adminAllSubRequests"] });
       qc.invalidateQueries({ queryKey: ["adminAllSalons"] });
       qc.invalidateQueries({ queryKey: ["adminSubEarnings"] });
+      qc.invalidateQueries({ queryKey: ["adminSubHistory"] });
     },
   });
 }
@@ -985,17 +1007,14 @@ export function useAdminRejectSubRequest() {
   });
 }
 
+// FIX: surface error instead of returning [0,0,0n]
 export function useAdminGetSubRequestEarnings() {
   const { actor, isFetching } = useActor();
   return useQuery<[number, number, bigint]>({
     queryKey: ["adminSubEarnings"],
     queryFn: async () => {
-      if (!actor) return [0, 0, 0n] as [number, number, bigint];
-      try {
-        return await (actor as any).adminGetSubRequestEarnings();
-      } catch {
-        return [0, 0, 0n] as [number, number, bigint];
-      }
+      if (!actor) throw new Error("Backend se connection nahi");
+      return (actor as any).adminGetSubRequestEarnings();
     },
     enabled: !!actor && !isFetching,
   });
@@ -1013,5 +1032,39 @@ export function useAdminExpireOldSubRequests() {
       qc.invalidateQueries({ queryKey: ["adminPendingSubRequests"] });
       qc.invalidateQueries({ queryKey: ["adminAllSubRequests"] });
     },
+  });
+}
+
+// ============================================================
+// NEW: Subscription History hooks
+// ============================================================
+
+export function useAdminGetSubHistory() {
+  const { actor, isFetching } = useActor();
+  return useQuery<SubscriptionHistoryType[]>({
+    queryKey: ["adminSubHistory"],
+    queryFn: async () => {
+      if (!actor) throw new Error("Backend se connection nahi");
+      const adminHash = getAdminHash();
+      return (actor as any).adminGetSubHistory(
+        ADMIN_EMAIL,
+        adminHash,
+      ) as Promise<SubscriptionHistoryType[]>;
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useGetMySubHistory(ownerPhone: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery<SubscriptionHistoryType[]>({
+    queryKey: ["mySubHistory", ownerPhone],
+    queryFn: async () => {
+      if (!actor || !ownerPhone) throw new Error("Phone ya actor missing hai");
+      return (actor as any).getMySubHistory(ownerPhone) as Promise<
+        SubscriptionHistoryType[]
+      >;
+    },
+    enabled: !!actor && !isFetching && !!ownerPhone,
   });
 }

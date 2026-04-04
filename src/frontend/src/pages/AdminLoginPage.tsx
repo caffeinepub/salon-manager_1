@@ -87,6 +87,7 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
       const ok = await backend.adminSetPassword(email, hash);
       if (ok) {
         sessionStorage.setItem(ADMIN_SESSION_KEY, "authenticated");
+        localStorage.setItem("salon360_admin_hash", hash);
         toast.success("Password set हो गया! Admin Panel खुल रहा है...");
         onLoginSuccess();
       } else {
@@ -120,6 +121,7 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
       const ok = await backend.adminLogin(email, hash);
       if (ok) {
         sessionStorage.setItem(ADMIN_SESSION_KEY, "authenticated");
+        localStorage.setItem("salon360_admin_hash", hash);
         toast.success("Login सफल! Admin Panel खुल रहा है...");
         onLoginSuccess();
       } else {

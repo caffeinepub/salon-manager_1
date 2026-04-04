@@ -23,12 +23,17 @@ import OwnerEarningsGraph, {
 import SalonLoadingScreen from "../components/SalonLoadingScreen";
 import SalonTimerWidget from "../components/SalonTimerWidget";
 import StaffManager from "../components/StaffManager";
-import type { AppointmentWithId, SalonWithId } from "../hooks/useQueries";
+import type {
+  AppointmentWithId,
+  SalonWithId,
+  SubscriptionHistoryType,
+} from "../hooks/useQueries";
 import {
   useAddSalonService,
   useClearServiceSession,
   useDeleteSalonService,
   useGetMySalon,
+  useGetMySubHistory,
   useGetOwnerRevenueSummary,
   useGetSalonAppointmentsForDate,
   useGetSalonServices,
@@ -682,6 +687,13 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
               >
                 जानकारी
               </TabsTrigger>
+              <TabsTrigger
+                value="sub_history"
+                className="flex-1 text-xs"
+                data-ocid="salon.tab"
+              >
+                इतिहास
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -708,6 +720,10 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
 
           <TabsContent value="info">
             <InfoTab phone={phone} salon={salon} />
+          </TabsContent>
+
+          <TabsContent value="sub_history">
+            <OwnerSubHistoryTab phone={phone} />
           </TabsContent>
         </Tabs>
       </main>
@@ -1414,6 +1430,152 @@ function InfoTab({
           </form>
         )}
       </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Owner Subscription History Tab
+// ──────────────────────────────────────────────────────────────────────────────
+function OwnerSubHistoryTab({ phone }: { phone: string }) {
+  const { data: history = [], isLoading, isError } = useGetMySubHistory(phone);
+
+  const BORDER = "1px solid oklch(0.28 0.04 75 / 0.6)";
+  const CARD_BG = "oklch(0.13 0.008 60)";
+  const CARD_RAISED = "oklch(0.17 0.012 60)";
+  const GOLD = "oklch(0.78 0.12 80)";
+  const GOLD_LIGHT = "oklch(0.88 0.12 82)";
+  const TEXT = "oklch(0.97 0.015 80)";
+  const MUTED = "oklch(0.55 0.04 80)";
+
+  function formatTs(ns: bigint): string {
+    const ms = Number(ns) / 1_000_000;
+    if (ms < 1000) return "—";
+    return new Date(ms).toLocaleDateString("hi-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  if (isLoading) {
+    return (
+      <div className="py-10 text-center" data-ocid="sub_history.loading_state">
+        <div
+          className="inline-block w-6 h-6 rounded-full border-2 border-t-transparent animate-spin"
+          style={{ borderColor: GOLD, borderTopColor: "transparent" }}
+        />
+        <p className="text-sm mt-2" style={{ color: MUTED }}>
+          इतिहास लोड हो रहा है...
+        </p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div
+        className="rounded-xl p-4 text-center mt-4"
+        style={{
+          background: "oklch(0.15 0.04 27 / 0.3)",
+          border: "1px solid oklch(0.5 0.2 27 / 0.4)",
+        }}
+        data-ocid="sub_history.error_state"
+      >
+        <p style={{ color: "oklch(0.7 0.2 27)" }}>
+          ❌ इतिहास लोड नहीं हो सका। पेज reload करें।
+        </p>
+      </div>
+    );
+  }
+
+  if (history.length === 0) {
+    return (
+      <div
+        className="text-center py-14"
+        style={{ color: MUTED }}
+        data-ocid="sub_history.empty_state"
+      >
+        <p className="text-4xl mb-2">📋</p>
+        <p className="font-medium">कोई सदस्यता इतिहास नहीं है</p>
+        <p className="text-xs mt-1" style={{ color: "oklch(0.4 0.03 70)" }}>
+          सदस्यता approve होने के बाद यहाँ दिखेगी
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3" data-ocid="sub_history.list">
+      <p className="text-xs font-semibold" style={{ color: MUTED }}>
+        मेरी सदस्यता इतिहास ({history.length})
+      </p>
+      {history.map((h: SubscriptionHistoryType, idx: number) => (
+        <div
+          key={h.id.toString()}
+          className="rounded-2xl p-4"
+          style={{ background: CARD_BG, border: BORDER }}
+          data-ocid={`sub_history.item.${idx + 1}`}
+        >
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <p className="text-base font-bold" style={{ color: GOLD_LIGHT }}>
+                {h.planName}
+              </p>
+              <p className="text-xs" style={{ color: MUTED }}>
+                {Number(h.planDays)} दिन की सदस्यता
+              </p>
+            </div>
+            <span
+              className="text-xs font-bold px-2 py-1 rounded-full"
+              style={{
+                background: "oklch(0.78 0.12 80 / 0.15)",
+                color: GOLD_LIGHT,
+                border: `1px solid ${GOLD} / 0.4`,
+              }}
+            >
+              ✅ स्वीकृत
+            </span>
+          </div>
+          <div
+            className="rounded-xl p-3 space-y-1.5 text-xs"
+            style={{ background: CARD_RAISED, border: BORDER }}
+          >
+            <div className="flex justify-between">
+              <span style={{ color: MUTED }}>भुगतान राशि</span>
+              <span className="font-bold text-sm" style={{ color: GOLD_LIGHT }}>
+                ₹{h.finalPrice}
+              </span>
+            </div>
+            {h.savings > 0 && (
+              <div className="flex justify-between">
+                <span style={{ color: MUTED }}>बचाई गई राशि</span>
+                <span style={{ color: "oklch(0.82 0.14 78)" }}>
+                  ₹{h.savings}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span style={{ color: MUTED }}>शुरू तारीख</span>
+              <span style={{ color: TEXT }}>
+                {h.startDate > 0n ? formatTs(h.startDate) : "—"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span style={{ color: MUTED }}>समाप्ति तारीख</span>
+              <span style={{ color: TEXT }}>
+                {h.endDate > 0n ? formatTs(h.endDate) : "—"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span style={{ color: MUTED }}>approved</span>
+              <span style={{ color: GOLD }}>
+                {h.approvedAt > 0n ? formatTs(h.approvedAt) : "—"}
+              </span>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
