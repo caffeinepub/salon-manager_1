@@ -1,59 +1,62 @@
 # salon360Pro
 
 ## Current State
-- Subscription submit silently falls back to localStorage on backend failure — shows fake success
-- Screenshot never reaches backend when backend fails
-- Plan pricing save (adminSetPlanPricing) exists in backend but fails silently at runtime
-- All subscription query hooks catch errors and return [] — admin sees empty list, no error shown
-- Admin pending requests poll every 30 seconds, not 10
-- No sound alert when new request arrives in admin panel
-- adminApproveSubRequest does not record startDate/endDate in salon profile
-- No permanent subscription history separate from request status
-- Trial days save button shows toast but never calls backend mutation
+
+The app is a multi-tenant Hindi PWA for salon management with:
+- Backend: Motoko on ICP with full admin/owner/customer functions
+- Frontend: React + TypeScript with hooks in `useQueries.ts`
+- Admin panel, owner dashboard, customer booking, subscription system all exist
+
+**Critical Bug:** In `useQueries.ts`, ALL admin query/mutation hooks call backend functions WITHOUT passing `email` and `passwordHash`. The backend requires these for every admin function. Result: admin panel shows zero salons, zero stats, zero pending approvals.
+
+~15 admin hooks are broken this way:
+- `useAdminGetAllSalons`, `useAdminGetPendingSalons`, `useAdminGetDashboardStats`
+- `useAdminSetSubscriptionPrice`, `useAdminGetSubscriptionPrice`
+- `useAdminApproveSalon`, `useAdminRejectSalon`
+- `useAdminSetSalonSubscription`, `useAdminSetSalonActive`
+- `useAdminGetDefaultTrialDays`, `useAdminSetDefaultTrialDays`
+- `useAdminProcessTrialExpirations`, `useAdminGetRevenueStats`
+- Backup hooks, subscription request hooks
+
+The admin hash is stored in `localStorage.getItem("salon360_admin_hash")` and `ADMIN_EMAIL = "amitkrji498@gmail.com"`.
+
+**Missing Feature:** No photo upload system exists anywhere (backend, frontend, or hooks).
 
 ## Requested Changes (Diff)
 
 ### Add
-- Sound alert in admin panel when new pending request arrives
-- Subscription start/end date fields to SalonProfile type in backend
-- Permanent subscription history: separate SubscriptionHistory type with salonId, ownerPhone, planName, planDays, finalPrice, startDate, endDate, approvedAt, transactionId
-- Backend functions: adminGetSubHistory (all), getMySubHistory (by owner phone)
-- Stable storage for subscription history across builds
-- Error state UI in admin panel when backend query fails (instead of empty list)
+- Backend: Photo upload system for salon owners
+  - `SalonPhoto` type: `{ id, salonId, url, uploadedAt }`
+  - `uploadSalonPhoto(ownerPhone, passwordHash, photoBase64, mimeType)` — saves base64 photo, max 10 per salon
+  - `getSalonPhotos(salonId)` — public, returns all photos for a salon
+  - `deleteSalonPhoto(ownerPhone, passwordHash, photoId)` — owner can delete their photo
+- Frontend: Photo gallery in owner dashboard (upload 1-10 photos)
+- Frontend: Photo gallery in customer salon details view (swipe/scroll gallery)
 
 ### Modify
-- SubscriptionPage.tsx handlePaid: remove localStorage fallback entirely; on catch show clear Hindi error toast, do NOT set step to success
-- useQueries.ts all subscription/plan-pricing catch blocks: throw errors instead of returning [] so React Query surfaces them via isError
-- useAdminGetPendingSubRequests: change refetchInterval from 30000 to 10000
-- useAdminGetAllSubRequests: change refetchInterval from 30000 to 10000
-- adminApproveSubRequest in backend: calculate startDate and endDate (startDate = now, endDate = now + planDays * 86400s), store in salon profile
-- SalonProfile type: add subscriptionStartDate and subscriptionEndDate fields
-- SubscriptionRequestsTab in AdminPanel: add error state display; add sound alert on new pending request count increase; add new request badge
-- AdminPanel SalonManageCard trial days save: wire up to actual adminSetSalonTrialDays mutation
+- `useQueries.ts`: Fix ALL admin hooks to pass `ADMIN_EMAIL` and `getAdminHash()` as first two arguments to every admin backend call
+  - The helper functions `ADMIN_EMAIL` and `getAdminHash()` already exist in the file
+  - Every `(actor as any).adminXxx()` call must become `actor.adminXxx(ADMIN_EMAIL, getAdminHash(), ...rest)`
 
 ### Remove
-- localStorage fallback in handlePaid (lines 128-151 SubscriptionPage.tsx)
-- Silent catch { return [] } in all subscription/plan-pricing query hooks
+- Nothing to remove
 
 ## Implementation Plan
-1. Update backend main.mo:
-   a. Add subscriptionStartDate and subscriptionEndDate to SalonProfileV3 type
-   b. Add SubscriptionHistory type
-   c. Add subHistoryMap stable storage
-   d. Update adminApproveSubRequest to set start/end dates and push to subHistoryMap
-   e. Add adminGetSubHistory and getMySubHistory query functions
-   f. Update preupgrade/postupgrade for new stable vars
-   g. Add migration default values for existing salons
-2. Update useQueries.ts:
-   a. Remove all silent catch { return [] } — let errors propagate
-   b. Change both polling intervals from 30000 to 10000
-   c. Add useAdminGetSubHistory and useGetMySubHistory hooks
-3. Update SubscriptionPage.tsx:
-   a. Remove localStorage fallback in catch block
-   b. Show clear Hindi error on failure, do not advance to success step
-4. Update AdminPanel.tsx:
-   a. Add isError handling in SubscriptionRequestsTab — show clear error UI
-   b. Add sound alert + badge when pending count increases
-   c. Wire trial days save button to adminSetSalonTrialDays mutation
-   d. Add subscription history tab for admin showing subHistoryMap data
-5. Update SalonOwnerDashboard.tsx or SubscriptionPage to show owner's subscription history
+
+1. **Backend:** Add photo storage to `main.mo`
+   - Add `SalonPhoto` record type and `photosMap: HashMap<Text, [SalonPhoto]>`
+   - Add `uploadSalonPhoto`, `getSalonPhotos`, `deleteSalonPhoto` functions
+   - Persist photos in `preupgrade`/`postupgrade`
+
+2. **Frontend `useQueries.ts`:** Fix all broken admin hooks
+   - Add `ADMIN_EMAIL` constant and `getAdminHash()` helper (already exist, ensure they are used)
+   - Update every admin hook to pass these as first two arguments
+
+3. **Frontend Owner Dashboard:** Add photo management tab
+   - File input (accept images, max 10)
+   - Convert to base64 and call `uploadSalonPhoto`
+   - Display uploaded photos with delete option
+
+4. **Frontend Customer View:** Add photo gallery
+   - When customer opens salon details, call `getSalonPhotos(salonId)`
+   - Display scrollable/swipeable photo gallery

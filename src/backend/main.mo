@@ -7,6 +7,7 @@ import Float "mo:core/Float";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
+import Int "mo:core/Int";
 import Iter "mo:core/Iter";
 
 actor {
@@ -186,6 +187,14 @@ actor {
     transactionId : Text;
   };
 
+  public type SalonPhoto = {
+    id : Nat;
+    salonId : Nat;
+    ownerPhone : Text;
+    url : Text;
+    uploadedAt : Int;
+  };
+
   // ================================================================
   // STATE (V3)
   // ================================================================
@@ -214,6 +223,8 @@ actor {
   var stablePlanPricings : [(Text, PlanPricing)] = [];
   var stableNextSubHistoryId : Nat = 1;
   var stableSubHistory : [(Nat, SubscriptionHistory)] = [];
+  var stableNextPhotoId : Nat = 1;
+  var stablePhotos : [(Nat, SalonPhoto)] = [];
 
   // State vars — auto-restored from stable memory on upgrade
   var adminPasswordHash : ?Text = stableAdminPasswordHash;
@@ -224,6 +235,7 @@ actor {
   var platformSubscriptionPrice : Float = stablePlatformPrice;
   var nextSubRequestId   : Nat = stableNextSubRequestId;
   var nextSubHistoryId   : Nat = stableNextSubHistoryId;
+  var nextPhotoId        : Nat = stableNextPhotoId;
   let MAX_SHOPS          : Nat = 100;
 
   // V3 maps (phone-keyed) — filled from stable in postupgrade
@@ -243,6 +255,7 @@ actor {
   let subRequestsMap = Map.empty<Nat, SubRequest>();
   let planPricingsMap = Map.empty<Text, PlanPricing>();
   let subHistoryMap = Map.empty<Nat, SubscriptionHistory>();
+  let salonPhotosMap = Map.empty<Nat, SalonPhoto>();
 
   // ================================================================
   // AUTHORIZATION HELPERS
@@ -1301,6 +1314,58 @@ actor {
     subHistoryMap.values().toArray().filter(func(h) { h.ownerPhone == ownerPhone }).sort(func(a, b) { Int.compare(b.approvedAt, a.approvedAt) });
   };
 
+
+  // ================================================================
+  // SALON PHOTOS
+  // ================================================================
+  public func uploadSalonPhoto(ownerPhone : Text, passwordHash : Text, url : Text) : async Nat {
+    switch (ownerPasswordMap.get(ownerPhone)) {
+      case (null) { Runtime.trap("Owner not found") };
+      case (?stored) {
+        if (stored != passwordHash) { Runtime.trap("Invalid credentials") };
+      };
+    };
+    switch (ownerPhoneSalonMap.get(ownerPhone)) {
+      case (null) { Runtime.trap("Salon not found") };
+      case (?salonId) {
+        let existing = salonPhotosMap.values().toArray().filter(func(p) { p.salonId == salonId });
+        if (existing.size() >= 10) { Runtime.trap("Max 10 photos allowed") };
+        let photoId = nextPhotoId;
+        nextPhotoId += 1;
+        let photo : SalonPhoto = {
+          id = photoId;
+          salonId;
+          ownerPhone;
+          url;
+          uploadedAt = Time.now();
+        };
+        salonPhotosMap.add(photoId, photo);
+        photoId
+      };
+    };
+  };
+
+  public query func getSalonPhotos(salonId : Nat) : async [SalonPhoto] {
+    salonPhotosMap.values().toArray().filter(func(p) { p.salonId == salonId })
+  };
+
+  public func deleteSalonPhoto(ownerPhone : Text, passwordHash : Text, photoId : Nat) : async Bool {
+    switch (ownerPasswordMap.get(ownerPhone)) {
+      case (null) { Runtime.trap("Owner not found") };
+      case (?stored) {
+        if (stored != passwordHash) { Runtime.trap("Invalid credentials") };
+      };
+    };
+    switch (salonPhotosMap.get(photoId)) {
+      case (null) { false };
+      case (?photo) {
+        if (photo.ownerPhone != ownerPhone) { Runtime.trap("Not your photo") };
+        ignore salonPhotosMap.remove(photoId);
+        true
+      };
+    };
+  };
+
   // ================================================================
   // UPGRADE HOOKS — preserve all data across builds
   // ================================================================
@@ -1325,6 +1390,8 @@ actor {
     stablePlanPricings := planPricingsMap.entries().toArray();
     stableNextSubHistoryId := nextSubHistoryId;
     stableSubHistory := subHistoryMap.entries().toArray();
+    stableNextPhotoId := nextPhotoId;
+    stablePhotos := salonPhotosMap.entries().toArray();
   };
 
   system func postupgrade() {
@@ -1340,6 +1407,7 @@ actor {
     for ((k, v) in stableSubRequests.vals()) { subRequestsMap.add(k, v) };
     for ((k, v) in stablePlanPricings.vals()) { planPricingsMap.add(k, v) };
     for ((k, v) in stableSubHistory.vals()) { subHistoryMap.add(k, v) };
+    for ((k, v) in stablePhotos.vals()) { salonPhotosMap.add(k, v) };
     nextSubRequestId := stableNextSubRequestId;
     nextSubHistoryId := stableNextSubHistoryId;
     stableSalons := [];
@@ -1354,5 +1422,6 @@ actor {
     stableSubRequests := [];
     stablePlanPricings := [];
     stableSubHistory := [];
+    stablePhotos := [];
   };
 };

@@ -58,6 +58,14 @@ export interface SubscriptionHistoryType {
   transactionId: string;
 }
 
+export interface SalonPhotoType {
+  id: bigint;
+  salonId: bigint;
+  ownerPhone: string;
+  url: string;
+  uploadedAt: bigint;
+}
+
 import { useActor } from "./useActor";
 
 export type AppointmentStatus =
@@ -78,7 +86,7 @@ export type {
 };
 
 // ============================================================
-// Admin hooks
+// Admin hooks — ALL pass ADMIN_EMAIL + getAdminHash()
 // ============================================================
 
 export function useAdminGetDashboardStats() {
@@ -87,7 +95,7 @@ export function useAdminGetDashboardStats() {
     queryKey: ["adminDashboardStats"],
     queryFn: async () => {
       if (!actor) return { total: 0n, active: 0n, expired: 0n, pending: 0n };
-      return (actor as any).adminGetDashboardStats();
+      return (actor as any).adminGetDashboardStats(ADMIN_EMAIL, getAdminHash());
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 60000,
@@ -100,7 +108,10 @@ export function useAdminGetSubscriptionPrice() {
     queryKey: ["adminSubscriptionPrice"],
     queryFn: async () => {
       if (!actor) return 149;
-      return (actor as any).adminGetSubscriptionPrice();
+      return (actor as any).adminGetSubscriptionPrice(
+        ADMIN_EMAIL,
+        getAdminHash(),
+      );
     },
     enabled: !!actor && !isFetching,
   });
@@ -112,7 +123,11 @@ export function useAdminSetSubscriptionPrice() {
   return useMutation({
     mutationFn: async (price: number) => {
       if (!actor) throw new Error("No actor");
-      return (actor as any).adminSetSubscriptionPrice(price);
+      return (actor as any).adminSetSubscriptionPrice(
+        ADMIN_EMAIL,
+        getAdminHash(),
+        price,
+      );
     },
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["adminSubscriptionPrice"] }),
@@ -125,7 +140,7 @@ export function useAdminGetAllSalons() {
     queryKey: ["adminAllSalons"],
     queryFn: async () => {
       if (!actor) return [];
-      return (actor as any).adminGetAllSalons();
+      return (actor as any).adminGetAllSalons(ADMIN_EMAIL, getAdminHash());
     },
     enabled: !!actor && !isFetching,
   });
@@ -137,10 +152,10 @@ export function useAdminGetPendingSalons() {
     queryKey: ["adminPendingSalons"],
     queryFn: async () => {
       if (!actor) return [];
-      return (actor as any).adminGetPendingSalons();
+      return (actor as any).adminGetPendingSalons(ADMIN_EMAIL, getAdminHash());
     },
     enabled: !!actor && !isFetching,
-    refetchInterval: 60000,
+    refetchInterval: 30000,
   });
 }
 
@@ -150,7 +165,11 @@ export function useAdminApproveSalon() {
   return useMutation({
     mutationFn: async (salonId: bigint) => {
       if (!actor) throw new Error("No actor");
-      return (actor as any).adminApproveSalon(salonId);
+      return (actor as any).adminApproveSalon(
+        ADMIN_EMAIL,
+        getAdminHash(),
+        salonId,
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["adminPendingSalons"] });
@@ -166,7 +185,11 @@ export function useAdminRejectSalon() {
   return useMutation({
     mutationFn: async (salonId: bigint) => {
       if (!actor) throw new Error("No actor");
-      return (actor as any).adminRejectSalon(salonId);
+      return (actor as any).adminRejectSalon(
+        ADMIN_EMAIL,
+        getAdminHash(),
+        salonId,
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["adminPendingSalons"] });
@@ -185,6 +208,8 @@ export function useAdminResetOwnerPassword() {
     }: { ownerPhone: string; newPasswordHash: string }) => {
       if (!actor) throw new Error("No actor");
       return (actor as any).adminResetOwnerPassword(
+        ADMIN_EMAIL,
+        getAdminHash(),
         ownerPhone,
         newPasswordHash,
       );
@@ -201,7 +226,12 @@ export function useAdminSetSalonSubscription() {
       active,
     }: { salonId: bigint; active: boolean }) => {
       if (!actor) throw new Error("No actor");
-      return (actor as any).adminSetSalonSubscription(salonId, active);
+      return (actor as any).adminSetSalonSubscription(
+        ADMIN_EMAIL,
+        getAdminHash(),
+        salonId,
+        active,
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["adminAllSalons"] });
@@ -219,7 +249,12 @@ export function useAdminSetSalonActive() {
       active,
     }: { salonId: bigint; active: boolean }) => {
       if (!actor) throw new Error("No actor");
-      return (actor as any).adminSetSalonActive(salonId, active);
+      return (actor as any).adminSetSalonActive(
+        ADMIN_EMAIL,
+        getAdminHash(),
+        salonId,
+        active,
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["adminAllSalons"] });
@@ -234,7 +269,10 @@ export function useAdminGetDefaultTrialDays() {
     queryKey: ["adminDefaultTrialDays"],
     queryFn: async () => {
       if (!actor) return 7;
-      const result = await (actor as any).adminGetDefaultTrialDays();
+      const result = await (actor as any).adminGetDefaultTrialDays(
+        ADMIN_EMAIL,
+        getAdminHash(),
+      );
       return Number(result);
     },
     enabled: !!actor && !isFetching,
@@ -247,7 +285,11 @@ export function useAdminSetDefaultTrialDays() {
   return useMutation({
     mutationFn: async (days: number) => {
       if (!actor) throw new Error("No actor");
-      return (actor as any).adminSetDefaultTrialDays(BigInt(days));
+      return (actor as any).adminSetDefaultTrialDays(
+        ADMIN_EMAIL,
+        getAdminHash(),
+        BigInt(days),
+      );
     },
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["adminDefaultTrialDays"] }),
@@ -281,7 +323,10 @@ export function useAdminProcessTrialExpirations() {
   return useMutation({
     mutationFn: async () => {
       if (!actor) throw new Error("No actor");
-      return (actor as any).adminProcessTrialExpirations();
+      return (actor as any).adminProcessTrialExpirations(
+        ADMIN_EMAIL,
+        getAdminHash(),
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["adminAllSalons"] });
@@ -296,7 +341,7 @@ export function useAdminGetRevenueStats() {
     queryKey: ["adminRevenueStats"],
     queryFn: async () => {
       if (!actor) throw new Error("No actor");
-      return (actor as any).adminGetRevenueStats();
+      return (actor as any).adminGetRevenueStats(ADMIN_EMAIL, getAdminHash());
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 60000,
@@ -310,14 +355,18 @@ export function useAdminBackup() {
   return useMutation({
     mutationFn: async () => {
       if (!actor) throw new Error("Backend not ready");
+      const adminHash = getAdminHash();
       const [salons, services, appointments, customers, ownerMap, nextIds] =
         await Promise.all([
-          (actor as any).adminGetAllSalonsForBackup(),
-          (actor as any).adminGetAllServicesForBackup(),
-          (actor as any).adminGetAllAppointmentsForBackup(),
-          (actor as any).adminGetAllCustomersForBackup(),
-          (actor as any).adminGetOwnerPhoneMapForBackup(),
-          (actor as any).adminGetNextIdsForBackup(),
+          (actor as any).adminGetAllSalonsForBackup(ADMIN_EMAIL, adminHash),
+          (actor as any).adminGetAllServicesForBackup(ADMIN_EMAIL, adminHash),
+          (actor as any).adminGetAllAppointmentsForBackup(
+            ADMIN_EMAIL,
+            adminHash,
+          ),
+          (actor as any).adminGetAllCustomersForBackup(ADMIN_EMAIL, adminHash),
+          (actor as any).adminGetOwnerPhoneMapForBackup(ADMIN_EMAIL, adminHash),
+          (actor as any).adminGetNextIdsForBackup(ADMIN_EMAIL, adminHash),
         ]);
       return { salons, services, appointments, customers, ownerMap, nextIds };
     },
@@ -338,6 +387,8 @@ export function useAdminRestore() {
     }) => {
       if (!actor) throw new Error("Backend not ready");
       await (actor as any).adminRestoreAllData(
+        ADMIN_EMAIL,
+        getAdminHash(),
         data.salons,
         data.services,
         data.appointments,
@@ -933,28 +984,31 @@ export function useSubmitSubscriptionRequest() {
   });
 }
 
-// FIX: 10s polling, no silent catch (surface isError)
+// FIX: 10s polling, auth args passed
 export function useAdminGetPendingSubRequests() {
   const { actor, isFetching } = useActor();
   return useQuery<SubRequestType[]>({
     queryKey: ["adminPendingSubRequests"],
     queryFn: async () => {
       if (!actor) throw new Error("Backend se connection nahi");
-      return (actor as any).adminGetPendingSubRequests();
+      return (actor as any).adminGetPendingSubRequests(
+        ADMIN_EMAIL,
+        getAdminHash(),
+      );
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 10000,
   });
 }
 
-// FIX: 10s polling, no silent catch
+// FIX: 10s polling, auth args passed
 export function useAdminGetAllSubRequests() {
   const { actor, isFetching } = useActor();
   return useQuery<SubRequestType[]>({
     queryKey: ["adminAllSubRequests"],
     queryFn: async () => {
       if (!actor) throw new Error("Backend se connection nahi");
-      return (actor as any).adminGetAllSubRequests();
+      return (actor as any).adminGetAllSubRequests(ADMIN_EMAIL, getAdminHash());
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 10000,
@@ -980,7 +1034,11 @@ export function useAdminApproveSubRequest() {
   return useMutation({
     mutationFn: async (requestId: bigint) => {
       if (!actor) throw new Error("No actor");
-      return (actor as any).adminApproveSubRequest(requestId);
+      return (actor as any).adminApproveSubRequest(
+        ADMIN_EMAIL,
+        getAdminHash(),
+        requestId,
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["adminPendingSubRequests"] });
@@ -998,7 +1056,11 @@ export function useAdminRejectSubRequest() {
   return useMutation({
     mutationFn: async (requestId: bigint) => {
       if (!actor) throw new Error("No actor");
-      return (actor as any).adminRejectSubRequest(requestId);
+      return (actor as any).adminRejectSubRequest(
+        ADMIN_EMAIL,
+        getAdminHash(),
+        requestId,
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["adminPendingSubRequests"] });
@@ -1007,14 +1069,17 @@ export function useAdminRejectSubRequest() {
   });
 }
 
-// FIX: surface error instead of returning [0,0,0n]
+// FIX: auth args passed
 export function useAdminGetSubRequestEarnings() {
   const { actor, isFetching } = useActor();
   return useQuery<[number, number, bigint]>({
     queryKey: ["adminSubEarnings"],
     queryFn: async () => {
       if (!actor) throw new Error("Backend se connection nahi");
-      return (actor as any).adminGetSubRequestEarnings();
+      return (actor as any).adminGetSubRequestEarnings(
+        ADMIN_EMAIL,
+        getAdminHash(),
+      );
     },
     enabled: !!actor && !isFetching,
   });
@@ -1026,7 +1091,10 @@ export function useAdminExpireOldSubRequests() {
   return useMutation({
     mutationFn: async () => {
       if (!actor) throw new Error("No actor");
-      return (actor as any).adminExpireOldSubRequests();
+      return (actor as any).adminExpireOldSubRequests(
+        ADMIN_EMAIL,
+        getAdminHash(),
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["adminPendingSubRequests"] });
@@ -1036,7 +1104,7 @@ export function useAdminExpireOldSubRequests() {
 }
 
 // ============================================================
-// NEW: Subscription History hooks
+// Subscription History hooks
 // ============================================================
 
 export function useAdminGetSubHistory() {
@@ -1066,5 +1134,64 @@ export function useGetMySubHistory(ownerPhone: string) {
       >;
     },
     enabled: !!actor && !isFetching && !!ownerPhone,
+  });
+}
+
+// ============================================================
+// Salon Photo Gallery hooks
+// ============================================================
+
+// Public: anyone can view salon photos
+export function useGetSalonPhotos(salonId: bigint | null | undefined) {
+  const { actor, isFetching } = useActor();
+  return useQuery<SalonPhotoType[]>({
+    queryKey: ["salonPhotos", salonId?.toString()],
+    queryFn: async () => {
+      if (!actor || !salonId) return [];
+      const result = await (actor as any).getSalonPhotos(salonId);
+      return result ?? [];
+    },
+    enabled: !!actor && !isFetching && !!salonId,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+// Owner: upload a photo URL to the backend
+export function useUploadSalonPhoto(ownerPhone: string) {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      passwordHash,
+      url,
+    }: { passwordHash: string; url: string }) => {
+      if (!actor) throw new Error("Backend se connection nahi। पेज reload करें।");
+      return (actor as any).uploadSalonPhoto(
+        ownerPhone,
+        passwordHash,
+        url,
+      ) as Promise<bigint>;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["salonPhotos"] }),
+  });
+}
+
+// Owner: delete a photo
+export function useDeleteSalonPhoto(ownerPhone: string) {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      passwordHash,
+      photoId,
+    }: { passwordHash: string; photoId: bigint }) => {
+      if (!actor) throw new Error("No actor");
+      return (actor as any).deleteSalonPhoto(
+        ownerPhone,
+        passwordHash,
+        photoId,
+      ) as Promise<boolean>;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["salonPhotos"] }),
   });
 }

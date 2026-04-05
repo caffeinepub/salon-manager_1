@@ -3,18 +3,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HttpAgent } from "@icp-sdk/core/agent";
 import {
   AlertCircle,
+  Camera,
   CheckCircle,
   Clock,
   Edit,
+  ImageIcon,
   Loader2,
   LogOut,
   Plus,
   RefreshCw,
   Scissors,
   Trash2,
+  X,
 } from "lucide-react";
+import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import OwnerEarningsGraph, {
@@ -23,24 +28,30 @@ import OwnerEarningsGraph, {
 import SalonLoadingScreen from "../components/SalonLoadingScreen";
 import SalonTimerWidget from "../components/SalonTimerWidget";
 import StaffManager from "../components/StaffManager";
+import { loadConfig } from "../config";
 import type {
   AppointmentWithId,
+  SalonPhotoType,
   SalonWithId,
   SubscriptionHistoryType,
 } from "../hooks/useQueries";
 import {
   useAddSalonService,
   useClearServiceSession,
+  useDeleteSalonPhoto,
   useDeleteSalonService,
   useGetMySalon,
   useGetMySubHistory,
   useGetOwnerRevenueSummary,
   useGetSalonAppointmentsForDate,
+  useGetSalonPhotos,
   useGetSalonServices,
   useStartServiceSession,
   useUpdateAppointmentStatus,
   useUpdateMySalon,
+  useUploadSalonPhoto,
 } from "../hooks/useQueries";
+import { StorageClient } from "../utils/StorageClient";
 import SubscriptionPage from "./SubscriptionPage";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -694,6 +705,13 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
               >
                 इतिहास
               </TabsTrigger>
+              <TabsTrigger
+                value="photos"
+                className="flex-1 text-xs"
+                data-ocid="salon.tab"
+              >
+                📸 फोटो
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -724,6 +742,10 @@ export default function SalonOwnerDashboard({ phone, onSwitchRole }: Props) {
 
           <TabsContent value="sub_history">
             <OwnerSubHistoryTab phone={phone} />
+          </TabsContent>
+
+          <TabsContent value="photos">
+            <PhotoGalleryTab phone={phone} salonId={salon.id} />
           </TabsContent>
         </Tabs>
       </main>
@@ -1576,6 +1598,309 @@ function OwnerSubHistoryTab({ phone }: { phone: string }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Photo Gallery Tab — Owner can upload 1–10 photos
+// ──────────────────────────────────────────────────────────────────────────────
+const MAX_PHOTOS = 10;
+
+async function uploadImageToStorage(file: File): Promise<string> {
+  const config = await loadConfig();
+  const agent = new HttpAgent({ host: config.backend_host });
+  if (config.backend_host?.includes("localhost")) {
+    await agent.fetchRootKey().catch(() => {});
+  }
+  const storageClient = new StorageClient(
+    config.bucket_name,
+    config.storage_gateway_url,
+    config.backend_canister_id,
+    config.project_id,
+    agent,
+  );
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const { hash } = await storageClient.putFile(bytes);
+  return storageClient.getDirectURL(hash);
+}
+
+function PhotoGalleryTab({
+  phone,
+  salonId,
+}: { phone: string; salonId: bigint }) {
+  const { data: photos = [], isLoading } = useGetSalonPhotos(salonId);
+  const { mutate: uploadPhoto, isPending: uploading } =
+    useUploadSalonPhoto(phone);
+  const { mutate: deletePhoto, isPending: deleting } =
+    useDeleteSalonPhoto(phone);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const passwordHash =
+    typeof window !== "undefined"
+      ? (localStorage.getItem(`salon360_owner_hash_${phone}`) ?? "")
+      : "";
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("सिर्फ image files upload करें");
+      return;
+    }
+    if (photos.length >= MAX_PHOTOS) {
+      toast.error(`अधिकतम ${MAX_PHOTOS} फोटो allowed हैं`);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("फोटो 5MB से कम होनी चाहिए");
+      return;
+    }
+    // Reset input
+    e.target.value = "";
+
+    try {
+      setUploadProgress(0);
+      const url = await uploadImageToStorage(file);
+      setUploadProgress(80);
+      uploadPhoto(
+        { passwordHash, url },
+        {
+          onSuccess: () => {
+            setUploadProgress(null);
+            toast.success("फोटो upload हो गई!");
+          },
+          onError: (err) => {
+            setUploadProgress(null);
+            toast.error(`फोटो save नहीं हो सकी: ${err.message}`);
+          },
+        },
+      );
+    } catch (err: any) {
+      setUploadProgress(null);
+      toast.error(`Upload failed: ${err?.message ?? "अज्ञात error"}`);
+    }
+  };
+
+  const handleDelete = (photo: SalonPhotoType) => {
+    if (!confirm("यह फोटो हटा दें?")) return;
+    deletePhoto(
+      { passwordHash, photoId: photo.id },
+      {
+        onSuccess: () => toast.success("फोटो हटा दी गई"),
+        onError: () => toast.error("फोटो नहीं हटा सकी"),
+      },
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div
+        className="flex items-center justify-center py-12"
+        data-ocid="photos.loading_state"
+      >
+        <Loader2
+          className="w-6 h-6 animate-spin"
+          style={{ color: "oklch(0.78 0.12 80)" }}
+        />
+        <span className="ml-2 text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
+          फोटो लोड हो रही हैं...
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2
+            className="font-semibold"
+            style={{ color: "oklch(0.97 0.015 80)" }}
+          >
+            दुकान की फोटो
+          </h2>
+          <p
+            className="text-xs mt-0.5"
+            style={{ color: "oklch(0.55 0.04 80)" }}
+          >
+            {photos.length}/{MAX_PHOTOS} फोटो
+          </p>
+        </div>
+        {photos.length < MAX_PHOTOS && (
+          <Button
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading || uploadProgress !== null}
+            data-ocid="photos.upload_button"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.88 0.12 82) 0%, oklch(0.68 0.13 74) 100%)",
+              color: "oklch(0.09 0.005 60)",
+              border: "none",
+            }}
+          >
+            {uploading || uploadProgress !== null ? (
+              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+            ) : (
+              <Camera className="w-4 h-4 mr-1" />
+            )}
+            {uploading || uploadProgress !== null
+              ? "Upload हो रहा है..."
+              : "फोटो जोड़ें"}
+          </Button>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileSelect}
+          data-ocid="photos.dropzone"
+        />
+      </div>
+
+      {/* Upload progress */}
+      {uploadProgress !== null && (
+        <div
+          className="rounded-xl p-3"
+          style={{
+            background: "oklch(0.17 0.012 60)",
+            border: "1px solid oklch(0.78 0.12 80 / 0.3)",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Loader2
+              className="w-4 h-4 animate-spin"
+              style={{ color: "oklch(0.78 0.12 80)" }}
+            />
+            <span className="text-xs" style={{ color: "oklch(0.78 0.12 80)" }}>
+              फोटो upload हो रही है...
+            </span>
+          </div>
+          <div
+            className="w-full rounded-full h-1.5"
+            style={{ background: "oklch(0.28 0.04 75 / 0.4)" }}
+          >
+            <div
+              className="h-1.5 rounded-full transition-all"
+              style={{
+                width: `${uploadProgress}%`,
+                background:
+                  "linear-gradient(90deg, oklch(0.88 0.12 82), oklch(0.68 0.13 74))",
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {photos.length === 0 && uploadProgress === null && (
+        <div
+          className="rounded-xl p-8 text-center"
+          style={{
+            background: "oklch(0.17 0.012 60)",
+            border: "1px dashed oklch(0.32 0.06 78 / 0.5)",
+          }}
+          data-ocid="photos.empty_state"
+        >
+          <ImageIcon
+            className="w-10 h-10 mx-auto mb-3"
+            style={{ color: "oklch(0.4 0.03 70)" }}
+          />
+          <p
+            className="font-medium text-sm"
+            style={{ color: "oklch(0.65 0.07 80)" }}
+          >
+            कोई फोटो नहीं है
+          </p>
+          <p className="text-xs mt-1" style={{ color: "oklch(0.4 0.03 70)" }}>
+            "फोटो जोड़ें" दबाकर अपनी दुकान की फोटो upload करें
+          </p>
+          <p className="text-xs mt-1" style={{ color: "oklch(0.4 0.03 70)" }}>
+            Customers आपकी दुकान की फोटो देख सकेंगे
+          </p>
+        </div>
+      )}
+
+      {/* Photos grid */}
+      {photos.length > 0 && (
+        <div className="grid grid-cols-2 gap-3" data-ocid="photos.list">
+          {(photos as SalonPhotoType[]).map((photo, idx) => (
+            <div
+              key={photo.id.toString()}
+              className="relative rounded-xl overflow-hidden"
+              style={{
+                border: "1px solid oklch(0.28 0.04 75 / 0.6)",
+                aspectRatio: "1/1",
+              }}
+              data-ocid={`photos.item.${idx + 1}`}
+            >
+              <img
+                src={photo.url}
+                alt={`सैलून ${idx + 1}`}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+              <button
+                type="button"
+                onClick={() => handleDelete(photo)}
+                disabled={deleting}
+                className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center"
+                data-ocid={`photos.delete_button.${idx + 1}`}
+                style={{
+                  background: "oklch(0.577 0.245 27 / 0.85)",
+                  backdropFilter: "blur(4px)",
+                }}
+              >
+                <X className="w-3.5 h-3.5 text-white" />
+              </button>
+            </div>
+          ))}
+
+          {/* Add more slot */}
+          {photos.length < MAX_PHOTOS && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading || uploadProgress !== null}
+              className="rounded-xl flex flex-col items-center justify-center gap-2 transition-opacity hover:opacity-80"
+              style={{
+                border: "1px dashed oklch(0.32 0.06 78 / 0.5)",
+                background: "oklch(0.17 0.012 60)",
+                aspectRatio: "1/1",
+              }}
+              data-ocid="photos.upload_button"
+            >
+              <Camera
+                className="w-6 h-6"
+                style={{ color: "oklch(0.55 0.04 80)" }}
+              />
+              <span
+                className="text-xs"
+                style={{ color: "oklch(0.55 0.04 80)" }}
+              >
+                जोड़ें
+              </span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Info note */}
+      <div
+        className="rounded-xl p-3 text-xs"
+        style={{
+          background: "oklch(0.78 0.12 80 / 0.06)",
+          border: "1px solid oklch(0.78 0.12 80 / 0.2)",
+          color: "oklch(0.65 0.07 80)",
+        }}
+      >
+        💡 ये फोटो customers को दिखती हैं जब वे आपका सैलून open करते हैं। Max{" "}
+        {MAX_PHOTOS} फोटो allowed हैं।
+      </div>
     </div>
   );
 }

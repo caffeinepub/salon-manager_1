@@ -31,12 +31,14 @@ import SalonLoadingScreen from "../components/SalonLoadingScreen";
 import { useActor } from "../hooks/useActor";
 import {
   type AppointmentWithId,
+  type SalonPhotoType,
   type SalonWithId,
   useBookAppointment,
   useGetAllActiveSalons,
   useGetMyAppointments,
   useGetMyCustomerProfile,
   useGetQueueInfo,
+  useGetSalonPhotos,
   useGetSalonServices,
   useSaveCustomerProfile,
   useSavePushSubscription,
@@ -854,6 +856,8 @@ function BookingModal({
           </DialogTitle>
         </DialogHeader>
 
+        <SalonPhotoGallery salonId={salon.id} />
+
         {booked ? (
           <div className="text-center py-6">
             <div
@@ -1208,6 +1212,45 @@ function MyBookingsTab({ phone }: { phone: string }) {
           </div>
         ))
       )}
+    </div>
+  );
+}
+
+// ─── Salon Photo Gallery (customer view) ───────────────────────────────────
+function SalonPhotoGallery({ salonId }: { salonId: bigint }) {
+  const { data: photos = [] } = useGetSalonPhotos(salonId);
+
+  if (!photos || photos.length === 0) return null;
+
+  return (
+    <div className="mb-2">
+      <div
+        className="flex gap-2 overflow-x-auto pb-2"
+        style={{ scrollSnapType: "x mandatory" }}
+      >
+        {(photos as SalonPhotoType[]).map((photo, idx) => (
+          <div
+            key={photo.id.toString()}
+            className="flex-shrink-0 rounded-xl overflow-hidden"
+            style={{
+              width: "160px",
+              height: "120px",
+              scrollSnapAlign: "start",
+              border: "1px solid oklch(0.28 0.04 75 / 0.5)",
+            }}
+          >
+            <img
+              src={photo.url}
+              alt={`सैलून ${idx + 1}`}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        ))}
+      </div>
+      <p className="text-xs mt-1" style={{ color: "oklch(0.4 0.03 70)" }}>
+        {photos.length} फोटो
+      </p>
     </div>
   );
 }

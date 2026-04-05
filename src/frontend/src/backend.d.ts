@@ -114,6 +114,13 @@ export interface SubRequest {
     salonName: string;
     requestTime: bigint;
 }
+export interface SalonPhoto {
+    id: bigint;
+    salonId: bigint;
+    ownerPhone: string;
+    url: string;
+    uploadedAt: bigint;
+}
 export enum UserRole {
     admin = "admin",
     user = "user",
@@ -158,6 +165,7 @@ export interface backendInterface {
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     bookAppointmentByPhone(customerPhone: string, salonId: bigint, customerName: string, serviceName: string, date: string): Promise<bigint>;
     clearServiceSession(ownerPhone: string): Promise<void>;
+    deleteSalonPhoto(ownerPhone: string, passwordHash: string, photoId: bigint): Promise<boolean>;
     deleteSalonServiceByPhone(ownerPhone: string, salonId: bigint, serviceId: bigint): Promise<void>;
     getAllActiveSalons(): Promise<Array<SalonWithId>>;
     getCallerUserRole(): Promise<UserRole>;
@@ -175,6 +183,7 @@ export interface backendInterface {
     getQueueScheduleForSalon(salonId: bigint, date: string): Promise<Array<QueueScheduleEntry>>;
     getSalonAppointmentsForDateByPhone(ownerPhone: string, salonId: bigint, date: string): Promise<Array<AppointmentWithId>>;
     getSalonById(id: bigint): Promise<SalonWithId | null>;
+    getSalonPhotos(salonId: bigint): Promise<Array<SalonPhoto>>;
     getSalonServices(salonId: bigint): Promise<Array<ServiceWithId>>;
     isCallerAdmin(): Promise<boolean>;
     markNotificationSent(ownerPhone: string, appointmentId: bigint): Promise<void>;
@@ -188,4 +197,5 @@ export interface backendInterface {
     submitSubscriptionRequest(ownerPhone: string, salonName: string, planName: string, planDays: bigint, originalPrice: number, discountPercent: number, finalPrice: number, savings: number, screenshotBase64: string): Promise<bigint>;
     updateAppointmentStatusByPhone(ownerPhone: string, appointmentId: bigint, newStatus: string): Promise<void>;
     updateOwnerSalonByPhone(ownerPhone: string, name: string, address: string, phone: string, city: string): Promise<void>;
+    uploadSalonPhoto(ownerPhone: string, passwordHash: string, url: string): Promise<bigint>;
 }
