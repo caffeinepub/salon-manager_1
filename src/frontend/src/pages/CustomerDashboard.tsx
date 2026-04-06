@@ -1036,16 +1036,20 @@ function AppointmentCard({
       if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.ready
           .then((reg) => {
-            reg.showNotification("Salon360", {
-              body: `आपका नंबर आने वाला है! (${salonName})`,
+            reg.showNotification("💈 salon360Pro", {
+              body: `आपकी बारी आने वाली है! (${salonName})`,
               icon: "/assets/generated/icon-192.dim_192x192.png",
-            });
+              badge: "/assets/generated/icon-192.dim_192x192.png",
+              tag: "customer-turn-notification",
+              requireInteraction: true,
+              silent: false,
+            } as NotificationOptions);
           })
           .catch(() => {});
       } else if ("Notification" in window) {
         try {
-          new Notification("Salon360", {
-            body: `आपका नंबर आने वाला है! (${salonName})`,
+          new Notification("💈 salon360Pro", {
+            body: `आपकी बारी आने वाली है! (${salonName})`,
             icon: "/assets/generated/icon-192.dim_192x192.png",
           });
         } catch {

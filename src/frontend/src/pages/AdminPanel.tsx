@@ -907,32 +907,37 @@ function SubscriptionIncomeTab({
   const activeSubs = allSalons.filter(
     (s) => s.subscriptionActive && !s.pendingApproval,
   );
-  const totalIncome = activeSubs.length * subscriptionPrice;
 
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
 
+  // Backend earnings from approved subscription requests
+  const backendTotal = earnings ? Number(earnings[0]) : 0;
+  const backendMonthly = earnings ? Number(earnings[1]) : 0;
+  const backendCount = earnings ? Number(earnings[2]) : 0;
+
+  // Combined stats: merge activeSubs + backend approved requests
+  const totalIncome = activeSubs.length * subscriptionPrice;
+  const combinedMonthlyIncome = totalIncome + backendMonthly;
+  const combinedActiveCount = activeSubs.length + backendCount;
+  const _combinedTotalIncome = totalIncome + backendTotal;
+
   const monthlyData = useMemo(() => {
     return MONTHS_HI.map((month, idx) => ({
       month,
-      income: idx === currentMonth ? activeSubs.length * subscriptionPrice : 0,
+      income: idx === currentMonth ? combinedMonthlyIncome : 0,
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSubs.length, subscriptionPrice, currentMonth]);
+  }, [combinedMonthlyIncome, currentMonth]);
 
-  const yearlyIncome = activeSubs.length * subscriptionPrice * 12;
+  const yearlyIncome = combinedMonthlyIncome * 12;
 
   const cardBase = "rounded-xl p-4";
   const cardBaseStyle = {
     background: "oklch(0.13 0.008 60)",
     border: "1px solid oklch(0.28 0.04 75 / 0.6)",
   };
-
-  // Backend earnings from approved subscription requests
-  const backendTotal = earnings ? earnings[0] : 0;
-  const backendMonthly = earnings ? earnings[1] : 0;
-  const backendCount = earnings ? Number(earnings[2]) : 0;
 
   return (
     <div className="space-y-4">
@@ -997,7 +1002,7 @@ function SubscriptionIncomeTab({
             className="text-2xl font-bold"
             style={{ color: "oklch(0.78 0.12 80)" }}
           >
-            {activeSubs.length}
+            {combinedActiveCount}
           </p>
         </div>
         <div className={cardBase} style={cardBaseStyle}>
@@ -1010,9 +1015,9 @@ function SubscriptionIncomeTab({
           </p>
         </div>
         <div className={cardBase} style={cardBaseStyle}>
-          <p className="text-xs text-gray-500 mb-1">इस माह आय (अनुमानित)</p>
+          <p className="text-xs text-gray-500 mb-1">इस माह आय</p>
           <p className="text-2xl font-bold text-green-700">
-            ₹{totalIncome.toLocaleString("hi-IN")}
+            ₹{combinedMonthlyIncome.toLocaleString("hi-IN")}
           </p>
         </div>
         <div className={cardBase} style={cardBaseStyle}>
