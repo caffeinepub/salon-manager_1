@@ -12,6 +12,13 @@ export interface PushSubscription {
     auth: string;
     p256dh: string;
 }
+export interface SalonPhoto {
+    id: bigint;
+    url: string;
+    ownerPhone: string;
+    salonId: bigint;
+    uploadedAt: bigint;
+}
 export interface SubscriptionHistory {
     id: bigint;
     finalPrice: number;
@@ -39,6 +46,28 @@ export interface ServiceWithId {
     price: number;
     salonId: bigint;
 }
+export interface OwnerRevenueSummary {
+    monthlyEarnings: number;
+    completedAppointments: bigint;
+    totalEarnings: number;
+    totalAppointments: bigint;
+}
+export interface RevenueStats {
+    perSalon: Array<[bigint, string, number]>;
+    totalRevenue: number;
+    monthlyRevenue: number;
+}
+export interface DashboardStats {
+    total: bigint;
+    active: bigint;
+    expired: bigint;
+    pending: bigint;
+}
+export interface ServiceSession {
+    startTime: bigint;
+    durationMinutes: bigint;
+    appointmentId: bigint;
+}
 export interface AppointmentWithId {
     id: bigint;
     customerName: string;
@@ -51,30 +80,9 @@ export interface AppointmentWithId {
     servicePrice: number;
     salonId: bigint;
 }
-export interface RevenueStats {
-    perSalon: Array<[bigint, string, number]>;
-    totalRevenue: number;
-    monthlyRevenue: number;
-}
-export interface OwnerRevenueSummary {
-    monthlyEarnings: number;
-    completedAppointments: bigint;
-    totalEarnings: number;
-    totalAppointments: bigint;
-}
-export interface ServiceSession {
-    startTime: bigint;
-    durationMinutes: bigint;
-    appointmentId: bigint;
-}
-export interface DashboardStats {
-    total: bigint;
-    active: bigint;
-    expired: bigint;
-    pending: bigint;
-}
 export interface SalonWithId {
     id: bigint;
+    latitude?: number;
     trialDays: bigint;
     city: string;
     name: string;
@@ -82,6 +90,7 @@ export interface SalonWithId {
     pendingApproval: boolean;
     isActive: boolean;
     subscriptionActive: boolean;
+    longitude?: number;
     address: string;
     phone: string;
     trialStartDate: bigint;
@@ -113,13 +122,6 @@ export interface SubRequest {
     planName: string;
     salonName: string;
     requestTime: bigint;
-}
-export interface SalonPhoto {
-    id: bigint;
-    salonId: bigint;
-    ownerPhone: string;
-    url: string;
-    uploadedAt: bigint;
 }
 export enum UserRole {
     admin = "admin",
@@ -197,5 +199,6 @@ export interface backendInterface {
     submitSubscriptionRequest(ownerPhone: string, salonName: string, planName: string, planDays: bigint, originalPrice: number, discountPercent: number, finalPrice: number, savings: number, screenshotBase64: string): Promise<bigint>;
     updateAppointmentStatusByPhone(ownerPhone: string, appointmentId: bigint, newStatus: string): Promise<void>;
     updateOwnerSalonByPhone(ownerPhone: string, name: string, address: string, phone: string, city: string): Promise<void>;
+    updateSalonLocation(ownerPhone: string, passwordHash: string, latitude: number, longitude: number): Promise<boolean>;
     uploadSalonPhoto(ownerPhone: string, passwordHash: string, url: string): Promise<bigint>;
 }

@@ -13,6 +13,8 @@ import {
   ImageIcon,
   Loader2,
   LogOut,
+  MapPin,
+  Navigation,
   Plus,
   RefreshCw,
   Scissors,
@@ -49,6 +51,7 @@ import {
   useStartServiceSession,
   useUpdateAppointmentStatus,
   useUpdateMySalon,
+  useUpdateSalonLocation,
   useUploadSalonPhoto,
 } from "../hooks/useQueries";
 import { StorageClient } from "../utils/StorageClient";
@@ -1236,6 +1239,14 @@ function InfoTab({
     city: salon.city,
   });
   const { mutate: update, isPending } = useUpdateMySalon(phone);
+  const { mutate: updateLocation, isPending: locationPending } =
+    useUpdateSalonLocation(phone);
+  const [locationSaving, setLocationSaving] = useState(false);
+
+  const passwordHash =
+    typeof window !== "undefined"
+      ? (localStorage.getItem(`salon360_owner_hash_${phone}`) ?? "")
+      : "";
 
   const trialDays = getTrialDaysRemaining(
     salon.trialStartDate,
@@ -1258,6 +1269,42 @@ function InfoTab({
         },
         onError: () => toast.error("कुछ गलत हुआ"),
       },
+    );
+  };
+
+  const handleSetLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("आपका browser GPS support नहीं करता");
+      return;
+    }
+    setLocationSaving(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        updateLocation(
+          {
+            passwordHash,
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          },
+          {
+            onSuccess: () => {
+              setLocationSaving(false);
+              toast.success(
+                `📍 Location सेव हो गई! (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`,
+              );
+            },
+            onError: () => {
+              setLocationSaving(false);
+              toast.error("Location save नहीं हो सकी। दोबारा कोशिश करें।");
+            },
+          },
+        );
+      },
+      () => {
+        setLocationSaving(false);
+        toast.error("Location access नहीं मिला। Browser settings में allow करें।");
+      },
+      { timeout: 10000 },
     );
   };
 
@@ -1451,6 +1498,58 @@ function InfoTab({
             </div>
           </form>
         )}
+      </div>
+
+      {/* Location Set button */}
+      <div
+        className="rounded-xl p-4"
+        style={{
+          background: "oklch(0.17 0.012 60)",
+          border: "1px solid oklch(0.28 0.04 75 / 0.6)",
+        }}
+      >
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h3
+              className="font-semibold text-sm"
+              style={{ color: "oklch(0.97 0.015 80)" }}
+            >
+              📍 दुकान की Location
+            </h3>
+            <p
+              className="text-xs mt-0.5"
+              style={{ color: "oklch(0.55 0.04 80)" }}
+            >
+              {salon.latitude != null
+                ? `सेट है: ${(salon.latitude as number).toFixed(4)}, ${(salon.longitude as number).toFixed(4)}`
+                : "अभी location सेट नहीं है"}
+            </p>
+          </div>
+          <Button
+            size="sm"
+            onClick={handleSetLocation}
+            disabled={locationPending || locationSaving}
+            data-ocid="info.set_location_button"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.88 0.12 82) 0%, oklch(0.68 0.13 74) 100%)",
+              color: "oklch(0.09 0.005 60)",
+              border: "none",
+            }}
+          >
+            {locationPending || locationSaving ? (
+              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+            ) : (
+              <Navigation className="w-3 h-3 mr-1" />
+            )}
+            {locationPending || locationSaving
+              ? "सेव हो रहा है..."
+              : "Location सेट करें"}
+          </Button>
+        </div>
+        <p className="text-xs" style={{ color: "oklch(0.4 0.03 70)" }}>
+          💡 Location सेट करने पर customers "पास के सैलून" filter में आपकी दुकान देख सकेंगे
+        </p>
       </div>
     </div>
   );

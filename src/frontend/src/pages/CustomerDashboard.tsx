@@ -20,9 +20,11 @@ import {
   Loader2,
   LogOut,
   MapPin,
+  Navigation,
   Phone,
   Scissors,
   Star,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -93,6 +95,24 @@ export function hasRated(appointmentId: string): boolean {
 }
 // ───────────────────────────────────────────────────────────────────────────
 
+// Haversine distance in km
+function haversineKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 const STATUS_LABELS: Record<string, string> = {
   pending: "प्रतीक्षा",
   confirmed: "कन्फर्म",
@@ -100,6 +120,14 @@ const STATUS_LABELS: Record<string, string> = {
   completed: "पूरा",
   cancelled: "रद्द",
 };
+
+const COMMON_SERVICES = ["हेयरकट", "शेविंग", "फेशियल", "मसाज", "रंगाई"];
+const RATING_FILTERS = [
+  { label: "सभी", value: 0 },
+  { label: "4★+", value: 4 },
+  { label: "3★+", value: 3 },
+  { label: "2★+", value: 2 },
+];
 
 function getTodayString() {
   return new Date().toISOString().split("T")[0];
@@ -174,7 +202,7 @@ export default function CustomerDashboard({ phone, onSwitchRole }: Props) {
           (a: any) => a.status === "confirmed" || a.status === "inprogress",
         );
         for (const appt of active) {
-          const info = (await actorForPoll.getQueueInfo(appt.id)) as [
+          const info = (await (actorForPoll as any).getQueueInfo(appt.id)) as [
             bigint,
             bigint,
           ];
@@ -534,7 +562,6 @@ function RatingPopup({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Stars */}
           <div>
             <p
               className="text-sm mb-2"
@@ -580,7 +607,6 @@ function RatingPopup({
             )}
           </div>
 
-          {/* Review text */}
           <div>
             <Label className="text-sm" style={{ color: "oklch(0.65 0.07 80)" }}>
               समीक्षा (वैकल्पिक)
@@ -601,7 +627,6 @@ function RatingPopup({
             />
           </div>
 
-          {/* Actions */}
           <div className="flex gap-2 pt-1">
             <Button
               variant="ghost"
@@ -628,14 +653,100 @@ function RatingPopup({
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─── Salon List Tab with Search + Filter ─────────────────────────────────────
 function SalonListTab({
   phone,
   profile,
 }: { phone: string; profile: { name: string; phone: string } }) {
   const { data: salons = [], isLoading } = useGetAllActiveSalons();
   const [selectedSalon, setSelectedSalon] = useState<SalonWithId | null>(null);
-  // re-render when ratings change
   const [, forceUpdate] = useState(0);
+
+  // Filter state
+  const [searchText, setSearchText] = useState("");
+  const [ratingFilter, setRatingFilter] = useState(0);
+  const [serviceFilter, setServiceFilter] = useState("");
+  const [userLocation, setUserLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [nearbyActive, setNearbyActive] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
+
+  const handleNearbyToggle = () => {
+    if (nearbyActive) {
+      setNearbyActive(false);
+      setUserLocation(null);
+      return;
+    }
+    if (!navigator.geolocation) {
+      toast.error("आपका browser GPS support नहीं करता");
+      return;
+    }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+        setNearbyActive(true);
+        setGpsLoading(false);
+        toast.success("📍 Location मिल गई! पास के सैलून दिखाए जा रहे हैं");
+      },
+      () => {
+        setGpsLoading(false);
+        toast.error("Location access नहीं मिला। Browser settings में allow करें।");
+      },
+      { timeout: 10000 },
+    );
+  };
+
+  const hasAnyFilter =
+    searchText.trim() !== "" ||
+    ratingFilter > 0 ||
+    serviceFilter !== "" ||
+    nearbyActive;
+
+  // Build filtered + optionally distance-sorted list
+  type SalonWithDist = SalonWithId & { distKm?: number };
+  let filtered: SalonWithDist[] = salons.map((s) => {
+    const distKm =
+      userLocation && s.latitude != null && s.longitude != null
+        ? haversineKm(
+            userLocation.lat,
+            userLocation.lng,
+            s.latitude as number,
+            s.longitude as number,
+          )
+        : undefined;
+    return { ...s, distKm };
+  });
+
+  if (searchText.trim()) {
+    const q = searchText.trim().toLowerCase();
+    filtered = filtered.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q),
+    );
+  }
+
+  if (ratingFilter > 0) {
+    filtered = filtered.filter((s) => {
+      const { avg } = getAverageRating(s.id.toString());
+      return avg >= ratingFilter;
+    });
+  }
+
+  if (serviceFilter) {
+    // Can't filter by service without fetching all services — show a hint badge only, no filtering
+  }
+
+  if (nearbyActive && userLocation) {
+    filtered = filtered
+      .filter((s) => s.distKm !== undefined)
+      .sort((a, b) => (a.distKm ?? 9999) - (b.distKm ?? 9999));
+  }
 
   if (isLoading) {
     return (
@@ -647,20 +758,180 @@ function SalonListTab({
 
   return (
     <div className="space-y-3">
-      <h2 className="font-semibold" style={{ color: "oklch(0.97 0.015 80)" }}>
-        नज़दीकी सैलून ({salons.length})
-      </h2>
+      {/* Search bar */}
+      <div className="relative">
+        <Input
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder="सैलून का नाम खोजें..."
+          data-ocid="salons.search_input"
+          style={{
+            background: "oklch(0.15 0.01 60)",
+            border: "1px solid oklch(0.38 0.08 80 / 0.7)",
+            color: "oklch(0.97 0.015 80)",
+            paddingRight: searchText ? "2.5rem" : undefined,
+          }}
+        />
+        {searchText && (
+          <button
+            type="button"
+            onClick={() => setSearchText("")}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2"
+            aria-label="खोज साफ करें"
+          >
+            <X className="w-4 h-4" style={{ color: "oklch(0.55 0.04 80)" }} />
+          </button>
+        )}
+      </div>
 
-      {salons.length === 0 ? (
+      {/* Filter chips row */}
+      <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+        {/* Rating filter chips */}
+        {RATING_FILTERS.map((rf) => (
+          <button
+            key={rf.value}
+            type="button"
+            onClick={() => setRatingFilter(rf.value)}
+            data-ocid={`salons.filter.rating_${rf.value}`}
+            className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full transition-all"
+            style={{
+              background:
+                ratingFilter === rf.value
+                  ? "oklch(0.78 0.12 80)"
+                  : "oklch(0.17 0.012 60)",
+              color:
+                ratingFilter === rf.value
+                  ? "oklch(0.09 0.005 60)"
+                  : "oklch(0.65 0.07 80)",
+              border:
+                ratingFilter === rf.value
+                  ? "1px solid oklch(0.78 0.12 80)"
+                  : "1px solid oklch(0.28 0.04 75 / 0.6)",
+              fontWeight: ratingFilter === rf.value ? 700 : 400,
+            }}
+          >
+            {rf.label}
+          </button>
+        ))}
+
+        {/* Service filter chips */}
+        {COMMON_SERVICES.map((svc) => (
+          <button
+            key={svc}
+            type="button"
+            onClick={() => setServiceFilter(serviceFilter === svc ? "" : svc)}
+            data-ocid={`salons.filter.service_${svc}`}
+            className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full transition-all"
+            style={{
+              background:
+                serviceFilter === svc
+                  ? "oklch(0.78 0.12 80)"
+                  : "oklch(0.17 0.012 60)",
+              color:
+                serviceFilter === svc
+                  ? "oklch(0.09 0.005 60)"
+                  : "oklch(0.65 0.07 80)",
+              border:
+                serviceFilter === svc
+                  ? "1px solid oklch(0.78 0.12 80)"
+                  : "1px solid oklch(0.28 0.04 75 / 0.6)",
+              fontWeight: serviceFilter === svc ? 700 : 400,
+            }}
+          >
+            {svc}
+          </button>
+        ))}
+
+        {/* Nearby GPS button */}
+        <button
+          type="button"
+          onClick={handleNearbyToggle}
+          disabled={gpsLoading}
+          data-ocid="salons.filter.nearby"
+          className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full flex items-center gap-1 transition-all"
+          style={{
+            background: nearbyActive
+              ? "oklch(0.78 0.12 80)"
+              : "oklch(0.17 0.012 60)",
+            color: nearbyActive
+              ? "oklch(0.09 0.005 60)"
+              : "oklch(0.65 0.07 80)",
+            border: nearbyActive
+              ? "1px solid oklch(0.78 0.12 80)"
+              : "1px solid oklch(0.28 0.04 75 / 0.6)",
+            fontWeight: nearbyActive ? 700 : 400,
+          }}
+        >
+          {gpsLoading ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : (
+            <Navigation className="w-3 h-3" />
+          )}
+          पास के सैलून
+        </button>
+      </div>
+
+      {/* Results count + clear */}
+      <div className="flex items-center justify-between">
+        <h2
+          className="font-semibold text-sm"
+          style={{ color: "oklch(0.97 0.015 80)" }}
+        >
+          {hasAnyFilter
+            ? `${filtered.length} सैलून मिले`
+            : `सभी सैलून (${salons.length})`}
+        </h2>
+        {hasAnyFilter && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchText("");
+              setRatingFilter(0);
+              setServiceFilter("");
+              setNearbyActive(false);
+              setUserLocation(null);
+            }}
+            data-ocid="salons.clear_filters"
+            className="text-xs flex items-center gap-1"
+            style={{ color: "oklch(0.78 0.12 80)" }}
+          >
+            <X className="w-3 h-3" />
+            फ़िल्टर हटाएं
+          </button>
+        )}
+      </div>
+
+      {/* Service filter note */}
+      {serviceFilter && (
+        <div
+          className="rounded-lg px-3 py-2 text-xs"
+          style={{
+            background: "oklch(0.78 0.12 80 / 0.08)",
+            border: "1px solid oklch(0.78 0.12 80 / 0.2)",
+            color: "oklch(0.78 0.12 80)",
+          }}
+        >
+          💡 "{serviceFilter}" वाले सैलून देखने के लिए सैलून खोलकर सेवाएं चेक करें
+        </div>
+      )}
+
+      {filtered.length === 0 ? (
         <div className="text-center py-12" data-ocid="salons.empty_state">
           <Scissors
             className="w-10 h-10 mx-auto mb-3"
             style={{ color: "oklch(0.4 0.03 70)" }}
           />
-          <p style={{ color: "oklch(0.55 0.04 80)" }}>अभी कोई सैलून उपलब्ध नहीं</p>
+          <p style={{ color: "oklch(0.55 0.04 80)" }}>
+            {hasAnyFilter ? "कोई सैलून नहीं मिला" : "अभी कोई सैलून उपलब्ध नहीं"}
+          </p>
+          {hasAnyFilter && (
+            <p className="text-xs mt-1" style={{ color: "oklch(0.4 0.03 70)" }}>
+              फ़िल्टर बदलकर दोबारा कोशिश करें
+            </p>
+          )}
         </div>
       ) : (
-        salons.map((salon, idx) => {
+        filtered.map((salon, idx) => {
           const { avg, count } = getAverageRating(salon.id.toString());
           const isTopRated = avg >= 4.5 && count >= 1;
           return (
@@ -686,8 +957,8 @@ function SalonListTab({
                       style={{ color: "oklch(0.78 0.12 80)" }}
                     />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p
                         className="font-semibold text-sm"
                         style={{ color: "oklch(0.97 0.015 80)" }}
@@ -706,6 +977,19 @@ function SalonListTab({
                           🏆 टॉप रेटेड
                         </Badge>
                       )}
+                      {/* Distance badge */}
+                      {nearbyActive && salon.distKm !== undefined && (
+                        <Badge
+                          className="text-xs px-1.5 py-0"
+                          style={{
+                            background: "oklch(0.7 0.15 295 / 0.12)",
+                            color: "oklch(0.75 0.15 295)",
+                            border: "1px solid oklch(0.7 0.15 295 / 0.3)",
+                          }}
+                        >
+                          📍 {salon.distKm.toFixed(1)} km
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 mt-0.5">
                       <MapPin
@@ -719,7 +1003,6 @@ function SalonListTab({
                         {salon.city}
                       </p>
                     </div>
-                    {/* Rating display */}
                     {count > 0 ? (
                       <div className="flex items-center gap-1 mt-0.5">
                         <span
@@ -747,7 +1030,7 @@ function SalonListTab({
                     )}
                     {salon.address && (
                       <p
-                        className="text-xs mt-0.5"
+                        className="text-xs mt-0.5 truncate max-w-[200px]"
                         style={{ color: "oklch(0.45 0.03 70)" }}
                       >
                         {salon.address}
@@ -755,7 +1038,7 @@ function SalonListTab({
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   {salon.phone && (
                     <span
                       className="text-xs"
@@ -1043,6 +1326,7 @@ function AppointmentCard({
               tag: "customer-turn-notification",
               requireInteraction: true,
               silent: false,
+              vibrate: [200, 100, 200],
             } as NotificationOptions);
           })
           .catch(() => {});
@@ -1117,7 +1401,6 @@ function AppointmentCard({
           </div>
         )}
 
-        {/* Rating section for completed appointments */}
         {appt.status === "completed" && (
           <div
             className="mt-3 pt-3"

@@ -1,0 +1,270 @@
+type UserRole = 
+ variant {
+   admin;
+   guest;
+   user;
+ };
+type SubscriptionHistory = 
+ record {
+   approvedAt: int;
+   discountPercent: float64;
+   endDate: int;
+   finalPrice: float64;
+   id: nat;
+   originalPrice: float64;
+   ownerPhone: text;
+   planDays: nat;
+   planName: text;
+   salonId: nat;
+   salonName: text;
+   savings: float64;
+   startDate: int;
+   transactionId: text;
+ };
+type SubRequest = 
+ record {
+   approvedAt: int;
+   discountPercent: float64;
+   finalPrice: float64;
+   id: nat;
+   originalPrice: float64;
+   ownerPhone: text;
+   planDays: nat;
+   planName: text;
+   requestTime: int;
+   salonName: text;
+   savings: float64;
+   screenshotBase64: text;
+   status: text;
+ };
+type ServiceWithId = 
+ record {
+   durationMinutes: nat;
+   id: nat;
+   name: text;
+   price: float64;
+   salonId: nat;
+ };
+type ServiceSession = 
+ record {
+   appointmentId: nat;
+   durationMinutes: nat;
+   startTime: int;
+ };
+type SalonWithId = 
+ record {
+   address: text;
+   city: text;
+   id: nat;
+   isActive: bool;
+   latitude: opt float64;
+   longitude: opt float64;
+   name: text;
+   ownerPhone: text;
+   pendingApproval: bool;
+   phone: text;
+   subscriptionActive: bool;
+   trialDays: nat;
+   trialStartDate: int;
+ };
+type SalonPhoto = 
+ record {
+   id: nat;
+   ownerPhone: text;
+   salonId: nat;
+   uploadedAt: int;
+   url: text;
+ };
+type RevenueStats = 
+ record {
+   monthlyRevenue: float64;
+   perSalon: vec record {
+                   nat;
+                   text;
+                   float64;
+                 };
+   totalRevenue: float64;
+ };
+type QueueScheduleEntry = 
+ record {
+   appointmentId: nat;
+   customerName: text;
+   estimatedStartTime: int;
+   queueNumber: nat;
+   serviceName: text;
+ };
+type PushSubscription = 
+ record {
+   auth: text;
+   endpoint: text;
+   p256dh: text;
+ };
+type PlanPricing = 
+ record {
+   discountPercent: float64;
+   originalPrice: float64;
+   planDays: nat;
+   planName: text;
+ };
+type OwnerRevenueSummary = 
+ record {
+   completedAppointments: nat;
+   monthlyEarnings: float64;
+   totalAppointments: nat;
+   totalEarnings: float64;
+ };
+type DashboardStats = 
+ record {
+   active: nat;
+   expired: nat;
+   pending: nat;
+   total: nat;
+ };
+type CustomerProfile = 
+ record {
+   name: text;
+   phone: text;
+ };
+type AppointmentWithId = 
+ record {
+   createdAt: int;
+   customerName: text;
+   customerPhone: text;
+   date: text;
+   id: nat;
+   queueNumber: nat;
+   salonId: nat;
+   serviceName: text;
+   servicePrice: float64;
+   status: text;
+ };
+service : {
+  _initializeAccessControl: () -> ();
+  addSalonServiceByPhone: (ownerPhone: text, salonId: nat, name: text, price:
+   float64, durationMinutes: nat) -> (nat);
+  adminApproveSalon: (email: text, passwordHash: text, salonId: nat) -> ();
+  adminApproveSubRequest: (email: text, passwordHash: text, requestId:
+   nat) -> (bool);
+  adminExpireOldSubRequests: (email: text, passwordHash: text) -> (nat);
+  adminGetAllAppointmentsForBackup: (email: text, passwordHash: text) ->
+   (vec AppointmentWithId) query;
+  adminGetAllCustomersForBackup: (email: text, passwordHash: text) ->
+   (vec CustomerProfile) query;
+  adminGetAllPlanPricings: (email: text, passwordHash: text) ->
+   (vec PlanPricing) query;
+  adminGetAllSalons: (email: text, passwordHash: text) ->
+   (vec SalonWithId) query;
+  adminGetAllSalonsForBackup: (email: text, passwordHash: text) ->
+   (vec SalonWithId) query;
+  adminGetAllServicesForBackup: (email: text, passwordHash: text) ->
+   (vec ServiceWithId) query;
+  adminGetAllSubRequests: (email: text, passwordHash: text) ->
+   (vec SubRequest) query;
+  adminGetDashboardStats: (email: text, passwordHash: text) ->
+   (DashboardStats) query;
+  adminGetDefaultTrialDays: (email: text, passwordHash: text) -> (nat) query;
+  adminGetNextIdsForBackup: (email: text, passwordHash: text) -> (nat, 
+   nat, nat) query;
+  adminGetOwnerPhoneMapForBackup: (email: text, passwordHash: text) ->
+   (vec record {
+          text;
+          nat;
+        }) query;
+  adminGetPendingSalons: (email: text, passwordHash: text) ->
+   (vec SalonWithId) query;
+  adminGetPendingSubRequests: (email: text, passwordHash: text) ->
+   (vec SubRequest) query;
+  adminGetRevenueStats: (email: text, passwordHash: text) ->
+   (RevenueStats) query;
+  adminGetSubHistory: (email: text, passwordHash: text) ->
+   (vec SubscriptionHistory) query;
+  adminGetSubRequestEarnings: (email: text, passwordHash: text) -> (float64,
+   float64, nat) query;
+  adminGetSubscriptionPrice: (email: text, passwordHash: text) ->
+   (float64) query;
+  adminLogin: (email: text, passwordHash: text) -> (bool) query;
+  adminPasswordIsSet: () -> (bool) query;
+  adminProcessTrialExpirations: (email: text, passwordHash: text) -> (nat);
+  adminRejectSalon: (email: text, passwordHash: text, salonId: nat) -> ();
+  adminRejectSubRequest: (email: text, passwordHash: text, requestId: 
+   nat) -> (bool);
+  adminResetOwnerPassword: (email: text, passwordHash: text, ownerPhone:
+   text, newPasswordHash: text) -> (bool);
+  adminRestoreAllData: (email: text, passwordHash: text, salons:
+   vec SalonWithId, svcs: vec ServiceWithId, appts: vec AppointmentWithId,
+   custs: vec CustomerProfile, ownerPhoneMap: vec record {
+                                                    text;
+                                                    nat;
+                                                  }, nSalonId: nat,
+   nServiceId: nat, nAppointmentId: nat) -> ();
+  adminSetDefaultTrialDays: (email: text, passwordHash: text, days: nat) ->
+   ();
+  adminSetPassword: (email: text, passwordHash: text) -> (bool);
+  adminSetPlanPricing: (email: text, passwordHash: text, planName: text,
+   originalPrice: float64, discountPercent: float64) -> ();
+  adminSetSalonActive: (email: text, passwordHash: text, salonId: nat,
+   active: bool) -> ();
+  adminSetSalonSubscription: (email: text, passwordHash: text, salonId: 
+   nat, active: bool) -> ();
+  adminSetSalonTrialDays: (email: text, passwordHash: text, salonId: 
+   nat, days: nat) -> ();
+  adminSetSubscriptionPrice: (email: text, passwordHash: text, price:
+   float64) -> ();
+  assignCallerUserRole: (user: principal, role: UserRole) -> ();
+  bookAppointmentByPhone: (customerPhone: text, salonId: nat, customerName:
+   text, serviceName: text, date: text) -> (nat);
+  clearServiceSession: (ownerPhone: text) -> ();
+  deleteSalonPhoto: (ownerPhone: text, passwordHash: text, photoId: nat) ->
+   (bool);
+  deleteSalonServiceByPhone: (ownerPhone: text, salonId: nat, serviceId:
+   nat) -> ();
+  getAllActiveSalons: () -> (vec SalonWithId) query;
+  getCallerUserRole: () -> (UserRole) query;
+  getCurrentServiceSession: (salonId: nat) -> (opt ServiceSession) query;
+  getMyAppointmentsByPhone: (customerPhone: text) ->
+   (vec AppointmentWithId) query;
+  getMyCustomerProfileByPhone: (phone: text) -> (opt CustomerProfile) query;
+  getMySubHistory: (ownerPhone: text) -> (vec SubscriptionHistory) query;
+  getMySubRequests: (ownerPhone: text) -> (vec SubRequest) query;
+  getOwnerRevenueSummaryByPhone: (ownerPhone: text) ->
+   (OwnerRevenueSummary) query;
+  getOwnerSalonByPhone: (ownerPhone: text) -> (opt SalonWithId) query;
+  getPendingNotifications: (salonId: nat, date: text) -> (vec nat);
+  getPlanPricings: () -> (vec PlanPricing) query;
+  getPushSubscription: (requestorPhone: text, customerPhone: text) ->
+   (opt PushSubscription) query;
+  getQueueInfo: (appointmentId: nat) -> (nat, nat) query;
+  getQueueScheduleForSalon: (salonId: nat, date: text) ->
+   (vec QueueScheduleEntry) query;
+  getSalonAppointmentsForDateByPhone: (ownerPhone: text, salonId: nat, date:
+   text) -> (vec AppointmentWithId) query;
+  getSalonById: (id: nat) -> (opt SalonWithId) query;
+  getSalonPhotos: (salonId: nat) -> (vec SalonPhoto) query;
+  getSalonServices: (salonId: nat) -> (vec ServiceWithId) query;
+  isCallerAdmin: () -> (bool) query;
+  markNotificationSent: (ownerPhone: text, appointmentId: nat) -> ();
+  registerSalonByPhone: (ownerPhone: text, name: text, address: text, phone:
+   text, city: text) -> (nat);
+  salonOwnerLogin: (ownerPhone: text, passwordHash: text) -> (text,
+   opt SalonWithId) query;
+  salonOwnerRegisterV2: (ownerPhone: text, salonName: text, services:
+   vec text, passwordHash: text) -> (text);
+  salonOwnerSetPassword: (ownerPhone: text, passwordHash: text) -> (bool);
+  saveCustomerProfileByPhone: (phone: text, name: text) -> ();
+  savePushSubscription: (customerPhone: text, endpoint: text, p256dh: 
+   text, auth: text) -> ();
+  startServiceSession: (ownerPhone: text, appointmentId: nat,
+   durationMinutes: nat) -> ();
+  submitSubscriptionRequest: (ownerPhone: text, salonName: text, planName:
+   text, planDays: nat, originalPrice: float64, discountPercent: float64,
+   finalPrice: float64, savings: float64, screenshotBase64: text) -> (
+   nat);
+  updateAppointmentStatusByPhone: (ownerPhone: text, appointmentId: nat,
+   newStatus: text) -> ();
+  updateOwnerSalonByPhone: (ownerPhone: text, name: text, address: text,
+   phone: text, city: text) -> ();
+  updateSalonLocation: (ownerPhone: text, passwordHash: text, latitude:
+   float64, longitude: float64) -> (bool);
+  uploadSalonPhoto: (ownerPhone: text, passwordHash: text, url: text) ->
+   (nat);
+}

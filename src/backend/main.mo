@@ -1,5 +1,5 @@
-import AccessControl "authorization/access-control";
-import MixinAuthorization "authorization/MixinAuthorization";
+import AccessControl "mo:caffeineai-authorization/access-control";
+import MixinAuthorization "mo:caffeineai-authorization/MixinAuthorization";
 import Map "mo:core/Map";
 import Nat "mo:core/Nat";
 import Text "mo:core/Text";
@@ -9,7 +9,9 @@ import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
 import Int "mo:core/Int";
 import Iter "mo:core/Iter";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   // ================================================================
   // MIGRATION STUBS — kept for upgrade compatibility only
@@ -73,6 +75,19 @@ actor {
     trialStartDate : Int;
     subscriptionActive : Bool;
     trialDays : Nat;
+    latitude : ?Float;
+    longitude : ?Float;
+  };
+
+  // V3 migration: old profile without location fields
+  type SalonProfileV3Old = {
+    name : Text; address : Text; phone : Text; city : Text;
+    ownerPhone : Text;
+    isActive : Bool;
+    pendingApproval : Bool;
+    trialStartDate : Int;
+    subscriptionActive : Bool;
+    trialDays : Nat;
   };
 
   public type SalonWithId = {
@@ -83,6 +98,8 @@ actor {
     trialStartDate : Int;
     subscriptionActive : Bool;
     trialDays : Nat;
+    latitude : ?Float;
+    longitude : ?Float;
   };
 
   public type SalonService  = { salonId : Nat; name : Text; price : Float; durationMinutes : Nat };
@@ -209,7 +226,8 @@ actor {
   var stableNextAppointmentId : Nat = 1;
   var stableDefaultTrialDays : Nat = 7;
   var stablePlatformPrice : Float = 149.0;
-  var stableSalons : [(Nat, SalonProfile)] = [];
+  var stableSalons : [(Nat, SalonProfileV3Old)] = [];
+  var stableSalonsOld : [(Nat, SalonProfileV3Old)] = [];
   var stableServices : [(Nat, SalonService)] = [];
   var stableAppointments : [(Nat, Appointment)] = [];
   var stableCustomers : [(Text, CustomerProfile)] = [];
@@ -293,7 +311,8 @@ actor {
     { id; name = s.name; address = s.address; phone = s.phone;
       city = s.city; ownerPhone = s.ownerPhone; isActive = s.isActive;
       pendingApproval = s.pendingApproval; trialStartDate = s.trialStartDate;
-      subscriptionActive = s.subscriptionActive; trialDays = s.trialDays };
+      subscriptionActive = s.subscriptionActive; trialDays = s.trialDays;
+      latitude = s.latitude; longitude = s.longitude };
   };
 
   func countApprovedSalons() : Nat {
@@ -412,6 +431,7 @@ actor {
           ownerPhone = s.ownerPhone; isActive = true;
           pendingApproval = false; trialStartDate = Time.now();
           subscriptionActive = false; trialDays = s.trialDays;
+          latitude = s.latitude; longitude = s.longitude;
         });
       };
     };
@@ -438,6 +458,7 @@ actor {
           ownerPhone = s.ownerPhone; isActive = active;
           pendingApproval = s.pendingApproval; trialStartDate = s.trialStartDate;
           subscriptionActive = s.subscriptionActive; trialDays = s.trialDays;
+          latitude = s.latitude; longitude = s.longitude;
         });
       };
     };
@@ -453,6 +474,7 @@ actor {
           ownerPhone = s.ownerPhone; isActive = s.isActive;
           pendingApproval = s.pendingApproval; trialStartDate = s.trialStartDate;
           subscriptionActive = active; trialDays = s.trialDays;
+          latitude = s.latitude; longitude = s.longitude;
         });
       };
     };
@@ -480,6 +502,7 @@ actor {
           ownerPhone = s.ownerPhone; isActive = s.isActive;
           pendingApproval = s.pendingApproval; trialStartDate = s.trialStartDate;
           subscriptionActive = s.subscriptionActive; trialDays = days;
+          latitude = s.latitude; longitude = s.longitude;
         });
       };
     };
@@ -495,6 +518,7 @@ actor {
           ownerPhone = s.ownerPhone; isActive = false;
           pendingApproval = false; trialStartDate = s.trialStartDate;
           subscriptionActive = false; trialDays = s.trialDays;
+          latitude = s.latitude; longitude = s.longitude;
         });
         count += 1;
       };
@@ -611,6 +635,7 @@ actor {
         ownerPhone = s.ownerPhone; isActive = s.isActive;
         pendingApproval = s.pendingApproval; trialStartDate = s.trialStartDate;
         subscriptionActive = s.subscriptionActive; trialDays = s.trialDays;
+        latitude = s.latitude; longitude = s.longitude;
       });
     };
     for (svc in svcs.vals()) {
@@ -660,6 +685,7 @@ actor {
       name = salonName; address = ""; phone = ownerPhone; city = "";
       ownerPhone; isActive = false; pendingApproval = true;
       trialStartDate = 0; subscriptionActive = false; trialDays = defaultTrialDays;
+      latitude = null; longitude = null;
     });
     ownerPhoneSalonMap.add(ownerPhone, id);
     ownerPasswordMap.add(ownerPhone, passwordHash);
@@ -749,6 +775,7 @@ actor {
       name; address; phone; city;
       ownerPhone; isActive = false; pendingApproval = true;
       trialStartDate = 0; subscriptionActive = false; trialDays = defaultTrialDays;
+      latitude = null; longitude = null;
     });
     ownerPhoneSalonMap.add(ownerPhone, id);
     id;
@@ -766,7 +793,35 @@ actor {
               ownerPhone = s.ownerPhone; isActive = s.isActive;
               pendingApproval = s.pendingApproval; trialStartDate = s.trialStartDate;
               subscriptionActive = s.subscriptionActive; trialDays = s.trialDays;
+              latitude = s.latitude; longitude = s.longitude;
             });
+          };
+        };
+      };
+    };
+  };
+
+  public func updateSalonLocation(ownerPhone : Text, passwordHash : Text, latitude : Float, longitude : Float) : async Bool {
+    switch (ownerPasswordMap.get(ownerPhone)) {
+      case (null) { return false };
+      case (?stored) {
+        if (stored != passwordHash) { return false };
+      };
+    };
+    switch (ownerPhoneSalonMap.get(ownerPhone)) {
+      case (null) { return false };
+      case (?salonId) {
+        switch (salonProfilesV3.get(salonId)) {
+          case (null) { return false };
+          case (?s) {
+            salonProfilesV3.add(salonId, {
+              name = s.name; address = s.address; phone = s.phone; city = s.city;
+              ownerPhone = s.ownerPhone; isActive = s.isActive;
+              pendingApproval = s.pendingApproval; trialStartDate = s.trialStartDate;
+              subscriptionActive = s.subscriptionActive; trialDays = s.trialDays;
+              latitude = ?latitude; longitude = ?longitude;
+            });
+            true
           };
         };
       };
@@ -1203,6 +1258,7 @@ actor {
                   ownerPhone = s.ownerPhone; isActive = true;
                   pendingApproval = false; trialStartDate = s.trialStartDate;
                   subscriptionActive = true; trialDays = s.trialDays;
+                  latitude = s.latitude; longitude = s.longitude;
                 });
 
                 let startDate = Time.now();
@@ -1376,7 +1432,15 @@ actor {
     stableNextAppointmentId := nextAppointmentId;
     stableDefaultTrialDays := defaultTrialDays;
     stablePlatformPrice := platformSubscriptionPrice;
-    stableSalons := salonProfilesV3.entries().toArray();
+    stableSalons := salonProfilesV3.entries().toArray().map(func((k, v)) {
+      (k, {
+        name = v.name; address = v.address; phone = v.phone; city = v.city;
+        ownerPhone = v.ownerPhone; isActive = v.isActive;
+        pendingApproval = v.pendingApproval; trialStartDate = v.trialStartDate;
+        subscriptionActive = v.subscriptionActive; trialDays = v.trialDays;
+      })
+    });
+    stableSalonsOld := [];
     stableServices := salonServicesList.entries().toArray();
     stableAppointments := salonAppointmentsV3.entries().toArray();
     stableCustomers := custProfilesByPhone.entries().toArray();
@@ -1395,7 +1459,26 @@ actor {
   };
 
   system func postupgrade() {
-    for ((k, v) in stableSalons.vals()) { salonProfilesV3.add(k, v) };
+    // Migrate old-format salons (without lat/lon) if present
+    for ((k, v) in stableSalonsOld.vals()) {
+      salonProfilesV3.add(k, {
+        name = v.name; address = v.address; phone = v.phone; city = v.city;
+        ownerPhone = v.ownerPhone; isActive = v.isActive;
+        pendingApproval = v.pendingApproval; trialStartDate = v.trialStartDate;
+        subscriptionActive = v.subscriptionActive; trialDays = v.trialDays;
+        latitude = null; longitude = null;
+      });
+    };
+    // Load new-format salons (stored as SalonProfileV3Old, add null lat/lon)
+    for ((k, v) in stableSalons.vals()) {
+      salonProfilesV3.add(k, {
+        name = v.name; address = v.address; phone = v.phone; city = v.city;
+        ownerPhone = v.ownerPhone; isActive = v.isActive;
+        pendingApproval = v.pendingApproval; trialStartDate = v.trialStartDate;
+        subscriptionActive = v.subscriptionActive; trialDays = v.trialDays;
+        latitude = null; longitude = null;
+      });
+    };
     for ((k, v) in stableServices.vals()) { salonServicesList.add(k, v) };
     for ((k, v) in stableAppointments.vals()) { salonAppointmentsV3.add(k, v) };
     for ((k, v) in stableCustomers.vals()) { custProfilesByPhone.add(k, v) };
@@ -1411,6 +1494,7 @@ actor {
     nextSubRequestId := stableNextSubRequestId;
     nextSubHistoryId := stableNextSubHistoryId;
     stableSalons := [];
+    stableSalonsOld := [];
     stableServices := [];
     stableAppointments := [];
     stableCustomers := [];

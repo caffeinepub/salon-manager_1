@@ -58,8 +58,16 @@ export interface RevenueStats {
   'totalRevenue' : number,
   'monthlyRevenue' : number,
 }
+export interface SalonPhoto {
+  'id' : bigint,
+  'url' : string,
+  'ownerPhone' : string,
+  'salonId' : bigint,
+  'uploadedAt' : bigint,
+}
 export interface SalonWithId {
   'id' : bigint,
+  'latitude' : [] | [number],
   'trialDays' : bigint,
   'city' : string,
   'name' : string,
@@ -67,6 +75,7 @@ export interface SalonWithId {
   'pendingApproval' : boolean,
   'isActive' : boolean,
   'subscriptionActive' : boolean,
+  'longitude' : [] | [number],
   'address' : string,
   'phone' : string,
   'trialStartDate' : bigint,
@@ -118,7 +127,7 @@ export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
 export interface _SERVICE {
-  '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
+  '_initializeAccessControl' : ActorMethod<[], undefined>,
   'addSalonServiceByPhone' : ActorMethod<
     [string, bigint, string, number, bigint],
     bigint
@@ -222,6 +231,7 @@ export interface _SERVICE {
     bigint
   >,
   'clearServiceSession' : ActorMethod<[string], undefined>,
+  'deleteSalonPhoto' : ActorMethod<[string, string, bigint], boolean>,
   'deleteSalonServiceByPhone' : ActorMethod<
     [string, bigint, bigint],
     undefined
@@ -251,6 +261,7 @@ export interface _SERVICE {
     Array<AppointmentWithId>
   >,
   'getSalonById' : ActorMethod<[bigint], [] | [SalonWithId]>,
+  'getSalonPhotos' : ActorMethod<[bigint], Array<SalonPhoto>>,
   'getSalonServices' : ActorMethod<[bigint], Array<ServiceWithId>>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'markNotificationSent' : ActorMethod<[string, bigint], undefined>,
@@ -285,6 +296,11 @@ export interface _SERVICE {
     [string, string, string, string, string],
     undefined
   >,
+  'updateSalonLocation' : ActorMethod<
+    [string, string, number, number],
+    boolean
+  >,
+  'uploadSalonPhoto' : ActorMethod<[string, string, string], bigint>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

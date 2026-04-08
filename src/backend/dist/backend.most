@@ -1,0 +1,471 @@
+// Version: 3.0.0
+type Appointment__384223623 =
+  {
+    createdAt : Int;
+    customerName : Text;
+    customerPhone : Text;
+    date : Text;
+    queueNumber : Nat;
+    salonId : Nat;
+    serviceName : Text;
+    servicePrice : Float;
+    status : Text
+  };
+type CustomerProfile__89315307 = {name : Text; phone : Text};
+type Data__791452850<K, V> =
+  {var count : Nat__490723111; kvs : [var ?(K, V)]};
+type Internal__8484328<K, V> =
+  {children : [var ?Node__46230540<K, V>]; data : Data__791452850<K, V>};
+type Leaf__809889148<K, V> = {data : Data__791452850<K, V>};
+type Map__158565046<K, V> = Map__297112838<K, V>;
+type Map__297112838<K, V> =
+  {var root : Node__46230540<K, V>; var size : Nat__490723111};
+type Map__605269027<K, V> = Map__158565046<K, V>;
+type Nat__490723111 = Nat__920180692;
+type Nat__920180692 = Nat;
+type Node__46230540<K, V> =
+  {#internal : Internal__8484328<K, V>; #leaf : Leaf__809889148<K, V>};
+type OldAppointmentStatus__63513748 =
+  {#cancelled; #completed; #confirmed; #pending};
+type OldAppointment__121754600 =
+  {
+    customerName : Text;
+    date : Text;
+    notes : ?Text;
+    price : Float;
+    serviceName : Text;
+    staffName : Text;
+    status : OldAppointmentStatus__63513748;
+    time : Text
+  };
+type OldCustomerProfile__876907676 = {name : Text; phone : Text};
+type OldCustomer__864671849 =
+  {email : Text; name : Text; notes : ?Text; phone : Text};
+type OldSalonAppointment__853904832 =
+  {
+    createdAt : Int;
+    customerName : Text;
+    customerPhone : Text;
+    customerPrincipal : Principal;
+    date : Text;
+    queueNumber : Nat;
+    salonId : Nat;
+    serviceName : Text;
+    status : Text
+  };
+type OldSalonProfileV2__953231965 =
+  {
+    address : Text;
+    city : Text;
+    isActive : Bool;
+    name : Text;
+    ownerPrincipal : Principal;
+    pendingApproval : Bool;
+    phone : Text;
+    subscriptionActive : Bool;
+    trialDays : Nat;
+    trialStartDate : Int
+  };
+type OldSalonProfileV3__277854179 =
+  {
+    address : Text;
+    city : Text;
+    isActive : Bool;
+    name : Text;
+    ownerPhone : Text;
+    pendingApproval : Bool;
+    phone : Text;
+    subscriptionActive : Bool;
+    trialDays : Nat;
+    trialStartDate : Int
+  };
+type OldSalonProfile__511935185 =
+  {
+    address : Text;
+    city : Text;
+    isActive : Bool;
+    name : Text;
+    ownerPrincipal : Principal;
+    phone : Text;
+    subscriptionActive : Bool;
+    trialStartDate : Int
+  };
+type OldService__603858918 =
+  {description : ?Text; duration : Nat; name : Text; price : Float};
+type OldStaff__199088572 =
+  {email : Text; name : Text; phone : Text; role : Text; specialty : Text};
+type OldUserProfile__769450759 = {name : Text};
+type PlanPricing__930644086 =
+  {
+    discountPercent : Float;
+    originalPrice : Float;
+    planDays : Nat;
+    planName : Text
+  };
+type PushSubscription__1071553013 =
+  {auth : Text; endpoint : Text; p256dh : Text};
+type SalonPhoto__663310608 =
+  {id : Nat; ownerPhone : Text; salonId : Nat; uploadedAt : Int; url : Text};
+type SalonProfileV3Old__506149052 =
+  {
+    address : Text;
+    city : Text;
+    isActive : Bool;
+    name : Text;
+    ownerPhone : Text;
+    pendingApproval : Bool;
+    phone : Text;
+    subscriptionActive : Bool;
+    trialDays : Nat;
+    trialStartDate : Int
+  };
+type SalonProfile__241275880 =
+  {
+    address : Text;
+    city : Text;
+    isActive : Bool;
+    latitude : ?Float;
+    longitude : ?Float;
+    name : Text;
+    ownerPhone : Text;
+    pendingApproval : Bool;
+    phone : Text;
+    subscriptionActive : Bool;
+    trialDays : Nat;
+    trialStartDate : Int
+  };
+type SalonService__369238394 =
+  {durationMinutes : Nat; name : Text; price : Float; salonId : Nat};
+type ServiceSession__109682290 =
+  {appointmentId : Nat; durationMinutes : Nat; startTime : Int};
+type SubRequest__98216664 =
+  {
+    approvedAt : Int;
+    discountPercent : Float;
+    finalPrice : Float;
+    id : Nat;
+    originalPrice : Float;
+    ownerPhone : Text;
+    planDays : Nat;
+    planName : Text;
+    requestTime : Int;
+    salonName : Text;
+    savings : Float;
+    screenshotBase64 : Text;
+    status : Text
+  };
+type SubscriptionHistory__407524189 =
+  {
+    approvedAt : Int;
+    discountPercent : Float;
+    endDate : Int;
+    finalPrice : Float;
+    id : Nat;
+    originalPrice : Float;
+    ownerPhone : Text;
+    planDays : Nat;
+    planName : Text;
+    salonId : Nat;
+    salonName : Text;
+    savings : Float;
+    startDate : Int;
+    transactionId : Text
+  };
+type UserRole__1054455867 = {#admin; #guest; #user};
+actor ({
+  stable ADMIN_EMAIL : Text;
+  stable MAX_SHOPS : Nat;
+  stable accessControlState :
+    {
+      var adminAssigned : Bool;
+      userRoles : Map__605269027<Principal, UserRole__1054455867>
+    };
+  stable var adminPasswordHash : ?Text;
+  stable appointments :
+    {
+      var root : Node__46230540<Nat, OldAppointment__121754600>;
+      var size : Nat__490723111
+    };
+  stable custProfiles :
+    {
+      var root : Node__46230540<Principal, OldCustomerProfile__876907676>;
+      var size : Nat__490723111
+    };
+  stable custProfilesByPhone :
+    {
+      var root : Node__46230540<Text, CustomerProfile__89315307>;
+      var size : Nat__490723111
+    };
+  stable customers :
+    {
+      var root : Node__46230540<Nat, OldCustomer__864671849>;
+      var size : Nat__490723111
+    };
+  stable var defaultTrialDays : Nat;
+  stable var migrationDone : Bool;
+  stable var nextAppointmentId : Nat;
+  stable var nextCustomerId : Nat;
+  stable var nextPhotoId : Nat;
+  stable var nextSalonId : Nat;
+  stable var nextServiceId : Nat;
+  stable var nextStaffId : Nat;
+  stable var nextSubHistoryId : Nat;
+  stable var nextSubRequestId : Nat;
+  stable notifiedAppointments :
+    {var root : Node__46230540<Nat, Bool>; var size : Nat__490723111};
+  stable ownerPasswordMap :
+    {var root : Node__46230540<Text, Text>; var size : Nat__490723111};
+  stable ownerPhoneSalonMap :
+    {var root : Node__46230540<Text, Nat>; var size : Nat__490723111};
+  stable ownerSalonMap :
+    {var root : Node__46230540<Principal, Nat>; var size : Nat__490723111};
+  stable planPricingsMap :
+    {
+      var root : Node__46230540<Text, PlanPricing__930644086>;
+      var size : Nat__490723111
+    };
+  stable var platformSubscriptionPrice : Float;
+  stable pushSubscriptionsByPhone :
+    {
+      var root : Node__46230540<Text, PushSubscription__1071553013>;
+      var size : Nat__490723111
+    };
+  stable rolePrefMap :
+    {var root : Node__46230540<Principal, Text>; var size : Nat__490723111};
+  stable salonAppointments :
+    {
+      var root : Node__46230540<Nat, OldSalonAppointment__853904832>;
+      var size : Nat__490723111
+    };
+  stable salonAppointmentsV3 :
+    {
+      var root : Node__46230540<Nat, Appointment__384223623>;
+      var size : Nat__490723111
+    };
+  stable salonPhotosMap :
+    {
+      var root : Node__46230540<Nat, SalonPhoto__663310608>;
+      var size : Nat__490723111
+    };
+  stable salonProfiles :
+    {
+      var root : Node__46230540<Nat, OldSalonProfile__511935185>;
+      var size : Nat__490723111
+    };
+  stable salonProfilesV2 :
+    {
+      var root : Node__46230540<Nat, OldSalonProfileV2__953231965>;
+      var size : Nat__490723111
+    };
+  in salonProfilesV3 : Map__605269027<Nat, OldSalonProfileV3__277854179>;
+  stable salonServicesList :
+    {
+      var root : Node__46230540<Nat, SalonService__369238394>;
+      var size : Nat__490723111
+    };
+  stable salonTrialDaysMap :
+    {var root : Node__46230540<Nat, Nat>; var size : Nat__490723111};
+  stable serviceSessionsBySalon :
+    {
+      var root : Node__46230540<Nat, ServiceSession__109682290>;
+      var size : Nat__490723111
+    };
+  stable services :
+    {
+      var root : Node__46230540<Nat, OldService__603858918>;
+      var size : Nat__490723111
+    };
+  stable var stableAdminPasswordHash : ?Text;
+  stable var stableAppointments : [(Nat, Appointment__384223623)];
+  stable var stableCustomers : [(Text, CustomerProfile__89315307)];
+  stable var stableDefaultTrialDays : Nat;
+  stable var stableNextAppointmentId : Nat;
+  stable var stableNextPhotoId : Nat;
+  stable var stableNextSalonId : Nat;
+  stable var stableNextServiceId : Nat;
+  stable var stableNextSubHistoryId : Nat;
+  stable var stableNextSubRequestId : Nat;
+  stable var stableNotifiedAppointments : [Nat];
+  stable var stableOwnerPasswords : [(Text, Text)];
+  stable var stableOwnerPhoneMap : [(Text, Nat)];
+  stable var stablePhotos : [(Nat, SalonPhoto__663310608)];
+  stable var stablePlanPricings : [(Text, PlanPricing__930644086)];
+  stable var stablePlatformPrice : Float;
+  stable var stablePushSubscriptions : [(Text, PushSubscription__1071553013)];
+  stable var stableSalons : [(Nat, SalonProfileV3Old__506149052)];
+  stable var stableSalonsOld : [(Nat, SalonProfileV3Old__506149052)];
+  stable var stableServiceSessions : [(Nat, ServiceSession__109682290)];
+  stable var stableServices : [(Nat, SalonService__369238394)];
+  stable var stableSubHistory : [(Nat, SubscriptionHistory__407524189)];
+  stable var stableSubRequests : [(Nat, SubRequest__98216664)];
+  stable staff :
+    {
+      var root : Node__46230540<Nat, OldStaff__199088572>;
+      var size : Nat__490723111
+    };
+  stable subHistoryMap :
+    {
+      var root : Node__46230540<Nat, SubscriptionHistory__407524189>;
+      var size : Nat__490723111
+    };
+  stable subRequestsMap :
+    {
+      var root : Node__46230540<Nat, SubRequest__98216664>;
+      var size : Nat__490723111
+    };
+  stable userProfiles :
+    {
+      var root : Node__46230540<Principal, OldUserProfile__769450759>;
+      var size : Nat__490723111
+    }
+}, {
+  stable ADMIN_EMAIL : Text;
+  stable MAX_SHOPS : Nat;
+  stable accessControlState :
+    {
+      var adminAssigned : Bool;
+      userRoles : Map__605269027<Principal, UserRole__1054455867>
+    };
+  stable var adminPasswordHash : ?Text;
+  stable appointments :
+    {
+      var root : Node__46230540<Nat, OldAppointment__121754600>;
+      var size : Nat__490723111
+    };
+  stable custProfiles :
+    {
+      var root : Node__46230540<Principal, OldCustomerProfile__876907676>;
+      var size : Nat__490723111
+    };
+  stable custProfilesByPhone :
+    {
+      var root : Node__46230540<Text, CustomerProfile__89315307>;
+      var size : Nat__490723111
+    };
+  stable customers :
+    {
+      var root : Node__46230540<Nat, OldCustomer__864671849>;
+      var size : Nat__490723111
+    };
+  stable var defaultTrialDays : Nat;
+  stable var migrationDone : Bool;
+  stable var nextAppointmentId : Nat;
+  stable var nextCustomerId : Nat;
+  stable var nextPhotoId : Nat;
+  stable var nextSalonId : Nat;
+  stable var nextServiceId : Nat;
+  stable var nextStaffId : Nat;
+  stable var nextSubHistoryId : Nat;
+  stable var nextSubRequestId : Nat;
+  stable notifiedAppointments :
+    {var root : Node__46230540<Nat, Bool>; var size : Nat__490723111};
+  stable ownerPasswordMap :
+    {var root : Node__46230540<Text, Text>; var size : Nat__490723111};
+  stable ownerPhoneSalonMap :
+    {var root : Node__46230540<Text, Nat>; var size : Nat__490723111};
+  stable ownerSalonMap :
+    {var root : Node__46230540<Principal, Nat>; var size : Nat__490723111};
+  stable planPricingsMap :
+    {
+      var root : Node__46230540<Text, PlanPricing__930644086>;
+      var size : Nat__490723111
+    };
+  stable var platformSubscriptionPrice : Float;
+  stable pushSubscriptionsByPhone :
+    {
+      var root : Node__46230540<Text, PushSubscription__1071553013>;
+      var size : Nat__490723111
+    };
+  stable rolePrefMap :
+    {var root : Node__46230540<Principal, Text>; var size : Nat__490723111};
+  stable salonAppointments :
+    {
+      var root : Node__46230540<Nat, OldSalonAppointment__853904832>;
+      var size : Nat__490723111
+    };
+  stable salonAppointmentsV3 :
+    {
+      var root : Node__46230540<Nat, Appointment__384223623>;
+      var size : Nat__490723111
+    };
+  stable salonPhotosMap :
+    {
+      var root : Node__46230540<Nat, SalonPhoto__663310608>;
+      var size : Nat__490723111
+    };
+  stable salonProfiles :
+    {
+      var root : Node__46230540<Nat, OldSalonProfile__511935185>;
+      var size : Nat__490723111
+    };
+  stable salonProfilesV2 :
+    {
+      var root : Node__46230540<Nat, OldSalonProfileV2__953231965>;
+      var size : Nat__490723111
+    };
+  stable salonProfilesV3 :
+    {
+      var root : Node__46230540<Nat, SalonProfile__241275880>;
+      var size : Nat__490723111
+    };
+  stable salonServicesList :
+    {
+      var root : Node__46230540<Nat, SalonService__369238394>;
+      var size : Nat__490723111
+    };
+  stable salonTrialDaysMap :
+    {var root : Node__46230540<Nat, Nat>; var size : Nat__490723111};
+  stable serviceSessionsBySalon :
+    {
+      var root : Node__46230540<Nat, ServiceSession__109682290>;
+      var size : Nat__490723111
+    };
+  stable services :
+    {
+      var root : Node__46230540<Nat, OldService__603858918>;
+      var size : Nat__490723111
+    };
+  stable var stableAdminPasswordHash : ?Text;
+  stable var stableAppointments : [(Nat, Appointment__384223623)];
+  stable var stableCustomers : [(Text, CustomerProfile__89315307)];
+  stable var stableDefaultTrialDays : Nat;
+  stable var stableNextAppointmentId : Nat;
+  stable var stableNextPhotoId : Nat;
+  stable var stableNextSalonId : Nat;
+  stable var stableNextServiceId : Nat;
+  stable var stableNextSubHistoryId : Nat;
+  stable var stableNextSubRequestId : Nat;
+  stable var stableNotifiedAppointments : [Nat];
+  stable var stableOwnerPasswords : [(Text, Text)];
+  stable var stableOwnerPhoneMap : [(Text, Nat)];
+  stable var stablePhotos : [(Nat, SalonPhoto__663310608)];
+  stable var stablePlanPricings : [(Text, PlanPricing__930644086)];
+  stable var stablePlatformPrice : Float;
+  stable var stablePushSubscriptions : [(Text, PushSubscription__1071553013)];
+  stable var stableSalons : [(Nat, SalonProfileV3Old__506149052)];
+  stable var stableSalonsOld : [(Nat, SalonProfileV3Old__506149052)];
+  stable var stableServiceSessions : [(Nat, ServiceSession__109682290)];
+  stable var stableServices : [(Nat, SalonService__369238394)];
+  stable var stableSubHistory : [(Nat, SubscriptionHistory__407524189)];
+  stable var stableSubRequests : [(Nat, SubRequest__98216664)];
+  stable staff :
+    {
+      var root : Node__46230540<Nat, OldStaff__199088572>;
+      var size : Nat__490723111
+    };
+  stable subHistoryMap :
+    {
+      var root : Node__46230540<Nat, SubscriptionHistory__407524189>;
+      var size : Nat__490723111
+    };
+  stable subRequestsMap :
+    {
+      var root : Node__46230540<Nat, SubRequest__98216664>;
+      var size : Nat__490723111
+    };
+  stable userProfiles :
+    {
+      var root : Node__46230540<Principal, OldUserProfile__769450759>;
+      var size : Nat__490723111
+    }
+}) ;

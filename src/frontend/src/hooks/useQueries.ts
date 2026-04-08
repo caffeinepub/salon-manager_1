@@ -1,14 +1,71 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type {
-  AppointmentWithId,
-  CustomerProfile,
-  DashboardStats,
-  QueueScheduleEntry,
-  SalonWithId,
-  ServiceSession,
-  ServiceWithId,
-} from "../backend";
+
+// ─── Core data types (mirrors backend.d.ts) ─────────────────────────────────
+
+export interface AppointmentWithId {
+  id: bigint;
+  customerName: string;
+  status: string;
+  serviceName: string;
+  customerPhone: string;
+  date: string;
+  createdAt: bigint;
+  queueNumber: bigint;
+  servicePrice: number;
+  salonId: bigint;
+}
+
+export interface CustomerProfile {
+  name: string;
+  phone: string;
+  createdAt?: bigint;
+}
+
+export interface DashboardStats {
+  total: bigint;
+  active: bigint;
+  expired: bigint;
+  pending: bigint;
+}
+
+export interface QueueScheduleEntry {
+  customerName: string;
+  serviceName: string;
+  estimatedStartTime: bigint;
+  queueNumber: bigint;
+  appointmentId: bigint;
+}
+
+export interface SalonWithId {
+  id: bigint;
+  trialDays: bigint;
+  city: string;
+  name: string;
+  ownerPhone: string;
+  pendingApproval: boolean;
+  isActive: boolean;
+  subscriptionActive: boolean;
+  address: string;
+  phone: string;
+  trialStartDate: bigint;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export interface ServiceSession {
+  startTime: bigint;
+  durationMinutes: bigint;
+  appointmentId: bigint;
+}
+
+export interface ServiceWithId {
+  id: bigint;
+  name: string;
+  durationMinutes: bigint;
+  price: number;
+  salonId: bigint;
+}
 
 const ADMIN_EMAIL = "amitkrji498@gmail.com";
 function getAdminHash(): string {
@@ -74,16 +131,6 @@ export type AppointmentStatus =
   | "inprogress"
   | "completed"
   | "cancelled";
-
-export type {
-  DashboardStats,
-  QueueScheduleEntry,
-  SalonWithId,
-  ServiceSession,
-  ServiceWithId,
-  AppointmentWithId,
-  CustomerProfile,
-};
 
 // ============================================================
 // Admin hooks — ALL pass ADMIN_EMAIL + getAdminHash()
@@ -1193,5 +1240,31 @@ export function useDeleteSalonPhoto(ownerPhone: string) {
       ) as Promise<boolean>;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["salonPhotos"] }),
+  });
+}
+
+// ============================================================
+// Salon Location hook — for nearby filter
+// ============================================================
+
+export function useUpdateSalonLocation(ownerPhone: string) {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      passwordHash,
+      lat,
+      lng,
+    }: { passwordHash: string; lat: number; lng: number }) => {
+      if (!actor) throw new Error("Backend se connection nahi। पेज reload करें।");
+      return (actor as any).updateSalonLocation(
+        ownerPhone,
+        passwordHash,
+        lat,
+        lng,
+      ) as Promise<boolean>;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["mySalon", ownerPhone] }),
   });
 }

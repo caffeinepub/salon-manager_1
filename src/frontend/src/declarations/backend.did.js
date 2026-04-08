@@ -32,6 +32,7 @@ export const PlanPricing = IDL.Record({
 });
 export const SalonWithId = IDL.Record({
   'id' : IDL.Nat,
+  'latitude' : IDL.Opt(IDL.Float64),
   'trialDays' : IDL.Nat,
   'city' : IDL.Text,
   'name' : IDL.Text,
@@ -39,6 +40,7 @@ export const SalonWithId = IDL.Record({
   'pendingApproval' : IDL.Bool,
   'isActive' : IDL.Bool,
   'subscriptionActive' : IDL.Bool,
+  'longitude' : IDL.Opt(IDL.Float64),
   'address' : IDL.Text,
   'phone' : IDL.Text,
   'trialStartDate' : IDL.Int,
@@ -120,9 +122,16 @@ export const QueueScheduleEntry = IDL.Record({
   'queueNumber' : IDL.Nat,
   'appointmentId' : IDL.Nat,
 });
+export const SalonPhoto = IDL.Record({
+  'id' : IDL.Nat,
+  'url' : IDL.Text,
+  'ownerPhone' : IDL.Text,
+  'salonId' : IDL.Nat,
+  'uploadedAt' : IDL.Int,
+});
 
 export const idlService = IDL.Service({
-  '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  '_initializeAccessControl' : IDL.Func([], [], []),
   'addSalonServiceByPhone' : IDL.Func(
       [IDL.Text, IDL.Nat, IDL.Text, IDL.Float64, IDL.Nat],
       [IDL.Nat],
@@ -288,6 +297,7 @@ export const idlService = IDL.Service({
       [],
     ),
   'clearServiceSession' : IDL.Func([IDL.Text], [], []),
+  'deleteSalonPhoto' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [IDL.Bool], []),
   'deleteSalonServiceByPhone' : IDL.Func([IDL.Text, IDL.Nat, IDL.Nat], [], []),
   'getAllActiveSalons' : IDL.Func([], [IDL.Vec(SalonWithId)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
@@ -345,6 +355,7 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'getSalonById' : IDL.Func([IDL.Nat], [IDL.Opt(SalonWithId)], ['query']),
+  'getSalonPhotos' : IDL.Func([IDL.Nat], [IDL.Vec(SalonPhoto)], ['query']),
   'getSalonServices' : IDL.Func([IDL.Nat], [IDL.Vec(ServiceWithId)], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'markNotificationSent' : IDL.Func([IDL.Text, IDL.Nat], [], []),
@@ -396,6 +407,12 @@ export const idlService = IDL.Service({
       [],
       [],
     ),
+  'updateSalonLocation' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Float64, IDL.Float64],
+      [IDL.Bool],
+      [],
+    ),
+  'uploadSalonPhoto' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
 });
 
 export const idlInitArgs = [];
@@ -422,6 +439,7 @@ export const idlFactory = ({ IDL }) => {
   });
   const SalonWithId = IDL.Record({
     'id' : IDL.Nat,
+    'latitude' : IDL.Opt(IDL.Float64),
     'trialDays' : IDL.Nat,
     'city' : IDL.Text,
     'name' : IDL.Text,
@@ -429,6 +447,7 @@ export const idlFactory = ({ IDL }) => {
     'pendingApproval' : IDL.Bool,
     'isActive' : IDL.Bool,
     'subscriptionActive' : IDL.Bool,
+    'longitude' : IDL.Opt(IDL.Float64),
     'address' : IDL.Text,
     'phone' : IDL.Text,
     'trialStartDate' : IDL.Int,
@@ -510,9 +529,16 @@ export const idlFactory = ({ IDL }) => {
     'queueNumber' : IDL.Nat,
     'appointmentId' : IDL.Nat,
   });
+  const SalonPhoto = IDL.Record({
+    'id' : IDL.Nat,
+    'url' : IDL.Text,
+    'ownerPhone' : IDL.Text,
+    'salonId' : IDL.Nat,
+    'uploadedAt' : IDL.Int,
+  });
   
   return IDL.Service({
-    '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    '_initializeAccessControl' : IDL.Func([], [], []),
     'addSalonServiceByPhone' : IDL.Func(
         [IDL.Text, IDL.Nat, IDL.Text, IDL.Float64, IDL.Nat],
         [IDL.Nat],
@@ -682,6 +708,11 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'clearServiceSession' : IDL.Func([IDL.Text], [], []),
+    'deleteSalonPhoto' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Nat],
+        [IDL.Bool],
+        [],
+      ),
     'deleteSalonServiceByPhone' : IDL.Func(
         [IDL.Text, IDL.Nat, IDL.Nat],
         [],
@@ -743,6 +774,7 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'getSalonById' : IDL.Func([IDL.Nat], [IDL.Opt(SalonWithId)], ['query']),
+    'getSalonPhotos' : IDL.Func([IDL.Nat], [IDL.Vec(SalonPhoto)], ['query']),
     'getSalonServices' : IDL.Func(
         [IDL.Nat],
         [IDL.Vec(ServiceWithId)],
@@ -796,6 +828,16 @@ export const idlFactory = ({ IDL }) => {
     'updateOwnerSalonByPhone' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [],
+        [],
+      ),
+    'updateSalonLocation' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Float64, IDL.Float64],
+        [IDL.Bool],
+        [],
+      ),
+    'uploadSalonPhoto' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Nat],
         [],
       ),
   });

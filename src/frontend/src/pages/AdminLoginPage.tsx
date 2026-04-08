@@ -53,7 +53,7 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
     async function checkPasswordSet() {
       if (!backend) return;
       try {
-        const isSet = await backend.adminPasswordIsSet();
+        const isSet = await (backend as any).adminPasswordIsSet();
         setIsFirstLogin(!isSet);
       } catch {
         setIsFirstLogin(false);
@@ -84,7 +84,7 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
         setLoading(false);
         return;
       }
-      const ok = await backend.adminSetPassword(email, hash);
+      const ok = await (backend as any).adminSetPassword(email, hash);
       if (ok) {
         sessionStorage.setItem(ADMIN_SESSION_KEY, "authenticated");
         localStorage.setItem("salon360_admin_hash", hash);
@@ -118,7 +118,7 @@ export default function AdminLoginPage({ onLoginSuccess }: Props) {
         setLoading(false);
         return;
       }
-      const ok = await backend.adminLogin(email, hash);
+      const ok = await (backend as any).adminLogin(email, hash);
       if (ok) {
         sessionStorage.setItem(ADMIN_SESSION_KEY, "authenticated");
         localStorage.setItem("salon360_admin_hash", hash);
