@@ -55,6 +55,7 @@ type SalonWithId =
  record {
    address: text;
    city: text;
+   closedDays: vec bool;
    id: nat;
    isActive: bool;
    latitude: opt float64;
@@ -239,6 +240,11 @@ service : {
   getSalonAppointmentsForDateByPhone: (ownerPhone: text, salonId: nat, date:
    text) -> (vec AppointmentWithId) query;
   getSalonById: (id: nat) -> (opt SalonWithId) query;
+  getSalonClosedDays: (salonId: nat) ->
+   (variant {
+      err: text;
+      ok: vec bool;
+    }) query;
   getSalonPhotos: (salonId: nat) -> (vec SalonPhoto) query;
   getSalonServices: (salonId: nat) -> (vec ServiceWithId) query;
   isCallerAdmin: () -> (bool) query;
@@ -253,6 +259,11 @@ service : {
   saveCustomerProfileByPhone: (phone: text, name: text) -> ();
   savePushSubscription: (customerPhone: text, endpoint: text, p256dh: 
    text, auth: text) -> ();
+  setSalonClosedDays: (ownerPhone: text, passwordHash: text, closedDays:
+   vec bool) -> (variant {
+                   err: text;
+                   ok;
+                 });
   startServiceSession: (ownerPhone: text, appointmentId: nat,
    durationMinutes: nat) -> ();
   submitSubscriptionRequest: (ownerPhone: text, salonName: text, planName:

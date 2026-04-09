@@ -1244,6 +1244,54 @@ export function useDeleteSalonPhoto(ownerPhone: string) {
 }
 
 // ============================================================
+// Salon Closed Days hooks
+// ============================================================
+
+/**
+ * Fetch closed days for a salon.
+ * Returns a boolean[7] where index 0=Sunday, 1=Monday, ... 6=Saturday.
+ * Falls back to all-false array if backend doesn't support the call yet.
+ */
+export function useGetSalonClosedDays(salonId: bigint | null | undefined) {
+  const { actor, isFetching } = useActor();
+  return useQuery<boolean[]>({
+    queryKey: ["salonClosedDays", salonId?.toString()],
+    queryFn: async () => {
+      if (!actor || !salonId) return Array(7).fill(false);
+      try {
+        const result = await (actor as any).getSalonClosedDays(salonId);
+        if (Array.isArray(result) && result.length === 7)
+          return result as boolean[];
+        return Array(7).fill(false);
+      } catch {
+        return Array(7).fill(false);
+      }
+    },
+    enabled: !!actor && !isFetching && !!salonId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useSetSalonClosedDays(ownerPhone: string) {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      passwordHash,
+      closedDays,
+    }: { passwordHash: string; closedDays: boolean[] }) => {
+      if (!actor) throw new Error("Backend se connection nahi। पेज reload करें।");
+      return (actor as any).setSalonClosedDays(
+        ownerPhone,
+        passwordHash,
+        closedDays,
+      ) as Promise<boolean>;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["salonClosedDays"] }),
+  });
+}
+
+// ============================================================
 // Salon Location hook — for nearby filter
 // ============================================================
 

@@ -77,6 +77,7 @@ actor {
     trialDays : Nat;
     latitude : ?Float;
     longitude : ?Float;
+    closedDays : [Bool]; // 7 booleans: index 0=Sunday, 1=Monday, ..., 6=Saturday
   };
 
   // V3 migration: old profile without location fields
@@ -90,6 +91,19 @@ actor {
     trialDays : Nat;
   };
 
+  // V3 with location fields but without closedDays — matches previously-deployed salonProfilesV3 map type
+  type SalonProfileV3WithLoc = {
+    name : Text; address : Text; phone : Text; city : Text;
+    ownerPhone : Text;
+    isActive : Bool;
+    pendingApproval : Bool;
+    trialStartDate : Int;
+    subscriptionActive : Bool;
+    trialDays : Nat;
+    latitude : ?Float;
+    longitude : ?Float;
+  };
+
   public type SalonWithId = {
     id : Nat; name : Text; address : Text; phone : Text; city : Text;
     ownerPhone : Text;
@@ -100,6 +114,7 @@ actor {
     trialDays : Nat;
     latitude : ?Float;
     longitude : ?Float;
+    closedDays : [Bool];
   };
 
   public type SalonService  = { salonId : Nat; name : Text; price : Float; durationMinutes : Nat };
@@ -243,6 +258,7 @@ actor {
   var stableSubHistory : [(Nat, SubscriptionHistory)] = [];
   var stableNextPhotoId : Nat = 1;
   var stablePhotos : [(Nat, SalonPhoto)] = [];
+  var stableSalonClosedDays : [(Nat, [Bool])] = [];
 
   // State vars — auto-restored from stable memory on upgrade
   var adminPasswordHash : ?Text = stableAdminPasswordHash;
@@ -257,7 +273,8 @@ actor {
   let MAX_SHOPS          : Nat = 100;
 
   // V3 maps (phone-keyed) — filled from stable in postupgrade
-  let salonProfilesV3    = Map.empty<Nat, SalonProfile>();
+  let salonProfilesV3    = Map.empty<Nat, SalonProfileV3WithLoc>();
+  let salonClosedDaysMapV3 = Map.empty<Nat, [Bool]>();
   let salonServicesList  = Map.empty<Nat, SalonService>();
   let salonAppointmentsV3 = Map.empty<Nat, Appointment>();
   let custProfilesByPhone = Map.empty<Text, CustomerProfile>();
@@ -307,17 +324,51 @@ actor {
     (s.subscriptionActive or not isTrialExpired(s));
   };
 
+  // Merge base profile + closedDays into full SalonProfile
+  func toFullProfile(base : SalonProfileV3WithLoc, salonId : Nat) : SalonProfile {
+    let days = switch (salonClosedDaysMapV3.get(salonId)) {
+      case (?d) { d };
+      case (null) { [false, false, false, false, false, false, false] };
+    };
+    { name = base.name; address = base.address; phone = base.phone; city = base.city;
+      ownerPhone = base.ownerPhone; isActive = base.isActive;
+      pendingApproval = base.pendingApproval; trialStartDate = base.trialStartDate;
+      subscriptionActive = base.subscriptionActive; trialDays = base.trialDays;
+      latitude = base.latitude; longitude = base.longitude;
+      closedDays = days };
+  };
+
+  func getSalonFull(salonId : Nat) : ?SalonProfile {
+    switch (salonProfilesV3.get(salonId)) {
+      case (null) { null };
+      case (?base) { ?toFullProfile(base, salonId) };
+    };
+  };
+
+  func putSalonFull(salonId : Nat, s : SalonProfile) {
+    salonProfilesV3.add(salonId, {
+      name = s.name; address = s.address; phone = s.phone; city = s.city;
+      ownerPhone = s.ownerPhone; isActive = s.isActive;
+      pendingApproval = s.pendingApproval; trialStartDate = s.trialStartDate;
+      subscriptionActive = s.subscriptionActive; trialDays = s.trialDays;
+      latitude = s.latitude; longitude = s.longitude;
+    });
+    salonClosedDaysMapV3.add(salonId, s.closedDays);
+  };
+
   func makeSalonWithId(id : Nat, s : SalonProfile) : SalonWithId {
     { id; name = s.name; address = s.address; phone = s.phone;
       city = s.city; ownerPhone = s.ownerPhone; isActive = s.isActive;
       pendingApproval = s.pendingApproval; trialStartDate = s.trialStartDate;
       subscriptionActive = s.subscriptionActive; trialDays = s.trialDays;
-      latitude = s.latitude; longitude = s.longitude };
+      latitude = s.latitude; longitude = s.longitude;
+      closedDays = s.closedDays };
   };
 
   func countApprovedSalons() : Nat {
     var count : Nat = 0;
-    for ((_, s) in salonProfilesV3.entries().toArray().vals()) {
+    for ((id, base) in salonProfilesV3.entries().toArray().vals()) {
+      let s = toFullProfile(base, id);
       if (not s.pendingApproval) { count += 1 };
     };
     count;
@@ -395,7 +446,8 @@ actor {
     requireAdminAuth(email, passwordHash);
     var total : Nat = 0; var active : Nat = 0;
     var expired : Nat = 0; var pending : Nat = 0;
-    for ((_, s) in salonProfilesV3.entries().toArray().vals()) {
+    for ((id, base) in salonProfilesV3.entries().toArray().vals()) {
+      let s = toFullProfile(base, id);
       if (s.pendingApproval) { pending += 1 }
       else {
         total += 1;
@@ -408,7 +460,8 @@ actor {
   public query func adminGetAllSalons(email : Text, passwordHash : Text) : async [SalonWithId] {
     requireAdminAuth(email, passwordHash);
     salonProfilesV3.entries().toArray()
-      .filterMap(func((id, s)) {
+      .filterMap(func((id, base)) {
+        let s = toFullProfile(base, id);
         if (not s.pendingApproval) { ?makeSalonWithId(id, s) } else { null }
       });
   };
@@ -416,7 +469,8 @@ actor {
   public query func adminGetPendingSalons(email : Text, passwordHash : Text) : async [SalonWithId] {
     requireAdminAuth(email, passwordHash);
     salonProfilesV3.entries().toArray()
-      .filterMap(func((id, s)) {
+      .filterMap(func((id, base)) {
+        let s = toFullProfile(base, id);
         if (s.pendingApproval) { ?makeSalonWithId(id, s) } else { null }
       });
   };
@@ -512,7 +566,8 @@ actor {
     requireAdminAuth(email, passwordHash);
     var count : Nat = 0;
     for ((id, s) in salonProfilesV3.entries().toArray().vals()) {
-      if (s.isActive and not s.pendingApproval and not s.subscriptionActive and isTrialExpired(s)) {
+      let full = toFullProfile(s, id);
+      if (s.isActive and not s.pendingApproval and not s.subscriptionActive and isTrialExpired(full)) {
         salonProfilesV3.add(id, {
           name = s.name; address = s.address; phone = s.phone; city = s.city;
           ownerPhone = s.ownerPhone; isActive = false;
@@ -555,7 +610,6 @@ actor {
         case (?salon) { ?(salonId, salon.name, revenue) };
       };
     });
-
     { totalRevenue; monthlyRevenue; perSalon = perSalonArray };
   };
 
@@ -564,8 +618,8 @@ actor {
   // ================================================================
   public query func adminGetAllSalonsForBackup(email : Text, passwordHash : Text) : async [SalonWithId] {
     requireAdminAuth(email, passwordHash);
-    salonProfilesV3.entries().toArray().map(func((id, s)) {
-      makeSalonWithId(id, s)
+    salonProfilesV3.entries().toArray().map(func((id, base)) {
+      makeSalonWithId(id, toFullProfile(base, id))
     });
   };
 
@@ -637,6 +691,7 @@ actor {
         subscriptionActive = s.subscriptionActive; trialDays = s.trialDays;
         latitude = s.latitude; longitude = s.longitude;
       });
+      salonClosedDaysMapV3.add(s.id, s.closedDays);
     };
     for (svc in svcs.vals()) {
       salonServicesList.add(svc.id, {
@@ -717,12 +772,13 @@ actor {
             switch (salonProfilesV3.get(salonId)) {
               case (null) { return ("not_found", null) };
               case (?salon) {
+                let full = toFullProfile(salon, salonId);
                 if (salon.pendingApproval) {
-                  return ("pending", ?makeSalonWithId(salonId, salon));
+                  return ("pending", ?makeSalonWithId(salonId, full));
                 } else if (not salon.isActive) {
-                  return ("inactive", ?makeSalonWithId(salonId, salon));
+                  return ("inactive", ?makeSalonWithId(salonId, full));
                 } else {
-                  return ("approved", ?makeSalonWithId(salonId, salon));
+                  return ("approved", ?makeSalonWithId(salonId, full));
                 };
               };
             };
@@ -834,7 +890,7 @@ actor {
       case (?salonId) {
         switch (salonProfilesV3.get(salonId)) {
           case (null) { null };
-          case (?s) { ?makeSalonWithId(salonId, s) };
+          case (?base) { ?makeSalonWithId(salonId, toFullProfile(base, salonId)) };
         };
       };
     };
@@ -931,7 +987,8 @@ actor {
   // PUBLIC READ APIs
   // ================================================================
   public query func getAllActiveSalons() : async [SalonWithId] {
-    salonProfilesV3.entries().toArray().filterMap(func((id, s)) {
+    salonProfilesV3.entries().toArray().filterMap(func((id, base)) {
+      let s = toFullProfile(base, id);
       if (isSalonEffectivelyActive(s)) { ?makeSalonWithId(id, s) } else { null }
     });
   };
@@ -939,7 +996,7 @@ actor {
   public query func getSalonById(id : Nat) : async ?SalonWithId {
     switch (salonProfilesV3.get(id)) {
       case (null) { null };
-      case (?s) { ?makeSalonWithId(id, s) };
+      case (?base) { ?makeSalonWithId(id, toFullProfile(base, id)) };
     };
   };
 
@@ -955,6 +1012,33 @@ actor {
   // CUSTOMER APIs (phone-based)
   // ================================================================
   public func bookAppointmentByPhone(customerPhone : Text, salonId : Nat, customerName : Text, serviceName : Text, date : Text) : async Nat {
+    // Validate salon exists and check closed days
+    switch (getSalonFull(salonId)) {
+      case (null) { Runtime.trap("Salon not found") };
+      case (?salon) {
+        // Parse date (YYYY-MM-DD) to get day of week
+        // index 0=Sunday, 1=Monday, ..., 6=Saturday
+        let parts = date.split(#char '-');
+        let partsArr = parts.toArray();
+        if (partsArr.size() == 3) {
+          switch (Nat.fromText(partsArr[0]), Nat.fromText(partsArr[1]), Nat.fromText(partsArr[2])) {
+            case (?y, ?m, ?d) {
+              // Tomohiko Sakamoto's algorithm for day of week
+              let t : [Nat] = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
+              var year = y;
+              if (m < 3) { year -= 1 };
+              let dow = (year + year / 4 - year / 100 + year / 400 + t[m - 1] + d) % 7;
+              // dow: 0=Sunday, 1=Monday, ..., 6=Saturday
+              if (dow < salon.closedDays.size() and salon.closedDays[dow]) {
+                Runtime.trap("Yeh salon is din band rehta hai");
+              };
+            };
+            case (_) {};
+          };
+        };
+      };
+    };
+
     var servicePrice : Float = 0.0;
     label findPrice for ((_, service) in salonServicesList.entries().toArray().vals()) {
       if (service.salonId == salonId and service.name == serviceName) {
@@ -1423,6 +1507,46 @@ actor {
   };
 
   // ================================================================
+  // SALON CLOSED DAYS
+  // ================================================================
+  public func setSalonClosedDays(ownerPhone : Text, passwordHash : Text, closedDays : [Bool]) : async { #ok; #err : Text } {
+    switch (ownerPasswordMap.get(ownerPhone)) {
+      case (null) { return #err("Owner not found") };
+      case (?stored) {
+        if (stored != passwordHash) { return #err("Invalid credentials") };
+      };
+    };
+    if (closedDays.size() != 7) {
+      return #err("closedDays must have exactly 7 elements (one per day of the week)");
+    };
+    switch (ownerPhoneSalonMap.get(ownerPhone)) {
+      case (null) { return #err("Salon not found") };
+      case (?salonId) {
+        switch (salonProfilesV3.get(salonId)) {
+          case (null) { return #err("Salon profile not found") };
+          case (?_) {
+            salonClosedDaysMapV3.add(salonId, closedDays);
+            #ok
+          };
+        };
+      };
+    };
+  };
+
+  public query func getSalonClosedDays(salonId : Nat) : async { #ok : [Bool]; #err : Text } {
+    switch (salonProfilesV3.get(salonId)) {
+      case (null) { #err("Salon not found") };
+      case (?_) {
+        let days = switch (salonClosedDaysMapV3.get(salonId)) {
+          case (?d) { d };
+          case (null) { [false, false, false, false, false, false, false] };
+        };
+        #ok(days)
+      };
+    };
+  };
+
+  // ================================================================
   // UPGRADE HOOKS — preserve all data across builds
   // ================================================================
   system func preupgrade() {
@@ -1440,6 +1564,7 @@ actor {
         subscriptionActive = v.subscriptionActive; trialDays = v.trialDays;
       })
     });
+    stableSalonClosedDays := salonClosedDaysMapV3.entries().toArray();
     stableSalonsOld := [];
     stableServices := salonServicesList.entries().toArray();
     stableAppointments := salonAppointmentsV3.entries().toArray();
@@ -1491,6 +1616,10 @@ actor {
     for ((k, v) in stablePlanPricings.vals()) { planPricingsMap.add(k, v) };
     for ((k, v) in stableSubHistory.vals()) { subHistoryMap.add(k, v) };
     for ((k, v) in stablePhotos.vals()) { salonPhotosMap.add(k, v) };
+    // Restore closedDays for salons that had them saved
+    for ((k, days) in stableSalonClosedDays.vals()) {
+      salonClosedDaysMapV3.add(k, days);
+    };
     nextSubRequestId := stableNextSubRequestId;
     nextSubHistoryId := stableNextSubHistoryId;
     stableSalons := [];
@@ -1507,5 +1636,6 @@ actor {
     stablePlanPricings := [];
     stableSubHistory := [];
     stablePhotos := [];
+    stableSalonClosedDays := [];
   };
 };

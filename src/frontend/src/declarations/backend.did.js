@@ -44,6 +44,7 @@ export const SalonWithId = IDL.Record({
   'address' : IDL.Text,
   'phone' : IDL.Text,
   'trialStartDate' : IDL.Int,
+  'closedDays' : IDL.Vec(IDL.Bool),
 });
 export const ServiceWithId = IDL.Record({
   'id' : IDL.Nat,
@@ -355,6 +356,11 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'getSalonById' : IDL.Func([IDL.Nat], [IDL.Opt(SalonWithId)], ['query']),
+  'getSalonClosedDays' : IDL.Func(
+      [IDL.Nat],
+      [IDL.Variant({ 'ok' : IDL.Vec(IDL.Bool), 'err' : IDL.Text })],
+      ['query'],
+    ),
   'getSalonPhotos' : IDL.Func([IDL.Nat], [IDL.Vec(SalonPhoto)], ['query']),
   'getSalonServices' : IDL.Func([IDL.Nat], [IDL.Vec(ServiceWithId)], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
@@ -379,6 +385,11 @@ export const idlService = IDL.Service({
   'savePushSubscription' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [],
+      [],
+    ),
+  'setSalonClosedDays' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Vec(IDL.Bool)],
+      [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
       [],
     ),
   'startServiceSession' : IDL.Func([IDL.Text, IDL.Nat, IDL.Nat], [], []),
@@ -451,6 +462,7 @@ export const idlFactory = ({ IDL }) => {
     'address' : IDL.Text,
     'phone' : IDL.Text,
     'trialStartDate' : IDL.Int,
+    'closedDays' : IDL.Vec(IDL.Bool),
   });
   const ServiceWithId = IDL.Record({
     'id' : IDL.Nat,
@@ -774,6 +786,11 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'getSalonById' : IDL.Func([IDL.Nat], [IDL.Opt(SalonWithId)], ['query']),
+    'getSalonClosedDays' : IDL.Func(
+        [IDL.Nat],
+        [IDL.Variant({ 'ok' : IDL.Vec(IDL.Bool), 'err' : IDL.Text })],
+        ['query'],
+      ),
     'getSalonPhotos' : IDL.Func([IDL.Nat], [IDL.Vec(SalonPhoto)], ['query']),
     'getSalonServices' : IDL.Func(
         [IDL.Nat],
@@ -802,6 +819,11 @@ export const idlFactory = ({ IDL }) => {
     'savePushSubscription' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [],
+        [],
+      ),
+    'setSalonClosedDays' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Vec(IDL.Bool)],
+        [IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text })],
         [],
       ),
     'startServiceSession' : IDL.Func([IDL.Text, IDL.Nat, IDL.Nat], [], []),

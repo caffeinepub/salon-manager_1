@@ -79,6 +79,7 @@ export interface SalonWithId {
   'address' : string,
   'phone' : string,
   'trialStartDate' : bigint,
+  'closedDays' : Array<boolean>,
 }
 export interface ServiceSession {
   'startTime' : bigint,
@@ -261,6 +262,11 @@ export interface _SERVICE {
     Array<AppointmentWithId>
   >,
   'getSalonById' : ActorMethod<[bigint], [] | [SalonWithId]>,
+  'getSalonClosedDays' : ActorMethod<
+    [bigint],
+    { 'ok' : Array<boolean> } |
+      { 'err' : string }
+  >,
   'getSalonPhotos' : ActorMethod<[bigint], Array<SalonPhoto>>,
   'getSalonServices' : ActorMethod<[bigint], Array<ServiceWithId>>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
@@ -282,6 +288,11 @@ export interface _SERVICE {
   'savePushSubscription' : ActorMethod<
     [string, string, string, string],
     undefined
+  >,
+  'setSalonClosedDays' : ActorMethod<
+    [string, string, Array<boolean>],
+    { 'ok' : null } |
+      { 'err' : string }
   >,
   'startServiceSession' : ActorMethod<[string, bigint, bigint], undefined>,
   'submitSubscriptionRequest' : ActorMethod<

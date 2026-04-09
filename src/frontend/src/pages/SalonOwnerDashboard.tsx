@@ -46,8 +46,10 @@ import {
   useGetMySubHistory,
   useGetOwnerRevenueSummary,
   useGetSalonAppointmentsForDate,
+  useGetSalonClosedDays,
   useGetSalonPhotos,
   useGetSalonServices,
+  useSetSalonClosedDays,
   useStartServiceSession,
   useUpdateAppointmentStatus,
   useUpdateMySalon,
@@ -837,9 +839,35 @@ function QueueTab({
   const { mutate: startSession } = useStartServiceSession(phone);
   const { mutate: clearSession } = useClearServiceSession(phone);
 
+  const [activeQueueTab, setActiveQueueTab] = useState<
+    "pending" | "confirm" | "done"
+  >("pending");
+
   const sorted = [...appointments].sort(
     (a, b) => Number(a.queueNumber) - Number(b.queueNumber),
   );
+
+  const pendingAppts = sorted.filter((a) => a.status === "pending");
+  const confirmAppts = sorted.filter(
+    (a) => a.status === "confirmed" || a.status === "inprogress",
+  );
+  const doneAppts = sorted.filter((a) => a.status === "completed");
+
+  const tabStyle = (active: boolean): React.CSSProperties => ({
+    flex: 1,
+    padding: "6px 4px",
+    fontSize: "0.75rem",
+    fontWeight: active ? 700 : 400,
+    borderRadius: "8px",
+    background: active
+      ? "linear-gradient(135deg, oklch(0.88 0.12 82) 0%, oklch(0.68 0.13 74) 100%)"
+      : "transparent",
+    color: active ? "oklch(0.09 0.005 60)" : "oklch(0.65 0.07 80)",
+    border: "none",
+    cursor: "pointer",
+    transition: "all 0.2s",
+    textAlign: "center" as const,
+  });
 
   if (isLoading) {
     return (
@@ -848,6 +876,121 @@ function QueueTab({
       </div>
     );
   }
+
+  const renderApptCard = (appt: (typeof sorted)[0], idx: number) => (
+    <div
+      key={appt.id.toString()}
+      className="rounded-xl p-4"
+      data-ocid={`queue.item.${idx + 1}`}
+      style={{
+        background: "oklch(0.17 0.012 60)",
+        border: "1px solid oklch(0.28 0.04 75 / 0.6)",
+      }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm"
+            style={{
+              background: "oklch(0.78 0.12 80 / 0.12)",
+              color: "oklch(0.78 0.12 80)",
+            }}
+          >
+            #{String(appt.queueNumber)}
+          </div>
+          <div>
+            <p
+              className="font-semibold text-sm"
+              style={{ color: "oklch(0.97 0.015 80)" }}
+            >
+              {appt.customerName}
+            </p>
+            <p className="text-xs" style={{ color: "oklch(0.55 0.04 80)" }}>
+              {appt.serviceName} • {appt.customerPhone}
+            </p>
+          </div>
+        </div>
+        <span
+          className="text-xs px-2 py-0.5 rounded-full border font-medium"
+          style={getStatusStyle(appt.status)}
+        >
+          {STATUS_LABELS[appt.status] || appt.status}
+        </span>
+      </div>
+      {STATUS_NEXT[appt.status] && (
+        <div className="mt-3 flex gap-2">
+          <Button
+            size="sm"
+            className="flex-1 text-xs"
+            disabled={isPending}
+            data-ocid="queue.primary_button"
+            onClick={() => {
+              const nextStatus = STATUS_NEXT[appt.status];
+              updateStatus(
+                {
+                  appointmentId: appt.id,
+                  newStatus: nextStatus,
+                  salonId,
+                  date: today,
+                },
+                {
+                  onSuccess: () => {
+                    toast.success("स्टेटस बदल गया");
+                    if (nextStatus === "inprogress") {
+                      startSession(
+                        { appointmentId: appt.id, durationMinutes: 30 },
+                        { onError: () => {} },
+                      );
+                    } else if (nextStatus === "completed") {
+                      clearSession(undefined, { onError: () => {} });
+                    }
+                  },
+                  onError: () => toast.error("कुछ गलत हुआ"),
+                },
+              );
+            }}
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.88 0.12 82) 0%, oklch(0.68 0.13 74) 100%)",
+              color: "oklch(0.09 0.005 60)",
+              border: "none",
+            }}
+          >
+            {STATUS_NEXT_LABEL[appt.status]}
+          </Button>
+          {appt.status !== "cancelled" && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs"
+              disabled={isPending}
+              data-ocid="queue.delete_button"
+              onClick={() =>
+                updateStatus(
+                  {
+                    appointmentId: appt.id,
+                    newStatus: "cancelled",
+                    salonId,
+                    date: today,
+                  },
+                  {
+                    onSuccess: () => toast.success("रद्द कर दिया"),
+                    onError: () => toast.error("कुछ गलत हुआ"),
+                  },
+                )
+              }
+              style={{
+                borderColor: "oklch(0.577 0.245 27.325)",
+                color: "oklch(0.577 0.245 27.325)",
+              }}
+            >
+              रद्द करें
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-3">
@@ -866,132 +1009,147 @@ function QueueTab({
         </Button>
       </div>
 
-      {sorted.length === 0 ? (
-        <div className="text-center py-12" data-ocid="queue.empty_state">
-          <Clock
-            className="w-10 h-10 mx-auto mb-3"
-            style={{ color: "oklch(0.4 0.03 70)" }}
-          />
-          <p style={{ color: "oklch(0.55 0.04 80)" }}>आज कोई अपॉइंटमेंट नहीं</p>
-        </div>
-      ) : (
-        sorted.map((appt, idx) => (
-          <div
-            key={appt.id.toString()}
-            className="rounded-xl p-4"
-            data-ocid={`queue.item.${idx + 1}`}
-            style={{
-              background: "oklch(0.17 0.012 60)",
-              border: "1px solid oklch(0.28 0.04 75 / 0.6)",
-            }}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm"
-                  style={{
-                    background: "oklch(0.78 0.12 80 / 0.12)",
-                    color: "oklch(0.78 0.12 80)",
-                  }}
-                >
-                  #{String(appt.queueNumber)}
-                </div>
-                <div>
-                  <p
-                    className="font-semibold text-sm"
-                    style={{ color: "oklch(0.97 0.015 80)" }}
-                  >
-                    {appt.customerName}
-                  </p>
-                  <p
-                    className="text-xs"
-                    style={{ color: "oklch(0.55 0.04 80)" }}
-                  >
-                    {appt.serviceName} • {appt.customerPhone}
-                  </p>
-                </div>
-              </div>
-              <span
-                className="text-xs px-2 py-0.5 rounded-full border font-medium"
-                style={getStatusStyle(appt.status)}
-              >
-                {STATUS_LABELS[appt.status] || appt.status}
-              </span>
+      {/* 3 sub-tabs */}
+      <div
+        className="flex rounded-xl p-1 gap-1"
+        style={{
+          background: "oklch(0.17 0.012 60)",
+          border: "1px solid oklch(0.28 0.04 75 / 0.6)",
+        }}
+      >
+        <button
+          type="button"
+          style={tabStyle(activeQueueTab === "pending")}
+          onClick={() => setActiveQueueTab("pending")}
+          data-ocid="queue.tab.pending"
+        >
+          ⏳ Pending
+          {pendingAppts.length > 0 && (
+            <span
+              className="ml-1 inline-flex items-center justify-center rounded-full w-4 h-4 text-[10px] font-bold"
+              style={{
+                background:
+                  activeQueueTab === "pending"
+                    ? "oklch(0.09 0.005 60 / 0.4)"
+                    : "oklch(0.78 0.12 80)",
+                color:
+                  activeQueueTab === "pending"
+                    ? "oklch(0.09 0.005 60)"
+                    : "oklch(0.09 0.005 60)",
+              }}
+            >
+              {pendingAppts.length}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          style={tabStyle(activeQueueTab === "confirm")}
+          onClick={() => setActiveQueueTab("confirm")}
+          data-ocid="queue.tab.confirm"
+        >
+          ✅ चल रहा
+          {confirmAppts.length > 0 && (
+            <span
+              className="ml-1 inline-flex items-center justify-center rounded-full w-4 h-4 text-[10px] font-bold"
+              style={{
+                background:
+                  activeQueueTab === "confirm"
+                    ? "oklch(0.09 0.005 60 / 0.4)"
+                    : "oklch(0.78 0.12 80)",
+                color: "oklch(0.09 0.005 60)",
+              }}
+            >
+              {confirmAppts.length}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          style={tabStyle(activeQueueTab === "done")}
+          onClick={() => setActiveQueueTab("done")}
+          data-ocid="queue.tab.done"
+        >
+          🎉 पूरा
+          {doneAppts.length > 0 && (
+            <span
+              className="ml-1 inline-flex items-center justify-center rounded-full w-4 h-4 text-[10px] font-bold"
+              style={{
+                background:
+                  activeQueueTab === "done"
+                    ? "oklch(0.09 0.005 60 / 0.4)"
+                    : "oklch(0.78 0.12 80)",
+                color: "oklch(0.09 0.005 60)",
+              }}
+            >
+              {doneAppts.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Tab content */}
+      {activeQueueTab === "pending" && (
+        <div className="space-y-3">
+          {pendingAppts.length === 0 ? (
+            <div
+              className="text-center py-10"
+              data-ocid="queue.pending_empty_state"
+            >
+              <Clock
+                className="w-8 h-8 mx-auto mb-2"
+                style={{ color: "oklch(0.4 0.03 70)" }}
+              />
+              <p className="text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
+                कोई Pending अपॉइंटमेंट नहीं
+              </p>
             </div>
-            {STATUS_NEXT[appt.status] && (
-              <div className="mt-3 flex gap-2">
-                <Button
-                  size="sm"
-                  className="flex-1 text-xs"
-                  disabled={isPending}
-                  data-ocid="queue.primary_button"
-                  onClick={() => {
-                    const nextStatus = STATUS_NEXT[appt.status];
-                    updateStatus(
-                      {
-                        appointmentId: appt.id,
-                        newStatus: nextStatus,
-                        salonId,
-                        date: today,
-                      },
-                      {
-                        onSuccess: () => {
-                          toast.success("स्टेटस बदल गया");
-                          if (nextStatus === "inprogress") {
-                            startSession(
-                              { appointmentId: appt.id, durationMinutes: 30 },
-                              { onError: () => {} },
-                            );
-                          } else if (nextStatus === "completed") {
-                            clearSession(undefined, { onError: () => {} });
-                          }
-                        },
-                        onError: () => toast.error("कुछ गलत हुआ"),
-                      },
-                    );
-                  }}
-                  style={{
-                    background:
-                      "linear-gradient(135deg, oklch(0.88 0.12 82) 0%, oklch(0.68 0.13 74) 100%)",
-                    color: "oklch(0.09 0.005 60)",
-                    border: "none",
-                  }}
-                >
-                  {STATUS_NEXT_LABEL[appt.status]}
-                </Button>
-                {appt.status !== "cancelled" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-xs"
-                    disabled={isPending}
-                    data-ocid="queue.delete_button"
-                    onClick={() =>
-                      updateStatus(
-                        {
-                          appointmentId: appt.id,
-                          newStatus: "cancelled",
-                          salonId,
-                          date: today,
-                        },
-                        {
-                          onSuccess: () => toast.success("रद्द कर दिया"),
-                          onError: () => toast.error("कुछ गलत हुआ"),
-                        },
-                      )
-                    }
-                    style={{
-                      borderColor: "oklch(0.577 0.245 27.325)",
-                      color: "oklch(0.577 0.245 27.325)",
-                    }}
-                  >
-                    रद्द करें
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-        ))
+          ) : (
+            pendingAppts.map((appt, idx) => renderApptCard(appt, idx))
+          )}
+        </div>
+      )}
+
+      {activeQueueTab === "confirm" && (
+        <div className="space-y-3">
+          {confirmAppts.length === 0 ? (
+            <div
+              className="text-center py-10"
+              data-ocid="queue.confirm_empty_state"
+            >
+              <CheckCircle
+                className="w-8 h-8 mx-auto mb-2"
+                style={{ color: "oklch(0.4 0.03 70)" }}
+              />
+              <p className="text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
+                कोई Confirm अपॉइंटमेंट नहीं
+              </p>
+            </div>
+          ) : (
+            confirmAppts.map((appt, idx) => renderApptCard(appt, idx))
+          )}
+        </div>
+      )}
+
+      {activeQueueTab === "done" && (
+        <div className="space-y-3">
+          {doneAppts.length === 0 ? (
+            <div
+              className="text-center py-10"
+              data-ocid="queue.done_empty_state"
+            >
+              <CheckCircle
+                className="w-8 h-8 mx-auto mb-2"
+                style={{ color: "oklch(0.4 0.03 70)" }}
+              />
+              <p className="text-sm" style={{ color: "oklch(0.55 0.04 80)" }}>
+                अभी कोई पूरी हुई अपॉइंटमेंट नहीं
+              </p>
+            </div>
+          ) : (
+            doneAppts.map((appt, idx) => renderApptCard(appt, idx))
+          )}
+        </div>
       )}
     </div>
   );
@@ -1219,6 +1377,132 @@ function ServicesTab({ phone, salonId }: { phone: string; salonId: bigint }) {
             </Button>
           </div>
         ))
+      )}
+    </div>
+  );
+}
+
+const DAY_LABELS_HI = ["रवि", "सोम", "मंगल", "बुध", "गुरु", "शुक्र", "शनि"];
+
+function ClosedDaysCard({
+  phone,
+  salonId,
+}: { phone: string; salonId: bigint }) {
+  const { data: closedDays, isLoading } = useGetSalonClosedDays(salonId);
+  const { mutate: saveDays, isPending: saving } = useSetSalonClosedDays(phone);
+  const [local, setLocal] = useState<boolean[]>([]);
+  const [dirty, setDirty] = useState(false);
+
+  const passwordHash =
+    typeof window !== "undefined"
+      ? (localStorage.getItem(`salon360_owner_hash_${phone}`) ?? "")
+      : "";
+
+  // Sync local state when data arrives
+  useEffect(() => {
+    if (closedDays) {
+      setLocal([...closedDays]);
+      setDirty(false);
+    }
+  }, [closedDays]);
+
+  const toggleDay = (idx: number) => {
+    setLocal((prev) => {
+      const next = [...prev];
+      next[idx] = !next[idx];
+      return next;
+    });
+    setDirty(true);
+  };
+
+  const handleSave = () => {
+    saveDays(
+      { passwordHash, closedDays: local },
+      {
+        onSuccess: () => {
+          toast.success("बंद दिन सेव हो गए!");
+          setDirty(false);
+        },
+        onError: (err) =>
+          toast.error(`सेव नहीं हो सका: ${(err as Error).message}`),
+      },
+    );
+  };
+
+  if (isLoading) return null;
+
+  return (
+    <div
+      className="rounded-xl p-4"
+      style={{
+        background: "oklch(0.17 0.012 60)",
+        border: "1px solid oklch(0.28 0.04 75 / 0.6)",
+      }}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <h3
+            className="font-semibold text-sm"
+            style={{ color: "oklch(0.97 0.015 80)" }}
+          >
+            🚪 दुकान बंद के दिन
+          </h3>
+          <p
+            className="text-xs mt-0.5"
+            style={{ color: "oklch(0.55 0.04 80)" }}
+          >
+            जिस दिन toggle ON करें, उस दिन booking नहीं होगी
+          </p>
+        </div>
+      </div>
+
+      <div className="flex gap-1.5 flex-wrap mb-3">
+        {DAY_LABELS_HI.map((label, idx) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => toggleDay(idx)}
+            data-ocid={`closed_days.toggle.${label}`}
+            className="w-10 h-10 rounded-xl text-xs font-semibold transition-all"
+            style={{
+              background: local[idx]
+                ? "oklch(0.577 0.245 27 / 0.85)"
+                : "oklch(0.13 0.008 60)",
+              color: local[idx]
+                ? "oklch(0.97 0.015 80)"
+                : "oklch(0.65 0.07 80)",
+              border: local[idx]
+                ? "1px solid oklch(0.577 0.245 27.325)"
+                : "1px solid oklch(0.28 0.04 75 / 0.6)",
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {local.some(Boolean) && (
+        <p className="text-xs mb-3" style={{ color: "oklch(0.7 0.2 27)" }}>
+          बंद दिन: {DAY_LABELS_HI.filter((_, i) => local[i]).join(", ")}
+        </p>
+      )}
+
+      {dirty && (
+        <Button
+          size="sm"
+          onClick={handleSave}
+          disabled={saving}
+          data-ocid="closed_days.save_button"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.88 0.12 82) 0%, oklch(0.68 0.13 74) 100%)",
+            color: "oklch(0.09 0.005 60)",
+            border: "none",
+          }}
+        >
+          {saving ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+          सेव करें
+        </Button>
       )}
     </div>
   );
@@ -1551,6 +1835,9 @@ function InfoTab({
           💡 Location सेट करने पर customers "पास के सैलून" filter में आपकी दुकान देख सकेंगे
         </p>
       </div>
+
+      {/* Closed Days */}
+      <ClosedDaysCard phone={phone} salonId={salon.id} />
     </div>
   );
 }

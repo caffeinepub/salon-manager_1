@@ -94,6 +94,7 @@ export interface SalonWithId {
     address: string;
     phone: string;
     trialStartDate: bigint;
+    closedDays: Array<boolean>;
 }
 export interface PlanPricing {
     originalPrice: number;
@@ -185,6 +186,13 @@ export interface backendInterface {
     getQueueScheduleForSalon(salonId: bigint, date: string): Promise<Array<QueueScheduleEntry>>;
     getSalonAppointmentsForDateByPhone(ownerPhone: string, salonId: bigint, date: string): Promise<Array<AppointmentWithId>>;
     getSalonById(id: bigint): Promise<SalonWithId | null>;
+    getSalonClosedDays(salonId: bigint): Promise<{
+        __kind__: "ok";
+        ok: Array<boolean>;
+    } | {
+        __kind__: "err";
+        err: string;
+    }>;
     getSalonPhotos(salonId: bigint): Promise<Array<SalonPhoto>>;
     getSalonServices(salonId: bigint): Promise<Array<ServiceWithId>>;
     isCallerAdmin(): Promise<boolean>;
@@ -195,6 +203,13 @@ export interface backendInterface {
     salonOwnerSetPassword(ownerPhone: string, passwordHash: string): Promise<boolean>;
     saveCustomerProfileByPhone(phone: string, name: string): Promise<void>;
     savePushSubscription(customerPhone: string, endpoint: string, p256dh: string, auth: string): Promise<void>;
+    setSalonClosedDays(ownerPhone: string, passwordHash: string, closedDays: Array<boolean>): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }>;
     startServiceSession(ownerPhone: string, appointmentId: bigint, durationMinutes: bigint): Promise<void>;
     submitSubscriptionRequest(ownerPhone: string, salonName: string, planName: string, planDays: bigint, originalPrice: number, discountPercent: number, finalPrice: number, savings: number, screenshotBase64: string): Promise<bigint>;
     updateAppointmentStatusByPhone(ownerPhone: string, appointmentId: bigint, newStatus: string): Promise<void>;

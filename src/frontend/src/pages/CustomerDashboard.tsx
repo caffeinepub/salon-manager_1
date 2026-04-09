@@ -26,6 +26,7 @@ import {
   Star,
   X,
 } from "lucide-react";
+import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ErrorBoundary } from "../components/ErrorBoundary";
@@ -40,6 +41,7 @@ import {
   useGetMyAppointments,
   useGetMyCustomerProfile,
   useGetQueueInfo,
+  useGetSalonClosedDays,
   useGetSalonPhotos,
   useGetSalonServices,
   useSaveCustomerProfile,
@@ -1089,18 +1091,63 @@ function BookingModal({
 }) {
   const { data: services = [], isLoading: servicesLoading } =
     useGetSalonServices(salon.id);
+  const { data: closedDays = Array(7).fill(false) } = useGetSalonClosedDays(
+    salon.id,
+  );
   const { mutate: book, isPending: booking } =
     useBookAppointment(customerPhone);
   const [selectedService, setSelectedService] = useState("");
   const [date, setDate] = useState(getTodayString());
+  const [closedDayMsg, setClosedDayMsg] = useState("");
   const [booked, setBooked] = useState<{
     appointmentId: bigint;
     queueNum: number;
   } | null>(null);
 
+  // Returns true if given date string falls on a closed day
+  const isClosedDay = (dateStr: string): boolean => {
+    if (!dateStr) return false;
+    const dayOfWeek = new Date(`${dateStr}T00:00:00`).getDay(); // 0=Sun..6=Sat
+    return closedDays[dayOfWeek] === true;
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setDate(val);
+    if (val && isClosedDay(val)) {
+      const dayIdx = new Date(`${val}T00:00:00`).getDay();
+      const dayNames = [
+        "रविवार",
+        "सोमवार",
+        "मंगलवार",
+        "बुधवार",
+        "गुरुवार",
+        "शुक्रवार",
+        "शनिवार",
+      ];
+      setClosedDayMsg(`यह सैलून ${dayNames[dayIdx]} को बंद रहता है`);
+    } else {
+      setClosedDayMsg("");
+    }
+  };
+
   const handleBook = () => {
     if (!date) {
       toast.error("तारीख चुनें");
+      return;
+    }
+    if (isClosedDay(date)) {
+      const dayIdx = new Date(`${date}T00:00:00`).getDay();
+      const dayNames = [
+        "रविवार",
+        "सोमवार",
+        "मंगलवार",
+        "बुधवार",
+        "गुरुवार",
+        "शुक्रवार",
+        "शनिवार",
+      ];
+      toast.error(`यह सैलून ${dayNames[dayIdx]} को बंद रहता है`);
       return;
     }
     if (!selectedService) {
@@ -1189,14 +1236,29 @@ function BookingModal({
                 type="date"
                 value={date}
                 min={getTodayString()}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={handleDateChange}
                 data-ocid="booking.input"
                 style={{
                   background: "oklch(0.17 0.012 60)",
-                  border: "1px solid oklch(0.32 0.06 78 / 0.5)",
+                  border: closedDayMsg
+                    ? "1px solid oklch(0.577 0.245 27.325)"
+                    : "1px solid oklch(0.32 0.06 78 / 0.5)",
                   color: "oklch(0.97 0.015 80)",
                 }}
               />
+              {closedDayMsg && (
+                <div
+                  className="mt-1.5 rounded-lg px-3 py-2 text-xs flex items-center gap-2"
+                  data-ocid="booking.closed_day_message"
+                  style={{
+                    background: "oklch(0.577 0.245 27 / 0.12)",
+                    border: "1px solid oklch(0.577 0.245 27 / 0.4)",
+                    color: "oklch(0.7 0.2 27)",
+                  }}
+                >
+                  🚪 {closedDayMsg}
+                </div>
+              )}
             </div>
             <div>
               <Label
@@ -1275,7 +1337,7 @@ function BookingModal({
               <Button
                 onClick={handleBook}
                 className="flex-1"
-                disabled={booking || !selectedService}
+                disabled={booking || !selectedService || !!closedDayMsg}
                 data-ocid="booking.primary_button"
                 style={{ background: "oklch(0.78 0.12 80)", color: "white" }}
               >

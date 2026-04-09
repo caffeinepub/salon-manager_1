@@ -176,6 +176,7 @@ export interface SalonWithId {
     address: string;
     phone: string;
     trialStartDate: bigint;
+    closedDays: Array<boolean>;
 }
 export interface PlanPricing {
     originalPrice: number;
@@ -268,6 +269,13 @@ export interface backendInterface {
     getQueueScheduleForSalon(salonId: bigint, date: string): Promise<Array<QueueScheduleEntry>>;
     getSalonAppointmentsForDateByPhone(ownerPhone: string, salonId: bigint, date: string): Promise<Array<AppointmentWithId>>;
     getSalonById(id: bigint): Promise<SalonWithId | null>;
+    getSalonClosedDays(salonId: bigint): Promise<{
+        __kind__: "ok";
+        ok: Array<boolean>;
+    } | {
+        __kind__: "err";
+        err: string;
+    }>;
     getSalonPhotos(salonId: bigint): Promise<Array<SalonPhoto>>;
     getSalonServices(salonId: bigint): Promise<Array<ServiceWithId>>;
     isCallerAdmin(): Promise<boolean>;
@@ -278,6 +286,13 @@ export interface backendInterface {
     salonOwnerSetPassword(ownerPhone: string, passwordHash: string): Promise<boolean>;
     saveCustomerProfileByPhone(phone: string, name: string): Promise<void>;
     savePushSubscription(customerPhone: string, endpoint: string, p256dh: string, auth: string): Promise<void>;
+    setSalonClosedDays(ownerPhone: string, passwordHash: string, closedDays: Array<boolean>): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }>;
     startServiceSession(ownerPhone: string, appointmentId: bigint, durationMinutes: bigint): Promise<void>;
     submitSubscriptionRequest(ownerPhone: string, salonName: string, planName: string, planDays: bigint, originalPrice: number, discountPercent: number, finalPrice: number, savings: number, screenshotBase64: string): Promise<bigint>;
     updateAppointmentStatusByPhone(ownerPhone: string, appointmentId: bigint, newStatus: string): Promise<void>;
@@ -1108,6 +1123,26 @@ export class Backend implements backendInterface {
             return from_candid_opt_n14(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getSalonClosedDays(arg0: bigint): Promise<{
+        __kind__: "ok";
+        ok: Array<boolean>;
+    } | {
+        __kind__: "err";
+        err: string;
+    }> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getSalonClosedDays(arg0);
+                return from_candid_variant_n16(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getSalonClosedDays(arg0);
+            return from_candid_variant_n16(this._uploadFile, this._downloadFile, result);
+        }
+    }
     async getSalonPhotos(arg0: bigint): Promise<Array<SalonPhoto>> {
         if (this.processError) {
             try {
@@ -1254,6 +1289,26 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async setSalonClosedDays(arg0: string, arg1: string, arg2: Array<boolean>): Promise<{
+        __kind__: "ok";
+        ok: null;
+    } | {
+        __kind__: "err";
+        err: string;
+    }> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.setSalonClosedDays(arg0, arg1, arg2);
+                return from_candid_variant_n17(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.setSalonClosedDays(arg0, arg1, arg2);
+            return from_candid_variant_n17(this._uploadFile, this._downloadFile, result);
+        }
+    }
     async startServiceSession(arg0: string, arg1: bigint, arg2: bigint): Promise<void> {
         if (this.processError) {
             try {
@@ -1374,6 +1429,7 @@ function from_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint
     address: string;
     phone: string;
     trialStartDate: bigint;
+    closedDays: Array<boolean>;
 }): {
     id: bigint;
     latitude?: number;
@@ -1388,6 +1444,7 @@ function from_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint
     address: string;
     phone: string;
     trialStartDate: bigint;
+    closedDays: Array<boolean>;
 } {
     return {
         id: value.id,
@@ -1402,7 +1459,8 @@ function from_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint
         longitude: record_opt_to_undefined(from_candid_opt_n4(_uploadFile, _downloadFile, value.longitude)),
         address: value.address,
         phone: value.phone,
-        trialStartDate: value.trialStartDate
+        trialStartDate: value.trialStartDate,
+        closedDays: value.closedDays
     };
 }
 function from_candid_variant_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
@@ -1413,6 +1471,44 @@ function from_candid_variant_n11(_uploadFile: (file: ExternalBlob) => Promise<Ui
     guest: null;
 }): UserRole {
     return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
+}
+function from_candid_variant_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    ok: Array<boolean>;
+} | {
+    err: string;
+}): {
+    __kind__: "ok";
+    ok: Array<boolean>;
+} | {
+    __kind__: "err";
+    err: string;
+} {
+    return "ok" in value ? {
+        __kind__: "ok",
+        ok: value.ok
+    } : "err" in value ? {
+        __kind__: "err",
+        err: value.err
+    } : value;
+}
+function from_candid_variant_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    ok: null;
+} | {
+    err: string;
+}): {
+    __kind__: "ok";
+    ok: null;
+} | {
+    __kind__: "err";
+    err: string;
+} {
+    return "ok" in value ? {
+        __kind__: "ok",
+        ok: value.ok
+    } : "err" in value ? {
+        __kind__: "err",
+        err: value.err
+    } : value;
 }
 function from_candid_vec_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_SalonWithId>): Array<SalonWithId> {
     return value.map((x)=>from_candid_SalonWithId_n2(_uploadFile, _downloadFile, x));
@@ -1437,6 +1533,7 @@ function to_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
     address: string;
     phone: string;
     trialStartDate: bigint;
+    closedDays: Array<boolean>;
 }): {
     id: bigint;
     latitude: [] | [number];
@@ -1451,6 +1548,7 @@ function to_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
     address: string;
     phone: string;
     trialStartDate: bigint;
+    closedDays: Array<boolean>;
 } {
     return {
         id: value.id,
@@ -1465,7 +1563,8 @@ function to_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
         longitude: value.longitude ? candid_some(value.longitude) : candid_none(),
         address: value.address,
         phone: value.phone,
-        trialStartDate: value.trialStartDate
+        trialStartDate: value.trialStartDate,
+        closedDays: value.closedDays
     };
 }
 function to_candid_variant_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): {
